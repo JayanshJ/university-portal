@@ -114,6 +114,20 @@ func withNewUIDs(_ ics: String) -> String {
         #expect(!entry.bodyHtml.contains("Read more"))
     }
 
+    @Test func shortNewsWithoutCollapseBlocksKeepsItsBody() throws {
+        let html = """
+            <table class="table"><tbody><tr><td class="align-top">
+            <a id="newsElement1"></a>
+            <h4 class="fs-5"><a href="/introalgdat2627/news/view/1">Extension of deadline</a></h4>
+            <p><small class="text-muted"><i>Written on <span data-bs-title="22.10.2026 16:26:27">22.10.26</span> by Sanyam Agarwal</i></small></p>
+            <p>Hi all,<br />we are extending the deadline until 24 Oct (18:00).<br /><br />Best,<br />Sanyam</p>
+            </td></tr></tbody></table>
+            """
+        let entry = try #require(try CMSPages.news(html).first)
+        #expect(entry.author == "Sanyam Agarwal")
+        #expect(HTMLText.plainText(entry.bodyHtml) == "Hi all,\nwe are extending the deadline until 24 Oct (18:00).\n\nBest,\nSanyam")
+    }
+
     @Test func germanBylineGivesTheAuthor() throws {
         let html = cmsFixture("prog1_26.main.html").replacingOccurrences(
             of: "Written on <span", with: "Geschrieben am <span"

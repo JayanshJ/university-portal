@@ -1,7 +1,7 @@
 import SwiftUI
 import UniversityKit
 
-/// Open deadlines grouped by week, a course filter, and a collapsed "Done" group.
+/// Open deadlines in four groups (Overdue, This week, Next week, Later), a course filter, and Done.
 struct DeadlinesView: View {
     @Environment(AppModel.self) private var model
     @State private var courseFilter: Int64?
@@ -13,68 +13,130 @@ struct DeadlinesView: View {
 
     private var groups: [(title: String, items: [PortalOverview.ItemRow])] {
         let calendar = Calendar.current
-        let thisWeek = calendar.dateInterval(of: .weekOfYear, for: .now)!.start
-        var order: [String] = []
-        var byTitle: [String: [PortalOverview.ItemRow]] = [:]
+        let thisWeek = calendar.dateInterval(of: .weekOfYear, for: .now)!
+        let nextWeekEnd = calendar.date(byAdding: .weekOfYear, value: 1, to: thisWeek.end)!
+        var buckets: [String: [PortalOverview.ItemRow]] = [:]
         for item in filtered(model.overview.openDeadlines) {
             let due = item.date ?? .distantFuture
-            let title: String
-            if due < .now {
-                title = "Overdue"
-            } else {
-                let week = calendar.dateInterval(of: .weekOfYear, for: due)!.start
-                let offset = calendar.dateComponents([.weekOfYear], from: thisWeek, to: week).weekOfYear ?? 0
-                title = switch offset {
-                case 0: "This week"
-                case 1: "Next week"
-                default: "Week of " + week.formatted(.dateTime.day().month(.wide))
-                }
-            }
-            if byTitle[title] == nil { order.append(title) }
-            byTitle[title, default: []].append(item)
+            let key = due < .now ? "Overdue" : due < thisWeek.end ? "This week" : due < nextWeekEnd ? "Next week" : "Later"
+            buckets[key, default: []].append(item)
         }
-        return order.map { ($0, byTitle[$0]!) }
+        return ["Overdue", "This week", "Next week", "Later"].compactMap { key in buckets[key].map { (key, $0) } }
     }
 
-    private var courses: [(id: Int64, name: String)] {
+    private var courseIds: [Int64] {
         var seen = Set<Int64>()
-        return (model.overview.openDeadlines + model.overview.doneDeadlines).compactMap { item in
-            seen.insert(item.courseId).inserted ? (item.courseId, item.course) : nil
+        return (model.overview.openDeadlines + model.overview.doneDeadlines).compactMap {
+            seen.insert($0.courseId).inserted ? $0.courseId : nil
         }
     }
 
     var body: some View {
-        Group {
-            if model.overview.openDeadlines.isEmpty && model.overview.doneDeadlines.isEmpty {
-                EmptySectionView(title: "No deadlines", systemImage: "checklist",
-                                 message: "Moodle assignments and quizzes appear here once Moodle is connected.")
-            } else {
-                List {
-                    ForEach(groups, id: \.title) { group in
-                        Section(group.title) {
-                            ForEach(group.items) { DeadlineRow(item: $0) }
+        let open = model.overview.openDeadlines
+        if open.isEmpty && model.overview.doneDeadlines.isEmpty {
+            EmptyState(title: "No deadlines", systemImage: "checklist",
+                       message: "Moodle assignments and quizzes appear here once Moodle is connected.")
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    PageHeader("Deadlines", subtitle: subtitle(open))
+                    FilterBar(courseIds: courseIds, selection: $courseFilter)
+                        .padding(.horizontal, Theme.gutter).padding(.bottom, 16)
+
+                    VStack(spacing: 16) {
+                        ForEach(groups, id: \.title) { group in
+                            Card(group.title, accessory: {
+                                Text("\(group.items.count)").font(.system(size: 11)).foregroundStyle(Theme.tertiary)
+                            }) {
+                                VStack(alignment: .leading, spacing: 0) {
+                                    ForEach(Array(group.items.enumerated()), id: \.element.id) { index, item in
+                                        // "Later" spans months: label each month where it starts.
+                                        if group.title == "Later", let month = monthLabel(item, previous: index > 0 ? group.items[index - 1] : nil) {
+                                            Text(month).font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.secondary)
+                                                .padding(.horizontal, 12).padding(.top, index == 0 ? 2 : 12).padding(.bottom, 2)
+                                        }
+                                        DeadlineLine(item: item)
+                                    }
+                                }
+                                .padding(.horizontal, 4).padding(.bottom, 6)
+                            }
                         }
-                    }
-                    let done = filtered(model.overview.doneDeadlines)
-                    if !done.isEmpty {
-                        Section {
-                            DisclosureGroup("Done (\(done.count))", isExpanded: $showDone) {
-                                ForEach(done) { DeadlineRow(item: $0) }
+                        let done = filtered(model.overview.doneDeadlines)
+                        if !done.isEmpty {
+                            Card {
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Button { withAnimation(.snappy) { showDone.toggle() } } label: {
+                                        HStack {
+                                            Image(systemName: "chevron.right").rotationEffect(.degrees(showDone ? 90 : 0))
+                                            SectionLabel("Done in the last 30 days")
+                                            Spacer()
+                                            Text("\(done.count)").font(.system(size: 11)).foregroundStyle(Theme.tertiary)
+                                        }
+                                        .foregroundStyle(Theme.tertiary)
+                                        .padding(14)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    if showDone {
+                                        VStack(spacing: 0) { ForEach(done) { DeadlineLine(item: $0) } }
+                                            .padding(.horizontal, 4).padding(.bottom, 6)
+                                    }
+                                }
                             }
                         }
                     }
+                    .padding(.horizontal, Theme.gutter).padding(.bottom, Theme.gutter)
                 }
-                .frame(maxWidth: Layout.readingWidth + 160)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: 920, alignment: .leading)
             }
         }
-        .toolbar {
-            Picker("Course", selection: $courseFilter) {
-                Text("All courses").tag(Int64?.none)
-                ForEach(courses, id: \.id) { Text($0.name).tag(Int64?.some($0.id)) }
+    }
+
+    private func monthLabel(_ item: PortalOverview.ItemRow, previous: PortalOverview.ItemRow?) -> String? {
+        guard let date = item.date else { return nil }
+        if let previous = previous?.date, Calendar.current.isDate(previous, equalTo: date, toGranularity: .month) { return nil }
+        return date.formatted(.dateTime.month(.wide).year())
+    }
+
+    private func subtitle(_ open: [PortalOverview.ItemRow]) -> String {
+        let overdue = open.filter { ($0.date ?? .distantFuture) < .now }.count
+        let week = open.filter { ($0.date ?? .distantFuture) < Date.now.addingTimeInterval(7 * 86_400) }.count - overdue
+        var parts = ["\(open.count) open", "\(week) in the next 7 days"]
+        if overdue > 0 { parts.insert("\(overdue) overdue", at: 0) }
+        return parts.joined(separator: " · ")
+    }
+}
+
+/// "All" plus one chip per course, in course colours.
+struct FilterBar: View {
+    @Environment(AppModel.self) private var model
+    let courseIds: [Int64]
+    @Binding var selection: Int64?
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                chip(nil, title: "All courses", color: nil)
+                ForEach(courseIds, id: \.self) { id in
+                    let style = model.overview.style(for: id)
+                    chip(id, title: style.name, color: style.color)
+                }
             }
-            .pickerStyle(.menu)
-            .fixedSize()
         }
+    }
+
+    private func chip(_ id: Int64?, title: String, color: Color?) -> some View {
+        let selected = selection == id
+        return Button { selection = id } label: {
+            HStack(spacing: 6) {
+                if let color { Circle().fill(color).frame(width: 7, height: 7) }
+                Text(title).font(.system(size: 12, weight: selected ? .semibold : .regular))
+            }
+            .foregroundStyle(selected ? Theme.text : Theme.secondary)
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(Capsule().fill(selected ? Theme.raised : .clear))
+            .overlay(Capsule().stroke(selected ? Theme.border : Theme.border.opacity(0.6)))
+        }
+        .buttonStyle(.plain)
     }
 }

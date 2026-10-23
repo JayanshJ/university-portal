@@ -92,9 +92,18 @@ enum CMSPages {
             let author = (byline.range(of: " by ", options: .backwards) ?? byline.range(of: " von ", options: .backwards))
                 .map { String(byline[$0.upperBound...]).trimmingCharacters(in: .whitespaces) }
 
+            // Long entries come as a shortened and a full `.collapse` block; short ones are plain
+            // paragraphs after the byline.
             let collapses = try cell.select("div.collapse")
-            let full = collapses.first { !$0.hasClass("show") } ?? collapses.first()
-            let bodyHtml = try full?.html() ?? ""
+            let bodyHtml: String
+            if let full = collapses.first(where: { !$0.hasClass("show") }) ?? collapses.first() {
+                bodyHtml = try full.html()
+            } else {
+                let byline = try cell.select("small").first()?.parents().first { $0.parent() == cell }
+                bodyHtml = try cell.children().filter { child in
+                    child.tagName() != "h4" && child.tagName() != "a" && child !== byline
+                }.map { try $0.outerHtml() }.joined(separator: "\n")
+            }
             entries.append(CMSNewsEntry(id: id, title: try link.text(), postedAt: postedAt,
                                         author: author.flatMap { $0.isEmpty ? nil : $0 },
                                         bodyHtml: bodyHtml.trimmingCharacters(in: .whitespacesAndNewlines)))

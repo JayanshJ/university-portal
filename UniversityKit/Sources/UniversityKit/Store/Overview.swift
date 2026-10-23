@@ -40,6 +40,7 @@ public struct PortalOverview: Sendable, Equatable {
         public var hasFile: Bool
         public var isCached: Bool
         public var filename: String?
+        public var fileSize: Int64?
         public var endDate: Date?
         public var location: String?
         public var allDay: Bool
@@ -53,7 +54,8 @@ public struct PortalOverview: Sendable, Equatable {
         /// Unread and not part of a course's first import.
         public var isNew: Bool { !isRead }
 
-        init(_ item: UniItem, course: UniCourse, source: SourceKind, hasFile: Bool, isCached: Bool, filename: String? = nil) {
+        init(_ item: UniItem, course: UniCourse, source: SourceKind, hasFile: Bool, isCached: Bool,
+             filename: String? = nil, fileSize: Int64? = nil) {
             id = item.id!
             kind = item.kind
             self.source = source
@@ -73,6 +75,7 @@ public struct PortalOverview: Sendable, Equatable {
             self.hasFile = hasFile
             self.isCached = isCached
             self.filename = filename
+            self.fileSize = fileSize
             endDate = item.endsAt
             location = item.location
             allDay = item.allDay
@@ -161,7 +164,8 @@ public struct PortalOverview: Sendable, Equatable {
                     guard let course = courseById[item.courseId] else { return nil }
                     let file = files[item.id!]
                     return ItemRow(item, course: course, source: kindBySource[course.sourceId] ?? .moodle,
-                                   hasFile: file != nil, isCached: file?.localPath != nil, filename: file?.filename)
+                                   hasFile: file != nil, isCached: file?.localPath != nil, filename: file?.filename,
+                                   fileSize: file?.sizeBytes)
                 }
         }
 

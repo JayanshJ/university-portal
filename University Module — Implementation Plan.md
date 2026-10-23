@@ -259,6 +259,8 @@ The UI is dark, quiet and small: one main window with a sidebar (Today plus four
 
 All lists come from `uni_item` through GRDB `ValueObservation`, so they update live after each sync and both platforms look the same; a small source tag (Moodle or CMS) on each row is the only difference.
 
+**Redesign (23 Oct).** A custom dark theme (near-black canvas, raised panels, one warm accent, red for overdue) with a colour per course and short course names without the term. Sidebar: Today, Deadlines, Announcements, Materials, Schedule, then one page per course. Today: due soon, today and tomorrow, latest announcements, new since last visit, the next 7 days and upcoming exams. Deadlines: Overdue / This week / Next week / Later (with month headings) and course filter chips. Materials: courses, sections and files, viewer. Schedule: a seven-column week grid. Debug: `--snapshot` makes the app photograph its own window per screen (ScreenCaptureKit, current process only, no Keychain access) into its sandbox `tmp/snapshots`.
+
 **Look and feel.** Dark only (`.preferredColorScheme(.dark)`), beautiful through restraint rather than effects:
 
 - Plain SwiftUI: `NavigationSplitView`, `List`, `Table` only where columns help, standard toolbar. No custom chrome.

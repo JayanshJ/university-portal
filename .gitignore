@@ -9,3 +9,6 @@ DerivedData/
 # Never commit secrets or unsanitized captures
 *.token
 *.cookies
+
+# Screenshots from the --snapshot debug mode (real course data)
+Docs/screenshots/

@@ -19,7 +19,8 @@ struct UniversityPortalApp: App {
                     Task { await model.handleOpenURL(url) }
                 }
         }
-        .defaultSize(width: 1000, height: 680)
+        .defaultSize(width: 1280, height: 800)
+        .windowStyle(.hiddenTitleBar)
         .handlesExternalEvents(matching: ["moodlemobile"])
 
         Settings {
@@ -55,6 +56,10 @@ final class AppModel {
     private(set) var isSyncing = false
     private(set) var isMoodleConnected = false
     var message: String?
+    /// Where the main window is.
+    var selection: Route = .today
+    /// The course shown in Materials (nil = the first one).
+    var materialsCourse: Int64?
 
     @ObservationIgnored private let secrets = KeychainStore()
     @ObservationIgnored private let transport = URLSessionTransport(session: URLSession(configuration: .ephemeral))
@@ -81,6 +86,17 @@ final class AppModel {
             Self.log.error(startupError!)
         }
         guard let database else { return }
+        // Screenshot runs show stored data only: no Keychain (no password prompts), no syncing.
+        if CommandLine.arguments.contains("--snapshot") {
+            isMoodleConnected = true
+            Task { [weak self] in
+                do {
+                    for try await overview in database.overviewUpdates() { self?.overview = overview }
+                } catch {}
+            }
+            Task { await Snapshotter.run(model: self) }
+            return
+        }
         isMoodleConnected = (try? secrets.read(.moodleToken)) != nil
 
         isCMSSignedIn = (try? secrets.readString(.cmsPassword)).flatMap { $0 } != nil
