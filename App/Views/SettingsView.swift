@@ -21,6 +21,7 @@ struct SettingsView: View {
                 coursesSection
             }
             cmsSection
+            if let ask = model.ask { ChatGPTSection(ask: ask) }
             Section("General") {
                 Toggle("Open at login", isOn: Binding(
                     get: { model.opensAtLogin },
@@ -302,6 +303,52 @@ struct StatusText: View {
             }
         } else {
             Text("Connected")
+        }
+    }
+}
+
+/// "Continue with ChatGPT" for Ask: account, plan usage, model, sign-out.
+private struct ChatGPTSection: View {
+    let ask: AskModel
+
+    var body: some View {
+        Section("ChatGPT (for Ask)") {
+            if let account = ask.account {
+                LabeledContent("Signed in as") {
+                    HStack {
+                        Text(account.email ?? "ChatGPT account")
+                        Button("Sign Out") { Task { await ask.signOut() } }
+                    }
+                }
+                LabeledContent("Plan usage") {
+                    if account.canUsePlan {
+                        HStack(spacing: 8) {
+                            Text("Using ChatGPT plan")
+                            Link("Manage usage", destination: AskModel.manageUsageURL)
+                        }
+                    } else {
+                        Text("Not allowed. Sign out and sign in again to allow it.").foregroundStyle(.orange)
+                    }
+                }
+                if !ask.models.isEmpty {
+                    Picker("Model", selection: Binding(get: { ask.model ?? "" }, set: { ask.setModel($0) })) {
+                        ForEach(ask.models) { Text($0.displayName).tag($0.slug) }
+                    }
+                }
+            } else {
+                HStack {
+                    Button(ask.isSigningIn ? "Finish in your browser…" : "Continue with ChatGPT") {
+                        Task { await ask.signIn() }
+                    }
+                    .disabled(ask.isSigningIn)
+                    if ask.isSigningIn { ProgressView().controlSize(.small) }
+                }
+                Text("Ask uses your ChatGPT Plus or Pro plan, with no API key. Only your question and the matching page excerpts are sent to OpenAI.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if let error = ask.signInError {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
         }
     }
 }

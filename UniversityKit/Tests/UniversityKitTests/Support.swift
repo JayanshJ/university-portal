@@ -40,8 +40,12 @@ final class FakeMoodle: HTTPTransport, @unchecked Sendable {
     private var overrides: [String: Data] = [:]
     private var log: [String] = []
     private var downloadCount = 0
+    private var fileBodies: [String: Data] = [:]
 
     var calls: [String] { lock.withLock { log } }
+
+    /// Serves `data` for files whose URL contains `filename` (default: a tiny fake PDF).
+    func serveFile(_ filename: String, data: Data) { lock.withLock { fileBodies[filename] = data } }
     var downloads: Int { lock.withLock { downloadCount } }
 
     func override(_ key: String, json: String) { lock.withLock { overrides[key] = Data(json.utf8) } }
@@ -54,7 +58,8 @@ final class FakeMoodle: HTTPTransport, @unchecked Sendable {
                 .queryItems?.first { $0.name == "token" }?.value
             guard token == Self.validToken else { return response(fixture("error_invalidtoken"), url, "application/json") }
             lock.withLock { downloadCount += 1 }
-            return response(Self.pdfBytes, url, "application/pdf")
+            let body = lock.withLock { fileBodies.first { url.path.contains($0.key) }?.value }
+            return response(body ?? Self.pdfBytes, url, "application/pdf")
         }
 
         let body = String(decoding: request.httpBody ?? Data(), as: UTF8.self)

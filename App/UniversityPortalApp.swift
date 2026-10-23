@@ -29,8 +29,8 @@ struct UniversityPortalApp: App {
                 .preferredColorScheme(.dark)
         }
 
-        WindowGroup("Material", id: "viewer", for: Int64.self) { $itemId in
-            ViewerWindow(itemId: itemId)
+        WindowGroup("Material", id: "viewer", for: ViewerTarget.self) { $target in
+            ViewerWindow(target: target)
                 .environment(model)
                 .preferredColorScheme(.dark)
         }
@@ -60,6 +60,8 @@ final class AppModel {
     var selection: Route = .today
     /// The course shown in Materials (nil = the first one).
     var materialsCourse: Int64?
+    /// "Ask your materials" (nil only when the database could not be opened).
+    private(set) var ask: AskModel?
 
     @ObservationIgnored private let secrets = KeychainStore()
     @ObservationIgnored private let transport = URLSessionTransport(session: URLSession(configuration: .ephemeral))
@@ -94,6 +96,7 @@ final class AppModel {
                     for try await overview in database.overviewUpdates() { self?.overview = overview }
                 } catch {}
             }
+            ask = AskModel(database: database, secrets: NoSecrets(), transport: transport, files: files(database))
             Task { await Snapshotter.run(model: self) }
             return
         }
@@ -106,6 +109,7 @@ final class AppModel {
                                       cmsTransport: cmsTransport, events: events)
         self.scheduler = scheduler
         Task { await scheduler.start() }
+        ask = AskModel(database: database, secrets: secrets, transport: transport, files: files(database))
 
         Task { [weak self] in
             do {
@@ -353,9 +357,11 @@ final class AppModel {
     /// The local copy of a material's file, downloaded on first open; opening marks it read.
     func localFile(_ item: PortalOverview.ItemRow) async throws -> URL {
         guard let database else { throw FileCacheError.noFile }
-        let files = MaterialFiles(database: database, cache: FileCache(), secrets: secrets, transport: transport,
-                                  cmsTransport: cmsTransport)
-        return try await files.open(itemId: item.id)
+        return try await files(database).open(itemId: item.id)
+    }
+
+    private func files(_ database: UniDatabase) -> MaterialFiles {
+        MaterialFiles(database: database, cache: FileCache(), secrets: secrets, transport: transport, cmsTransport: cmsTransport)
     }
 
     func setDarkPages(_ on: Bool) {
@@ -412,4 +418,11 @@ final class AppModel {
             Redactor.redact(String(describing: error))
         }
     }
+}
+
+/// Screenshot runs never touch the Keychain.
+private struct NoSecrets: SecretStore {
+    func read(_ kind: SecretKind) throws -> Data? { nil }
+    func write(_ data: Data, for kind: SecretKind) throws {}
+    func delete(_ kind: SecretKind) throws {}
 }

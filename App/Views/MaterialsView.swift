@@ -130,11 +130,11 @@ struct MaterialsView: View {
                             ForEach(section.items) { item in
                                 MaterialLine(item: item, selected: item.id == selection)
                                     .onTapGesture(count: 2) {
-                                        if item.hasFile { openWindow(id: "viewer", value: item.id) } else { model.openLink(item) }
+                                        if item.hasFile { openWindow(id: "viewer", value: ViewerTarget(itemId: item.id)) } else { model.openLink(item) }
                                     }
                                     .onTapGesture { selection = item.id }
                                     .contextMenu {
-                                        if item.hasFile { Button("Open in New Window") { openWindow(id: "viewer", value: item.id) } }
+                                        if item.hasFile { Button("Open in New Window") { openWindow(id: "viewer", value: ViewerTarget(itemId: item.id)) } }
                                         Button("Open Original") { model.openLink(item) }
                                         Button(item.isNew ? "Mark as Read" : "Mark as Unread") { model.setRead(item, read: item.isNew) }
                                     }

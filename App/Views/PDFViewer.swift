@@ -21,6 +21,8 @@ struct PDFKitView: NSViewRepresentable {
     let url: URL
     let darkPages: Bool
     let controller: PDFController
+    /// 1-based page to show, e.g. from a citation.
+    var page: Int?
 
     func makeNSView(context: Context) -> PDFView {
         let view = PDFView()
@@ -36,7 +38,12 @@ struct PDFKitView: NSViewRepresentable {
     }
 
     func updateNSView(_ view: PDFView, context: Context) {
-        if view.document?.documentURL != url { load(into: view) }
+        if view.document?.documentURL != url {
+            load(into: view)
+        } else if context.coordinator.shownPage != page {
+            go(to: page, in: view)
+        }
+        context.coordinator.shownPage = page
         applyDarkPages(to: view)
     }
 
@@ -46,7 +53,17 @@ struct PDFKitView: NSViewRepresentable {
         view.document = PDFDocument(url: url)
         controller.pageCount = view.document?.pageCount ?? 0
         controller.pageIndex = 0
+        go(to: page, in: view)
         applyDarkPages(to: view)
+    }
+
+    private func go(to page: Int?, in view: PDFView) {
+        guard let page, let target = view.document?.page(at: page - 1) else { return }
+        // After layout, so the jump isn't undone by the initial scroll position.
+        DispatchQueue.main.async {
+            view.go(to: target)
+            controller.pageIndex = page - 1
+        }
     }
 
     /// Inverts the pages for reading slides at night; the hue turn keeps colours recognisable.
@@ -64,6 +81,7 @@ struct PDFKitView: NSViewRepresentable {
     @MainActor
     final class Coordinator: NSObject {
         let controller: PDFController
+        var shownPage: Int?
         private var token: NSObjectProtocol?
 
         init(controller: PDFController) { self.controller = controller }
@@ -84,6 +102,7 @@ struct PDFKitView: NSViewRepresentable {
 struct FileViewer: View {
     @Environment(AppModel.self) private var model
     let item: PortalOverview.ItemRow
+    var page: Int?
     @State private var fileURL: URL?
     @State private var error: String?
     @State private var controller = PDFController()
@@ -140,7 +159,7 @@ struct FileViewer: View {
                     ContentUnavailableView("Could not open the file", systemImage: "exclamationmark.triangle",
                                            description: Text(error))
                 } else if let fileURL, isPDF {
-                    PDFKitView(url: fileURL, darkPages: model.overview.pdfDarkPages, controller: controller)
+                    PDFKitView(url: fileURL, darkPages: model.overview.pdfDarkPages, controller: controller, page: page)
                 } else if let fileURL {
                     ContentUnavailableView {
                         Label(item.filename ?? item.title, systemImage: "doc")
@@ -168,15 +187,21 @@ struct FileViewer: View {
     }
 }
 
-/// A material in its own window (double-click in Materials).
+/// What a viewer window shows: a material, optionally at a page (from an Ask citation).
+struct ViewerTarget: Codable, Hashable {
+    var itemId: Int64
+    var page: Int?
+}
+
+/// A material in its own window (double-click in Materials, or a citation in Ask).
 struct ViewerWindow: View {
     @Environment(AppModel.self) private var model
-    let itemId: Int64?
+    let target: ViewerTarget?
 
     var body: some View {
         Group {
-            if let item = model.overview.materials.first(where: { $0.id == itemId }) {
-                FileViewer(item: item)
+            if let target, let item = model.overview.materials.first(where: { $0.id == target.itemId }) {
+                FileViewer(item: item, page: target.page)
             } else {
                 ContentUnavailableView("File not available", systemImage: "doc")
             }

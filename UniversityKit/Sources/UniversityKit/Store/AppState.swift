@@ -10,6 +10,10 @@ public enum StateKey: String, Sendable {
     case cmsLogin = "cms_login"
     /// Per course: the file count and the content links the materials parser did not take.
     case cmsMaterialsDiagnostics = "cms_materials_diagnostics"
+    /// The ChatGPT model chosen for Ask (a slug).
+    case chatgptModel = "chatgpt_model"
+    /// Whether the one-time "You're using your ChatGPT plan" notice was shown.
+    case chatgptWelcomeShown = "chatgpt_welcome_shown"
 }
 
 /// What the Moodle side has learned about itself. No secrets: safe to show in Settings and to inspect.

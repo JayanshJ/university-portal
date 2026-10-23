@@ -135,6 +135,31 @@ extension UniDatabase {
                 """)
         }
 
+        // Ask your materials: PDF text per page, chunked, with a full-text index over the chunks.
+        migrator.registerMigration("v6_material_pages") { db in
+            try db.create(table: "uni_page") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("item_id", .integer).notNull().indexed()
+                    .references("uni_item", onDelete: .cascade)
+                t.column("page", .integer).notNull()  // 1-based PDF page
+                t.column("ordinal", .integer).notNull()  // chunk order within the document
+                t.column("text", .text).notNull()
+            }
+            try db.create(virtualTable: "uni_page_fts", using: FTS5()) { t in
+                t.synchronize(withTable: "uni_page")
+                t.tokenizer = .porter(wrapping: .unicode61())
+                t.column("text")
+            }
+            try db.create(table: "uni_index") { t in
+                t.primaryKey("item_id", .integer).references("uni_item", onDelete: .cascade)
+                t.column("sha256", .text)
+                t.column("pages", .integer).notNull()
+                t.column("chunks", .integer).notNull()
+                t.column("indexed_at", .datetime).notNull()
+                t.column("error", .text)
+            }
+        }
+
         return migrator
     }
 }

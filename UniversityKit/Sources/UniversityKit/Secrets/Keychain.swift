@@ -8,6 +8,10 @@ public enum SecretKind: String, CaseIterable, Sendable {
     case cmsUsername = "cms_username"
     case cmsPassword = "cms_password"
     case cmsCookieJar = "cms_cookie_jar"
+    /// The ChatGPT sign-in: tokens for the current session.
+    case chatgptCredentials = "chatgpt_credentials"
+    /// The app's ChatGPT registration (issued client ID, host ID); kept across sign-outs.
+    case chatgptRegistration = "chatgpt_registration"
 }
 
 public protocol SecretStore: Sendable {

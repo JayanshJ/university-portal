@@ -3,14 +3,15 @@ import UniversityKit
 
 /// Where the main window is: one of the sections, or a course's page.
 enum Route: Hashable {
-    case today, deadlines, announcements, materials, schedule
+    case today, ask, deadlines, announcements, materials, schedule
     case course(Int64)
 
-    static let sections: [Route] = [.today, .deadlines, .announcements, .materials, .schedule]
+    static let sections: [Route] = [.today, .ask, .deadlines, .announcements, .materials, .schedule]
 
     var title: String {
         switch self {
         case .today: "Today"
+        case .ask: "Ask"
         case .deadlines: "Deadlines"
         case .announcements: "Announcements"
         case .materials: "Materials"
@@ -22,6 +23,7 @@ enum Route: Hashable {
     var systemImage: String {
         switch self {
         case .today: "sun.max"
+        case .ask: "sparkles"
         case .deadlines: "checklist"
         case .announcements: "megaphone"
         case .materials: "folder"
@@ -46,6 +48,7 @@ struct ContentView: View {
                 } else {
                     switch route {
                     case .today: TodayView()
+                    case .ask: AskView()
                     case .deadlines: DeadlinesView()
                     case .announcements: AnnouncementsView()
                     case .materials: MaterialsView()

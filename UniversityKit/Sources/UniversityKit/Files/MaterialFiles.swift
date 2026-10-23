@@ -18,8 +18,8 @@ public struct MaterialFiles: Sendable {
         self.cmsTransport = cmsTransport ?? transport
     }
 
-    /// Returns the local file and marks the material as read.
-    public func open(itemId: Int64) async throws -> URL {
+    /// Returns the local file and marks the material as read (unless `markRead` is false, e.g. for indexing).
+    public func open(itemId: Int64, markRead: Bool = true) async throws -> URL {
         let found = try await database.writer.read { db -> (UniFile, SourceKind)? in
             guard let file = try UniFile.fetchOne(db, key: itemId) else { return nil }
             let kind = try String.fetchOne(db, sql: """
@@ -48,9 +48,11 @@ public struct MaterialFiles: Sendable {
             }
         }
 
-        try await database.writer.write { db in
-            try db.execute(sql: "UPDATE uni_item SET read_at = ? WHERE id = ? AND read_at IS NULL",
-                           arguments: [Date.now, itemId])
+        if markRead {
+            try await database.writer.write { db in
+                try db.execute(sql: "UPDATE uni_item SET read_at = ? WHERE id = ? AND read_at IS NULL",
+                               arguments: [Date.now, itemId])
+            }
         }
         return url
     }

@@ -6,6 +6,7 @@ A native macOS app that brings Saarland University's **Moodle** and **CMS** (cms
 
 ## Features
 
+- **Ask your materials**: questions answered from your lecture PDFs, with citations that open the PDF at the cited page. Runs on your ChatGPT Plus/Pro plan via "Continue with ChatGPT" (no API key); the PDFs are indexed on your Mac and only the question and matching excerpts are sent to OpenAI.
 - **Today**: what's due soon, today's and tomorrow's lectures, upcoming exams, and what's new since your last visit.
 - **Deadlines** from Moodle, grouped by week and month, with mark-as-done. Submitted assignments are marked done automatically.
 - **Announcements** from Moodle news forums and CMS course news in one feed, with a reader.
@@ -26,6 +27,7 @@ Requires macOS 15 or newer (Apple silicon or Intel).
 | Moodle | The official mobile web service API with your app token. Connect once in Settings: Moodle's `moodlemobile://` redirect comes back to the app. Your university password is never stored. |
 | CMS news and calendars | Public pages and `.ics` feeds. |
 | CMS materials | Your CMS login (stored in the Keychain), with automatic re-login and at most one attempt per 15 minutes after a failure. |
+| Ask (ChatGPT) | OpenAI's [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source) for open-source local apps: dynamic registration, PKCE, a loopback redirect, verified ID token, refresh with rotation; answers via the Responses API on your plan. Retrieval is local full-text search (SQLite FTS5) over PDF pages, with ChatGPT widening the question into English and German search terms; the selection logic is ported from [StudyGPT](https://github.com/JayanshJ/studygpt). |
 
 Data lives in a local SQLite database (GRDB); secrets live in the Keychain. The full design and the verification log are in [the implementation plan](University%20Module%20%E2%80%94%20Implementation%20Plan.md).
 
@@ -34,7 +36,7 @@ Data lives in a local SQLite database (GRDB); secrets live in the Keychain. The 
 Xcode 27 or newer.
 
 ```bash
-cd UniversityKit && swift test        # 77 tests, against recorded fixtures
+cd UniversityKit && swift test        # 103 tests, against recorded fixtures
 ./Scripts/install.sh                  # build Release, install to /Applications
 ./Scripts/package.sh                  # build dist/University-Portal-<version>.dmg
 ```
