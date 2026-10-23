@@ -9,11 +9,15 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift", .upToNextMinor(from: "7.11.1")),
+        .package(url: "https://github.com/scinfu/SwiftSoup", .upToNextMinor(from: "2.14.3")),
     ],
     targets: [
         .target(
             name: "UniversityKit",
-            dependencies: [.product(name: "GRDB", package: "GRDB.swift")]
+            dependencies: [
+                .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "SwiftSoup", package: "SwiftSoup"),
+            ]
         ),
         .testTarget(
             name: "UniversityKitTests",

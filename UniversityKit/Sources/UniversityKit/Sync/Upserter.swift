@@ -50,13 +50,17 @@ public struct ItemInput: Sendable, Equatable {
     public var bodyHtml: String?
     public var startsAt: Date?
     public var dueAt: Date?
+    public var endsAt: Date?
+    public var location: String?
+    public var allDay: Bool
     public var url: String?
     public var category: String?
     public var isExam: Bool
     public var file: FileInput?
 
     public init(courseId: Int64, kind: ItemKind, externalId: String, title: String,
-                bodyHtml: String? = nil, startsAt: Date? = nil, dueAt: Date? = nil, url: String? = nil,
+                bodyHtml: String? = nil, startsAt: Date? = nil, dueAt: Date? = nil,
+                endsAt: Date? = nil, location: String? = nil, allDay: Bool = false, url: String? = nil,
                 category: String? = nil, isExam: Bool = false, file: FileInput? = nil) {
         self.courseId = courseId
         self.kind = kind
@@ -65,6 +69,9 @@ public struct ItemInput: Sendable, Equatable {
         self.bodyHtml = bodyHtml
         self.startsAt = startsAt
         self.dueAt = dueAt
+        self.endsAt = endsAt
+        self.location = location
+        self.allDay = allDay
         self.url = url
         self.category = category
         self.isExam = isExam
@@ -79,7 +86,9 @@ public struct ItemInput: Sendable, Equatable {
             dueAt.map { String(Int($0.timeIntervalSince1970)) } ?? "",
             file.map { "\($0.sizeBytes ?? -1)" } ?? "",
             file?.remoteModifiedAt.map { String(Int($0.timeIntervalSince1970)) } ?? "",
-        ]
+        ] + (endsAt == nil && location == nil && !allDay ? [] : [
+            endsAt.map { String(Int($0.timeIntervalSince1970)) } ?? "", location ?? "", allDay ? "1" : "0",
+        ])
         let digest = SHA256.hash(data: Data(fields.joined(separator: "\u{1F}").utf8))
         return digest.map { String(format: "%02x", $0) }.joined()
     }
@@ -242,6 +251,9 @@ enum Upserter {
         item.bodyHtml = input.bodyHtml
         item.startsAt = input.startsAt
         item.dueAt = input.dueAt
+        item.endsAt = input.endsAt
+        item.location = input.location
+        item.allDay = input.allDay
         item.url = input.url
         item.category = input.category
         item.isExam = input.isExam

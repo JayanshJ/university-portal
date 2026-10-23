@@ -59,7 +59,7 @@ struct ContentView: View {
         case .materials:
             ItemList(section: section, items: overview.materials, dateStyle: .none)
         case .schedule:
-            EmptySectionView(section: section, message: "The schedule comes from the CMS calendars (Phase 3).")
+            ScheduleView()
         }
     }
 }
@@ -77,13 +77,25 @@ struct TodayView: View {
             } actions: {
                 SettingsLink { Text("Open Settings") }
             }
-        } else if overview.openDeadlines.isEmpty && overview.materials.isEmpty {
+        } else if overview.openDeadlines.isEmpty && overview.materials.isEmpty && overview.upcomingEvents.isEmpty {
             EmptySectionView(section: .today, message: "Connect Moodle in Settings to fill Today.")
         } else {
             List {
                 Section("Next deadlines") {
                     ForEach(overview.openDeadlines.filter { ($0.date ?? .distantPast) > .now }.prefix(3)) { item in
                         ItemRowView(item: item, dateStyle: .due)
+                    }
+                }
+                let soon = overview.upcomingEvents.filter { event in
+                    guard let date = event.date else { return false }
+                    let isLecture = event.section?.localizedCaseInsensitiveContains("lecture") == true
+                        || event.section?.localizedCaseInsensitiveContains("vorlesung") == true
+                    return (isLecture || event.isExam)
+                        && date < Calendar.current.startOfDay(for: .now).addingTimeInterval(2 * 86_400)
+                }
+                if !soon.isEmpty {
+                    Section("Today and tomorrow") {
+                        ForEach(soon) { EventRowView(event: $0) }
                     }
                 }
                 Section("New since last visit") {
@@ -115,7 +127,7 @@ struct ItemList: View {
                     .onTapGesture(count: 2) { Task { await model.open(item) } }
                     .contextMenu {
                         if item.hasFile { Button("Open File") { Task { await model.open(item) } } }
-                        Button("Open in Moodle") { model.openLink(item) }
+                        Button(item.source == .cms ? "Open in CMS" : "Open in Moodle") { model.openLink(item) }
                     }
             }
         }
@@ -153,6 +165,73 @@ struct ItemRowView: View {
                     .foregroundStyle(.secondary)
                     .help(item.isCached ? "Saved on this Mac" : "Downloads on first open")
             }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+struct ScheduleView: View {
+    @Environment(AppModel.self) private var model
+
+    private var days: [(day: Date, events: [PortalOverview.ItemRow])] {
+        let grouped = Dictionary(grouping: model.overview.upcomingEvents) {
+            Calendar.current.startOfDay(for: $0.date ?? .distantPast)
+        }
+        return grouped.keys.sorted().map { ($0, grouped[$0]!) }
+    }
+
+    var body: some View {
+        if model.overview.upcomingEvents.isEmpty {
+            EmptySectionView(section: .schedule, message: "Choose CMS courses in Settings to see their calendars.")
+        } else {
+            List {
+                ForEach(days, id: \.day) { day in
+                    Section(day.day.formatted(.dateTime.weekday(.wide).day().month(.wide))) {
+                        ForEach(day.events) { event in
+                            EventRowView(event: event)
+                                .contextMenu {
+                                    if let category = event.section {
+                                        Button("Hide \(category) for \(event.course)") {
+                                            model.setCategory(category, hidden: true, courseId: event.courseId)
+                                        }
+                                    }
+                                    Button("Open in CMS") { model.openLink(event) }
+                                }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct EventRowView: View {
+    let event: PortalOverview.ItemRow
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Group {
+                if event.allDay {
+                    Text("All day")
+                } else if let start = event.date {
+                    Text(start, format: .dateTime.hour().minute())
+                        + Text(event.endDate.map { "–" + $0.formatted(.dateTime.hour().minute()) } ?? "")
+                }
+            }
+            .font(.callout.monospacedDigit())
+            .foregroundStyle(.secondary)
+            .frame(width: 110, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(event.title)
+                    if event.isExam {
+                        Text("Exam").font(.caption.bold()).foregroundStyle(.tint)
+                    }
+                }
+                Text([event.course, event.section, event.location].compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer()
         }
         .padding(.vertical, 2)
     }

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />	<title>
+		Main Page	</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="author" content="Markus Bauer, Marc Jose, Sigurd Schneider">
+	<meta name="commit" content="94df377a5f6e9448fc77ff68d0224f408585a5d8@develop">
+    <style>
+		html[data-bs-theme=dark] .site-logo > img { content: url("/system/theme/Sic/img/logo-dark.png"); }    </style>
+	<link rel="stylesheet" type="text/css" href="/system/css/cakecms.css" course="system"/><link rel="stylesheet" type="text/css" href="/system/css/fontawesome.min.css" course="system"/><link rel="stylesheet" type="text/css" href="/system/css/theme.css" course="system"/><link rel="stylesheet" type="text/css" href="/system/css/theme-custom.css" course="system"/><script type="text/javascript" src="/system/js/modern/bootstrap.bundle.min.js" course="system"></script><script type="text/javascript" src="/system/js/modern/tempus-dominus.min.js" course="system"></script><script type="text/javascript" src="/system/js/modern/popper.min.js" course="system"></script><script type="text/javascript" src="/system/js/modern/custom.js" course="system"></script>	<link rel="apple-touch-icon-precomposed" sizes="144x144" href="/system/theme/Sic/img/apple-touch-icon-144-precomposed.png">
+	<link rel="apple-touch-icon-precomposed" sizes="114x114" href="/system/theme/Sic/img/apple-touch-icon-114-precomposed.png">
+	<link rel="apple-touch-icon-precomposed" sizes="72x72" href="/system/theme/Sic/img/apple-touch-icon-72-precomposed.png">
+	<link rel="apple-touch-icon-precomposed" sizes="57x57" href="/system/theme/Sic/img/apple-touch-icon-57-precomposed.png">
+	<link rel="shortcut icon" type="image/x-icon" href="/system/theme/Sic/img/favicon.png">
+	<link rel="icon" type="image/x-icon" href="/system/theme/Sic/img/favicon.png">
+	<!--[if lt IE 9]>
+	<script type="text/javascript" src="/prog1_26/js/ie_html5shiv.js"></script>	<![endif]-->
+</head>
+
+<body class="bg-body-tertiary d-flex flex-column py-0" style="min-height: 100vh;">
+<nav class="navbar navbar-dark border-bottom navbar-expand-lg fixed-top">
+	<div class="container-lg">
+		<a href="/prog1_26/../system" class="navbar-brand">Courses</a>		<div class="navbar-expand flex-grow-1 flex-s d-lg-none overflow-none">
+			<ul class="navbar-nav d-lg-none flex-wrap" id="navbar-overflow"></ul>
+		</div>
+		<button class="navbar-toggler ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-course" aria-controls="navbar-system" aria-expanded="false" aria-label="Toggle navigation">
+			<span class="navbar-toggler-icon"></span>
+		</button>
+		<div class="collapse navbar-collapse" id="navbar-course">
+			<ul class="navbar-nav me-auto mb-2 mb-md-0" id="navbar-main">
+				<li class="nav-item"><a class="nav-link active" href="/prog1_26/">Main Page</a></li><li class="nav-item dropdown"><button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown">Information</button><ul class="dropdown-menu"><li><a class="dropdown-item" href="/prog1_26/termine/calendar/index">Timetable</a></li><li><hr class="dropdown-divider" /></li><li><a class="dropdown-item" href="/prog1_26/2/Resources_Tools">Resources &amp; Tools</a></li><li><hr class="dropdown-divider" /></li><li><a class="dropdown-item" href="/prog1_26/tutors">Team</a></li></ul></li><li class="nav-item"><a class="nav-link" href="/prog1_26/students/register">Registration</a></li><li class="nav-item"><a class="nav-link" href="/prog1_26/landing">Personal Status</a></li>			</ul>
+			<div class="navbar-nav">
+				<div class="dropdown">
+    <button class="dropdown-toggle nav-link user-menu-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+        <i class="fa fa-user fa-fw"></i> 
+        Login 
+        <b class="caret"></b>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+                <form action="/prog1_26/users/login" class="p-2 dropdown-item-text d-grid gap-2" style="min-width: 240px" id="UserLoginMenuForm" method="post" accept-charset="utf-8"><div style="display:none;"><input type="hidden" name="_method" value="POST"/><input type="hidden" name="data[_Token][key]" value="FIXTURE" id="Token960371480" autocomplete="off"/></div>        <input name="data[User][username]" placeholder="Username" id="MenuUserUsername" maxlength="100" class="form-control" type="text" required="required"/>        <input name="data[User][password]" placeholder="Password" id="MenuUserPassword" class="form-control" type="password" required="required"/>        <div class="my-2"><input type="hidden" name="data[Auth][remember_me]" id="MenuAuthRememberMe_" value="0"/><input type="checkbox" name="data[Auth][remember_me]" id="MenuAuthRememberMe" class="form-check-input" value="1"/><label for="MenuAuthRememberMe" class="mx-2 form-check-label">Remember me</label></div>        <input type="hidden" name="data[User][redirect]" value="https://cms.sic.saarland/prog1_26/landing" id="MenuRedirect" class="form-control"/>        <li class="d-grid">
+            <button type="submit" class="btn btn-primary"><i class="fa fa-right-to-bracket"></i> Login</button>
+        </li>
+        <div style="display:none;"><input type="hidden" name="data[_Token][fields]" value="FIXTURE" id="TokenFields1590448456" autocomplete="off"/><input type="hidden" name="data[_Token][unlocked]" value="" id="TokenUnlocked977183382" autocomplete="off"/></div></form>        <li class="dropdown-divider"></li>
+        <li>
+            <a href="/prog1_26/students/register" class="dropdown-item"><i class="fa fa-user-plus fa-fw"></i> Registration</a>        </li>
+        <li>
+            <a href="/prog1_26/Users/lost" class="dropdown-item"><i class="fa fa-lock-open fa-fw"></i> Forgot Password?</a>        </li>
+        
+                <li><hr class="dropdown-divider"></li>
+        <li style="min-width: 270px;">
+            <button class="dropdown-item lightmode-only" data-toggle="theme" data-bs-theme="dark">
+                <i class="fa fa-moon fa-fw"></i>
+                Enable dark mode            </button>
+            <button class="dropdown-item darkmode-only" data-toggle="theme" data-bs-theme="light">
+                <i class="fa fa-sun fa-fw"></i>
+                Enable light mode            </button>
+        </li>
+    </ul>
+</div>			</div>
+		</div>
+	</div>
+</nav>
+
+<!-- page-header -->
+<div class="border-bottom flex-shrink-0">
+	<!-- This navbar is just a vertical spacer -->
+	<div class="navbar bg-body-tertiary">
+		<div class="container-lg">
+			<a class="navbar-brand" href="#">&nbsp;</a>
+		</div>
+	</div>
+	<div class="container-lg py-3">
+		<div class="page-header">
+			<div class="page-logo">
+				<a href="/prog1_26/../system" class="site-logo" title="Front Page"><img src="/system/theme/Sic/img/logo.png" course="system" alt=""/></a>			</div>
+			<div class="page-title">
+				<h1 class="mt-1">
+					Programming 1				</h1>
+				<div>
+				<small class="text-muted">
+					<a href="https://compilers.cs.uni-saarland.de/people/hack/">Sebastian Hack</a>				</small>
+					</div>
+				<div class="mt-2"><small class="text-muted fs-6">basic course (9 CP), Winter Semester 2026</small></div>			</div>
+		</div>
+	</div>
+</div>
+<!-- /page-header -->
+
+<!-- main-content -->
+<div class="bg-body py-3 flex-shrink-0 flex-grow-1">
+	<div class="container-lg main-layout">
+		<div class="row">
+						<main class="col-12">
+										
+				<div id="content" class="content">
+					
+<section>
+	<h2>News</h2>
+	<div class="action-row">
+					</div>
+	
+<table class="table">
+	<colgroup>
+				<col span="1" style="width: auto;" />
+	</colgroup>
+	<tbody>
+	<tr>						<td class="align-top">
+				<a id="newsElement1"></a>
+				<h4 class="fs-5"><a href="/prog1_26/news/view/1">Tutorial Assignment</a></h4>				<p>
+					<small class="text-muted"><i>
+						Written on <span data-bs-toggle="tooltip" data-bs-title="20.10.2026 12:36:50">20.10.26</span>												by Marcel Ullrich					</i></small>
+				</p>
+
+								<div class="collapse show transitions-none newsCollapse1">
+					<p>The tutorials are now assigned. You can find your tutorial on your <a href="https://cms.sic.saarland/prog1_26/landing">personal status page</a>.</p>
+
+<p>Tutorials start next Tuesday.&nbsp;<br />
+Before the tutorial, we are already offering <a href="https://cms.sic.saarland/prog1_26/dl/10/A0_Organisation.pdf">office hours</a> this Thursday and Friday, and next Monday.<br />
+The first <a href="https://cms.sic.saarland/prog1_26/dl/10/A0_Organisation.pdf">exam sheet</a> with voluntary submission in the tutorial will be&#8230; <a data-bs-toggle="collapse" data-bs-target=".newsCollapse1" href="#newsElement1">Read more</a></p>				</div>
+				<div class="collapse newsCollapse1">
+					<p>The tutorials are now assigned. You can find your tutorial on your <a href="https://cms.sic.saarland/prog1_26/landing">personal status page</a>.</p>
+
+<p>Tutorials start next Tuesday.&nbsp;<br />
+Before the tutorial, we are already offering <a href="https://cms.sic.saarland/prog1_26/dl/10/A0_Organisation.pdf">office hours</a> this Thursday and Friday, and next Monday.<br />
+The first <a href="https://cms.sic.saarland/prog1_26/dl/10/A0_Organisation.pdf">exam sheet</a> with voluntary submission in the tutorial will be released on Friday.</p>
+
+<p>For up-to-date information on offers, see the <a href="https://cms.sic.saarland/prog1_26/termine/calendar/index">timetable</a>.</p>
+				</div>
+							</td>
+		</tr>		
+		</tbody>
+</table>
+
+</section>
+
+<section>
+	<div class="action-row">
+			</div>
+	<div class="page overflow-auto">
+		<h2><img alt="Mathematics Preparatory Course" src="https://vorkurs.cs.uni-saarland.de/system/theme/Vorkurs/img/logo.png" style="float:left; width:180px" /></h2>
+
+<h2>Mathematics Preparatory Course</h2>
+
+<p>The <a href="https://vorkurs.cs.uni-saarland.de/">Mathematics Preparatory Course</a> takes place from the 07.09. - 02.10.</p>
+
+<p>The precourse is no official part of Programming 1 but is highly recommended.<br />
+It is organized by volunteers.</p>
+
+<p>&nbsp;</p>
+
+<h2>&nbsp;</h2>
+
+<h2>&nbsp;</h2>
+
+<h2>Programming 1</h2>
+
+<p>The lecture introduces the core concepts of programming. More specifically, it deals with data structures and algorithms, programming constructs and programming techniques, as well as the structure and realization of programming languages. While doing so, it introduces the functional programming language OCaml.</p>
+
+<p>We do not assume any programming knowledge.</p>
+
+<p>In case of questions, please contact <a href="https://prog126.forum.mi.uni-saarland.de/new-message?groupname=Organizers">us on&nbsp;the forum</a>.</p>
+
+<h2>Literature &amp; Tools</h2>
+
+<p>The up-to-date lecture notes, exercises, and additional material will be linked&nbsp;under the <a href="https://cms.sic.saarland/prog1_26/materials">materials tab</a> as the course progresses.<br />
+Further Resources are linked under <a href="https://cms.sic.saarland/prog1_26/2/Resources_Tools">Resources &amp; Tools</a>.</p>
+
+<h2>Organization</h2>
+
+<p>⚠️ The organization is different than previous years!</p>
+
+<p>All dates are in the <a href="https://cms.sic.saarland/prog1_26/termine/calendar/index">timetable</a>.</p>
+
+<p>There are two in-person lectures per week. Additionally, you will be assigned a tutor who helps you learn in a 2h tutorial per week.</p>
+
+<p>We offer Office Hours multiple time a week as an optional offer.<br />
+These slots are there to talk to tutors and other students in a relaxed environment.<br />
+If you are unsure if they are helpful, come here and try them out at least once.</p>
+
+<p>Everyone is admitted to the midterm exam.<br />
+For the endterm, the midterm has to be passed.<br />
+There will be two exams with a retake each. Between an exam and its retake, only the better one counts.<br />
+You can write both. (The final exam, taking both exams, will be two examination attempts if not excepted by the Freiversuch according to the examination regulation).<br />
+In December, we have a Midterm with a retake in January.<br />
+After the semester, we have a final exam with a retake a few weeks afterward.<br />
+The exact dates will be announced in the future and will be entered in the <a href="https://cms.sic.saarland/prog1_26/termine/calendar/index">timetable</a>.</p>
+
+<p>The final grade of the course is computed out of the midterm and endterm points.</p>
+
+<p>Further details will be discussed in the first lecture.</p>
+
+<h2>kNobel</h2>
+
+<p>The kNobel corners and tasks are an offer from older students to you.<br />
+The exercise sheets will have a link/reference to the kNobel task of the week.<br />
+Each kNobel task (if not otherwise specified) extends a week. Afterward, the submission is judged<br />
+and a kNobel corner is held where you get more information about the underlying principles.<br />
+Here, you can also discuss with the knowledgable task designer and your fellow student about the task.<br />
+You are invited to join even if you did not attempt the task.</p>
+
+<p>At the end of the semester, some especially nice solutions will be awarded prizes.<br />
+Previous prizes included: Tablets, Trophies, Exit Rooms Gift Cards, ...</p>
+
+<p>The usage of LLMs is not permitted.<br />
+The idea is to challenge yourself and have fun puzzling with handcrafted problems to find a solution yourself and learn along the way.<br />
+Using LLMs completely fails this goal and wastes time&nbsp;on your and our end.</p>
+
+<p>In some weeks, we will offer Programming Labs instead of kNobel tasks.<br />
+Keep an eye out for the <a href="https://prog126.forum.mi.uni-saarland.de/">forum</a> for announcements.</p>
+
+<p>&nbsp;</p>
+	</div>
+</section>				</div>
+
+															</main> <!-- span9 -->
+		</div> <!-- row -->
+	</div> <!-- container -->
+</div> <!-- bg-body -->
+<!-- main-content-->
+
+<!-- page-footer -->
+<div class="border-top flex-shrink-0">
+	<div class="container text-center py-4">
+		
+
+<small class="page-footer text-muted">
+	<a href="https://www.uni-saarland.de/en/privacy.html" target="_blank">Privacy Policy</a> | <a href="https://www.uni-saarland.de/en/legal-notice.html" target="_blank">Legal Notice</a><br/>
+	If you encounter technical problems, please contact <a href="mailto:cakecms@cs.uni-saarland.de?subject=[]&amp;body=Please%20provide%20sufficient%20informations%20as%3A%20Name%2C%20Date%2C%20Role%2C%20Which%20System%2C%20What%20Error%21">the administrators</a>.</small>	</div>
+</div>
+<!-- /page-footer -->
+
+</body>
+</html>

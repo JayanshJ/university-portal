@@ -11,6 +11,8 @@ public struct PortalOverview: Sendable, Equatable {
 
     public struct CourseRow: Sendable, Equatable, Identifiable {
         public var id: Int64
+        public var source: SourceKind
+        public var externalId: String
         public var shortName: String
         public var fullName: String
         public var active: Bool
@@ -30,6 +32,12 @@ public struct PortalOverview: Sendable, Equatable {
         public var isNew: Bool
         public var hasFile: Bool
         public var isCached: Bool
+        public var source: SourceKind
+        public var courseId: Int64 = 0
+        public var endDate: Date? = nil
+        public var location: String? = nil
+        public var allDay = false
+        public var isExam = false
     }
 
     public struct RunRow: Sendable, Equatable, Identifiable {
@@ -42,29 +50,42 @@ public struct PortalOverview: Sendable, Equatable {
     }
 
     public var moodle: SourceRow?
+    public var cms: SourceRow?
     public var diagnostics: MoodleDiagnostics?
     public var courses: [CourseRow] = []
     public var openDeadlines: [ItemRow] = []
     public var announcements: [ItemRow] = []
     public var materials: [ItemRow] = []
+    /// CMS calendar events from today on, for three weeks, without hidden categories.
+    public var upcomingEvents: [ItemRow] = []
     public var recentRuns: [RunRow] = []
 
     public init() {}
 
     static func fetch(_ db: Database) throws -> PortalOverview {
         var overview = PortalOverview()
-        if let source = try UniSource.filter(Column("kind") == SourceKind.moodle.rawValue).fetchOne(db) {
-            overview.moodle = SourceRow(status: source.status, lastSyncAt: source.lastSyncAt, lastError: source.lastError)
+        let sources = try UniSource.fetchAll(db)
+        for source in sources {
+            let row = SourceRow(status: source.status, lastSyncAt: source.lastSyncAt, lastError: source.lastError)
+            switch source.kind {
+            case .moodle: overview.moodle = row
+            case .cms: overview.cms = row
+            }
         }
+        let kindBySource = Dictionary(uniqueKeysWithValues: sources.compactMap { s in s.id.map { ($0, s.kind) } })
         overview.diagnostics = try UniDatabase.state(db, .moodleDiagnostics, as: MoodleDiagnostics.self)
 
         let courses = try UniCourse.order(Column("active").desc, Column("short_name")).fetchAll(db)
         let names = Dictionary(uniqueKeysWithValues: courses.compactMap { c in c.id.map { ($0, c.shortName) } })
+        let courseSource = Dictionary(uniqueKeysWithValues: courses.compactMap { c in
+            c.id.map { ($0, kindBySource[c.sourceId] ?? .moodle) }
+        })
         let currentTerm = AcademicTerm.current()
         overview.courses = courses.compactMap { course in
             let term = AcademicTerm.parse("\(course.shortName) \(course.fullName)")
             return course.id.map {
-                CourseRow(id: $0, shortName: course.shortName, fullName: course.fullName,
+                CourseRow(id: $0, source: kindBySource[course.sourceId] ?? .moodle, externalId: course.externalId,
+                          shortName: course.shortName, fullName: course.fullName,
                           active: course.active, isOverridden: course.activeOverride != nil,
                           term: term?.label, termIsPast: term.map { $0 < currentTerm } ?? false)
             }
@@ -79,7 +100,9 @@ public struct PortalOverview: Sendable, Equatable {
             try request.filter(Column("kind") == kind.rawValue && Column("deleted_at") == nil).fetchAll(db).map { item in
                 ItemRow(id: item.id!, course: names[item.courseId] ?? "", title: item.title, date: date(item),
                         url: item.url, section: item.category, isNew: item.firstSeenAt > lastVisit && item.readAt == nil,
-                        hasFile: withFile.contains(item.id!), isCached: cached.contains(item.id!))
+                        hasFile: withFile.contains(item.id!), isCached: cached.contains(item.id!),
+                        source: courseSource[item.courseId] ?? .moodle, courseId: item.courseId, endDate: item.endsAt,
+                        location: item.location, allDay: item.allDay, isExam: item.isExam)
             }
         }
 
@@ -88,6 +111,14 @@ public struct PortalOverview: Sendable, Equatable {
             .order(Column("starts_at").desc), date: \.startsAt)
         overview.materials = try rows(.material, UniItem.filter(activeIds.contains(Column("course_id")))
             .order(Column("course_id"), Column("category"), Column("title")), date: \.updatedAt)
+
+        let startOfToday = Calendar.current.startOfDay(for: .now)
+        let hidden = Dictionary(uniqueKeysWithValues: courses.compactMap { c in c.id.map { ($0, Set(c.hiddenCategories)) } })
+        overview.upcomingEvents = try rows(.event, UniItem
+            .filter(activeIds.contains(Column("course_id")))
+            .filter(Column("starts_at") >= startOfToday && Column("starts_at") < startOfToday.addingTimeInterval(21 * 86_400))
+            .order(Column("starts_at")), date: \.startsAt)
+            .filter { row in !(row.section.map { hidden[row.courseId]?.contains($0) ?? false } ?? false) }
 
         overview.recentRuns = try UniSyncRun.order(Column("started_at").desc).limit(10).fetchAll(db).map {
             RunRow(id: $0.id!, job: $0.job, startedAt: $0.startedAt, ok: $0.ok, counts: $0.counts, error: $0.error)

@@ -189,6 +189,53 @@ final class AppModel {
         try? database?.setCourseActive(id: id, override: nil)
     }
 
+    // MARK: - CMS
+
+    private(set) var cmsListing: [CMSCourseListing] = []
+    private(set) var cmsListingError: String?
+    private(set) var isLoadingCMSListing = false
+
+    /// The public course list for the picker (one request).
+    func loadCMSCourses() async {
+        guard let database, !isLoadingCMSListing else { return }
+        isLoadingCMSListing = true
+        defer { isLoadingCMSListing = false }
+        do {
+            cmsListing = try await CMSSync(database: database, client: CMSClient(transport: transport)).courseListing()
+            cmsListingError = nil
+        } catch {
+            cmsListingError = "Could not load the CMS course list: \(Self.describe(error))"
+        }
+    }
+
+    func setCMSCourse(_ listing: CMSCourseListing, selected: Bool) {
+        try? database?.setCMSCourse(listing, selected: selected)
+    }
+
+    func setCMSCourse(id: Int64, selected: Bool) {
+        try? database?.setCourseActive(id: id, override: selected)
+    }
+
+    /// After choosing courses: fetch their news and calendars right away.
+    func syncCMS() async {
+        guard let scheduler else { return }
+        isSyncing = true
+        defer { isSyncing = false }
+        await scheduler.run(.cmsPublic)
+    }
+
+    func eventCategories() -> [Int64: [String]] {
+        (try? database?.eventCategories()) ?? [:]
+    }
+
+    func hiddenCategories(courseId: Int64) -> Set<String> {
+        (try? database?.hiddenCategories(courseId: courseId)) ?? []
+    }
+
+    func setCategory(_ category: String, hidden: Bool, courseId: Int64) {
+        try? database?.setCategory(category, hidden: hidden, courseId: courseId)
+    }
+
     // MARK: - Files
 
     func open(_ item: PortalOverview.ItemRow) async {

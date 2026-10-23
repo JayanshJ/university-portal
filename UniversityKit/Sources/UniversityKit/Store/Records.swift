@@ -101,6 +101,9 @@ public struct UniItem: Codable, Sendable, Identifiable, FetchableRecord, Mutable
     public var bodyHtml: String?
     public var startsAt: Date?
     public var dueAt: Date?
+    public var endsAt: Date?
+    public var location: String?
+    public var allDay: Bool
     public var url: String?
     public var category: String?
     public var isExam: Bool
@@ -115,6 +118,7 @@ public struct UniItem: Codable, Sendable, Identifiable, FetchableRecord, Mutable
 
     public init(id: Int64? = nil, courseId: Int64, kind: ItemKind, externalId: String,
                 title: String, bodyHtml: String? = nil, startsAt: Date? = nil, dueAt: Date? = nil,
+                endsAt: Date? = nil, location: String? = nil, allDay: Bool = false,
                 url: String? = nil, category: String? = nil, isExam: Bool = false,
                 contentHash: String, firstSeenAt: Date = .now, updatedAt: Date = .now,
                 readAt: Date? = nil, doneAt: Date? = nil, doneSource: DoneSource? = nil,
@@ -127,6 +131,9 @@ public struct UniItem: Codable, Sendable, Identifiable, FetchableRecord, Mutable
         self.bodyHtml = bodyHtml
         self.startsAt = startsAt
         self.dueAt = dueAt
+        self.endsAt = endsAt
+        self.location = location
+        self.allDay = allDay
         self.url = url
         self.category = category
         self.isExam = isExam

@@ -113,6 +113,16 @@ extension UniDatabase {
             try db.execute(sql: "UPDATE uni_course SET auto_active = active WHERE active_override IS NULL")
         }
 
+        // Calendar events need an end, a place, and whether they are all-day.
+        migrator.registerMigration("v4_item_event_fields") { db in
+            try db.alter(table: "uni_item") { t in
+                t.add(column: "ends_at", .datetime)
+                t.add(column: "location", .text)
+                t.add(column: "all_day", .boolean).notNull().defaults(to: false)
+            }
+            try db.create(index: "uni_item_on_starts_at", on: "uni_item", columns: ["starts_at"])
+        }
+
         return migrator
     }
 }

@@ -1,0 +1,5240 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />	<title>Course Overview</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="author" content="Markus Bauer, Marc Jose, Sigurd Schneider">
+	<meta name="commit" content="94df377a5f6e9448fc77ff68d0224f408585a5d8@develop">
+    <style>
+        html[data-bs-theme=dark] .site-logo > img { content: url("/system/theme/Sic/img/logo-dark.png"); }    </style>
+	<link rel="stylesheet" type="text/css" href="/system/css/cakecms.css"/><link rel="stylesheet" type="text/css" href="/system/css/fontawesome.min.css"/><link rel="stylesheet" type="text/css" href="/system/css/theme.css"/><link rel="stylesheet" type="text/css" href="/system/css/theme-custom.css"/><script type="text/javascript" src="/system/js/modern/bootstrap.bundle.min.js"></script><script type="text/javascript" src="/system/js/modern/tempus-dominus.min.js" course="system"></script><script type="text/javascript" src="/system/js/modern/popper.min.js" course="system"></script><script type="text/javascript" src="/system/js/modern/custom.js"></script>	<link rel="apple-touch-icon-precomposed" sizes="144x144" href="/system/theme/Sic/img/apple-touch-icon-144-precomposed.png">
+	<link rel="apple-touch-icon-precomposed" sizes="114x114" href="/system/theme/Sic/img/apple-touch-icon-114-precomposed.png">
+	<link rel="apple-touch-icon-precomposed" sizes="72x72" href="/system/theme/Sic/img/apple-touch-icon-72-precomposed.png">
+	<link rel="apple-touch-icon-precomposed" sizes="57x57" href="/system/theme/Sic/img/apple-touch-icon-57-precomposed.png">
+	<link rel="shortcut icon" type="image/x-icon" href="/system/theme/Sic/img/favicon.png">
+	<link rel="icon" type="image/x-icon" href="/system/theme/Sic/img/favicon.png">
+	<!--[if lt IE 9]>
+	<script type="text/javascript" src="/system/js/ie_html5shiv.js"></script>
+	<![endif]-->
+</head>
+
+<body class="bg-body-tertiary d-flex flex-column py-0" style="min-height: 100vh;">
+<nav class="navbar navbar-dark border-bottom navbar-expand-md fixed-top">
+	<div class="container-lg">
+		<a href="/system/../system" class="navbar-brand">Courses</a>		<div class="navbar-expand flex-grow-1 flex-s d-md-none overflow-none">
+			<ul class="navbar-nav d-md-none flex-wrap" id="navbar-overflow"></ul>
+		</div>
+		<button class="navbar-toggler ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-system" aria-controls="navbar-system" aria-expanded="false" aria-label="Toggle navigation">
+			<span class="navbar-toggler-icon"></span>
+		</button>
+		<div class="collapse navbar-collapse" id="navbar-system">
+			<ul class="navbar-nav me-auto mb-2 mb-md-0" id="navbar-main">
+				<li class="nav-item">
+					<a href="/system/../system/courses" class="nav-link"><i class="fa fa-list fa-fw"></i> Course list</a>				</li>
+											</ul>
+			<div class="navbar-nav">
+				<div class="dropdown">
+    <button class="dropdown-toggle nav-link user-menu-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+        <i class="fa fa-user fa-fw"></i> 
+        Login 
+        <b class="caret"></b>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+                <form action="/system/users/login" class="p-2 dropdown-item-text d-grid gap-2" style="min-width: 240px" id="UserLoginMenuForm" method="post" accept-charset="utf-8"><div style="display:none;"><input type="hidden" name="_method" value="POST"/><input type="hidden" name="data[_Token][key]" value="FIXTURE" id="Token245146647" autocomplete="off"/></div>        <input name="data[User][username]" placeholder="Username" id="MenuUserUsername" maxlength="100" class="form-control" type="text" required="required"/>        <input name="data[User][password]" placeholder="Password" id="MenuUserPassword" class="form-control" type="password" required="required"/>        <div class="my-2"><input type="hidden" name="data[Auth][remember_me]" id="MenuAuthRememberMe_" value="0"/><input type="checkbox" name="data[Auth][remember_me]" id="MenuAuthRememberMe" class="form-check-input" value="1"/><label for="MenuAuthRememberMe" class="mx-2 form-check-label">Remember me</label></div>        <input type="hidden" name="data[User][redirect]" value="https://cms.sic.saarland/system/courses" id="MenuRedirect" class="form-control"/>        <li class="d-grid">
+            <button type="submit" class="btn btn-primary"><i class="fa fa-right-to-bracket"></i> Login</button>
+        </li>
+        <div style="display:none;"><input type="hidden" name="data[_Token][fields]" value="FIXTURE" id="TokenFields1506483074" autocomplete="off"/><input type="hidden" name="data[_Token][unlocked]" value="" id="TokenUnlocked812676091" autocomplete="off"/></div></form>        <li class="dropdown-divider"></li>
+        <li>
+            <a href="/system/students/register" class="dropdown-item"><i class="fa fa-user-plus fa-fw"></i> Registration</a>        </li>
+        <li>
+            <a href="/system/Users/lost" class="dropdown-item"><i class="fa fa-lock-open fa-fw"></i> Forgot Password?</a>        </li>
+        
+                <li><hr class="dropdown-divider"></li>
+        <li style="min-width: 270px;">
+            <button class="dropdown-item lightmode-only" data-toggle="theme" data-bs-theme="dark">
+                <i class="fa fa-moon fa-fw"></i>
+                Enable dark mode            </button>
+            <button class="dropdown-item darkmode-only" data-toggle="theme" data-bs-theme="light">
+                <i class="fa fa-sun fa-fw"></i>
+                Enable light mode            </button>
+        </li>
+    </ul>
+</div>			</div>
+		</div>
+	</div>
+</nav>
+
+<!-- page-header -->
+<div class="border-bottom flex-shrink-0">
+	<!-- This navbar is just a vertical spacer -->
+	<div class="navbar bg-body-tertiary">
+		<div class="container-lg">
+			<a class="navbar-brand" href="#">&nbsp;</a>
+		</div>
+	</div>
+	<div class="container-lg py-3">
+		<div class="page-header">
+			<div class="page-logo">
+				<a href="/system/../system" class="site-logo" title="Front Page"><img src="/system/theme/Sic/img/logo.png" alt=""/></a>			</div>
+			<div class="page-title">
+				<h1 class="mt-1">
+					CMS				</h1>
+				<small class="text-muted">
+					Lectures				</small>
+			</div>
+		</div>
+	</div>
+</div>
+<!-- /page-header -->
+
+<!-- main-content -->
+<div class="bg-body flex-shrink-0 flex-grow-1 py-3">
+	<div class="container-lg main-layout">
+						
+		<div id="content" class="content">
+			<section>
+<h2>Course list</h2>
+
+<div class="action-row">
+</div>
+</section>
+
+<section>
+	<h3>
+		Winter term 2026/2027	</h3>
+	<table class="table">
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cv4d">3D and 4D Computer Vision</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Vladislav Golyanik				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../atos">Advanced Topics in Operating Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										André Brinkmann				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../aisystems">AI Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Christina Giannoula				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../alg26">Algebra</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Christian Steinhart				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../alg_geo">Algebraic Geometry</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Vladimir Lazić				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../algodat2627">Algorithmen und Datenstrukturen für Informatik-Lehramt Sekundarstufe I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../alsa26">Algorithms for Sequence Analysis</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Alexey Gurevich				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ana1_2627">Analysis 1</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Mark Groves				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ana3_2627">Analysis 3</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Michael Hartz				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../aet2026">Artificial Empathic Technology</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dr. Patrick Gebhard, Dr. Janet Weßler, B.Sc. Anna Lea Reinwarth				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ai_2627">Artificial Intelligence</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://fai.cs.uni-saarland.de/hoffmann">Prof. Dr. Jörg Hoffmann</a>, <a href="https://fai.cs.uni-saarland.de/hoeller">Dr. Daniel Höller</a>, <a href="https://fai.cs.uni-saarland.de/schmalz">Johannes Schmalz, PhD</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../avcn_2627">Audio-Visual Communication &amp; Networks (WS 2026)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thorsten Herfet				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../graph_seminar26">Back to the Roots: Graph Algorithms for Small Molecules</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andrea Volkamer, Michael Backenköhler, Lisa-Marie Rolli, Ana Mirandela				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../bioinf1_26"> Bioinformatik 1</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Andreas Keller, Lara Hombrecher				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../biostatslab26">BioStatsLab</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.rahmannlab.de/people/rahmann">Prof. Dr. Sven Rahmann</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../latex_2627">Block Course &quot;Introduction to LaTeX&quot;</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Friedrich Guenther				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../causxai">Causal XAI</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Nektarios Kalampalikis, Kunchangtai Liang, María Martínez-García, Isabel Valera				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cg_2627">Computer Graphics</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Pascal Grittmann, Philipp Slusallek				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cla">Continually Learning Agents</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Marius Mosbach				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../das_26">Data and Society</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Ankan Mullick, Till Koebe, Ingmar Weber				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../dbsys2627">Database Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://bigdata.uni-saarland.de/people/jensdittrich.html">Prof. Dr. Jens Dittrich</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../dic_26">Differential Equations in Image Processing and Computer Vision</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.mia.uni-saarland.de/weickert/index.shtml">Prof. Dr. Joachim Weickert</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../dtsp_2627">Digital Transmission &amp; Signal Processing (WS 2026)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thorsten Herfet				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../i2cl_2627">Einführung in die Computerlinguistik</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.uni-saarland.de/lehrstuhl/demberg.html">Prof. Dr. Vera Demberg</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../enum26">Einführung in die Numerik</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andreas Rupp				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../edsai26">Elements of Data Science and Artificial Intelligence</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andrea Volkamer, Vera Demberg, Ingmar Weber, Bernt Schiele, Till Koebe				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../emlw26">Elements of Machine Learning</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Sara Magliacane				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../emse_26">Empirical Software Engineering Research</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.se.cs.uni-saarland.de/apel/index.php">Prof. Dr. Sven Apel</a>, <a href="https://www.se.cs.uni-saarland.de/people/peitek.php">Dr. Norman Peitek</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../exml_2627">Explainable Machine Learning</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Jonas Fischer				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../fof_math_ws2627">Foundations of Mathematics</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.mhahn.info/">Prof. Michael Hahn</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../funcspaces26">Funktionenräume mit Anwendungen</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andreas Rupp				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../gdmi_2627">Grundlagen der Medieninformatik</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://umtl.cs.uni-saarland.de/people/prof.-dr.-antonio-kr%C3%BCger.html">Prof. Dr. Antonio Krüger</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../gsv_ws2627">Grundlagen der Signalverarbeitung</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dietrich Klakow				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../gis_2627">Grundlagen von Informatiksystemen</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hfs_2627">Hilbert Function Spaces</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Michael Hartz				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hmi32627">Höhere Mathematik für Ingenieure III</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thomas Schuster, Dean Zenner				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hci_2627">Human Computer Interaction</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Jürgen Steimle				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../idi_26">Ideen der Informatik</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Ingmar Weber, Till Koebe				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../iam26">Image Acquisition Methods</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.uni-saarland.de/en/fakultaet-mi/peter.html">PD Dr. Pascal Peter</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../probing_2627">Interpreting and Analyzing Neural Language Models</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Xinting Huang				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../introalgdat2627">Introduction to Algorithms and Data Structures</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Raimund Seidel				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ti2627">Introduction to Theoretical Computer Science</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Markus Bläser				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../llm4ps">Large Language Models for Physical Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Roland Aydin				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../life_w26">Life Insurance Mathematics</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Frederik Herzberg				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../la12627">Lineare Algebra 1</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Simon Brandhorst, Reinder Meinsma				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../qit1_26">Mathematical Foundations of Quantum Information</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Moritz Weber, Jonas Metzinger				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mfi1_mfcs1_wise2627">Mathematics for Computer Scientists I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Peter Ochs				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mfcs3_wise2627">Mathematics for Computer Scientists III</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Frederik Herzberg				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../math_bio_chem_la26">Mathematik für Biologen und Chemiker (Lehramt)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Felix Krumbiegel				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mfn_i">Mathematik für Naturwissenschaftler I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Vladimir Lazić				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../natcomp">Natural Computing and Algorithms</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Markus Bläser, Anurag Pandey				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../nnia_2627">Neural Networks: Implementation and Application (CoLI/LST students only!!!!)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dietrich Klakow				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../nnti_2627">Neural Networks: Theory and Implementation</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dietrich Klakow				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ot_26">Optimal Transport</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Felix Sachse				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../oscar">OSCAR-Kurs</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Pascal Kattler				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../perspectives2627">Perspectives of Computer Science (WS 2026)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Tomohiro Nagashima				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../prog1_26">Programming 1</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://compilers.cs.uni-saarland.de/people/hack/">Sebastian Hack</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../inteq">(Pro-)Seminar: Integralgleichungen</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thomas Schuster				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../rmqi_2627">Random Matrices and Applications in Quantum Information</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Roland Speicher				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../srl26">Representation Learning: Foundations and Challenges</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lena Marie Budde, María Martínez-García, Isabel Valera, Thuc Khanh Huyen Vo				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../komb26">Seminar Kombinatorik</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Christian Steinhart, Hannah Wagmann				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../matfunc26">Seminar: Matrixfunktionen</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Benjamin Dörich, Andreas Rupp				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../underwater_2627">(Seminar) Real-Time Control of Underwater Robots</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Martina Maggio				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../taip2627">Seminar: Trusted AI Planning</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://fai.cs.uni-saarland.de/hoeller">Dr. Daniel Höller</a>, <a href="https://fai.cs.uni-saarland.de/hoffmann">Prof. Dr. Jörg Hoffmann</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../sem_agents_ak_w26">Seminar - Who does the science in the age of agents?</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Johanna Becher, Philipp Flotho, Florian Kriegel				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../semstoch">Seminar zur Stochastik</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Henryk Zähle				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../se_2627">Software Engineering</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.se.cs.uni-saarland.de/apel/index.php">Prof. Dr. Sven Apel</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../statdc26">Statistical Data Compression</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Kamila Szewczyk & <a href="https://www.rahmannlab.de/people/rahmann">Prof. Dr. Sven Rahmann</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../statr_2627">Statistics with R</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Vera Demberg				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../stoch2">Stochastics II</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Henryk Zähle				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../theory_2627">Theoretical Abilities and Limitations of Language Models</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Yash Sarrof				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../tds2627">Tutor Didactics Seminar</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Jan-Hendrik Gindorf, Niels Goedicke, Thorben Johr, Martina Maggio, Jona-yazdan Prinz				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../vgm">Visual Generative Models</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Jan Eric Lenssen				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+			</table>
+</section>
+<section>
+	<h3>
+		Summer term 2026	</h3>
+	<table class="table">
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../causalml_26">Advanced topics in causality and causal ML research</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Sara Magliacane				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../atnrr26">Advanced Topics in Neural Rendering and Reconstruction</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Rishabh Dabral, Lin Geng Foo, Marc Habermann, Thomas Leimkühler, Briac Toussaint				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../aclb">Algebraic circuit lower bounds</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Markus Bläser, Anurag Pandey				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../algtop26">Algebraische Topologie</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Davide Veniani				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../algodat_26">Algorithms and Data Structures</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Danupon Nanongkai, Guy Even, Nick Fischer, Evangelos Kipouridis, Tomasz Kociumaka				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ana2_26">Analysis 2</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Michael Hartz				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../bde26">Big Data Engineering</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://bigdata.uni-saarland.de/people/jensdittrich.html">Prof. Dr. Jens Dittrich</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../bdelasi">Big Data Engineering für Informatik-Lehramt Sekundarstufe I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../bioinfo2">Bioinformatics 2</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andrea Volkamer and Olga Kalinina				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../tex26">Block course Introduction to LaTeX</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Friedrich Günther				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../clabi">Classical Bioinformatics Papers</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Inês Alves Ferreira & <a href="https://www.rahmannlab.de/people/rahmann">Prof. Dr. Sven Rahmann</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../coglm26">Cognitive Perspectives on Language Models</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://kmccurdy.github.io/">Kate McCurdy</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../commalg">Commutative Algebra and Introduction to Algebraic Geometry</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Massimiliano Alessandro				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cp26">Competitive Programming</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Markus Bläser, Yasmine Briefs, Tomasz Kociumaka, Simon Schwarz, Marek Sokolowski, Christoph Weidenbach				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cct26">Complexity Theory</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Markus Bläser, Anurag Pandey				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cp_26">Concurrent Programming</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Felix Freiberger				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cao16">Continuous Optimization</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Peter Ochs				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cps_26">Cyber-Physical Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Martina Maggio				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../dsp26">Digital Signal Processing</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dietrich Klakow				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../eplasi">Einführung in die Programmierung für Informatik-Lehramt Sekundarstufe I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../eprog26">Elemente der Programmierung</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Felix Krumbiegel				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../evfm26">Elemente der Versicherungs- und Finanzmathematik</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Frederik Herzberg, Prof. Dr. Henryk Zähle				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../fsalasi_26">Formale Sprachen &amp; Automaten für Informatik-Lehramt Sekundarstufe I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../fc26">Functional Calculus</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Jens de Vries				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ft2026">Funktionentheorie</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Gabriela Weitze-Schmithuesen				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../graphen_ss26">Graphentheorie</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Davide Veniani				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hon_26">Hands on Networking (Block Course March 2026)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thorsten Herfet				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hlcvss26">High-Level Computer Vision</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.mpi-inf.mpg.de/departments/computer-vision-and-machine-learning/people/bernt-schiele/">Bernt Schiele</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hmi226">Höhere Mathematik für Ingenieure II</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thomas Schuster, Dean Zenner				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ic26">Image Compression</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.uni-saarland.de/en/fakultaet-mi/peter.html">Dr. Pascal Peter</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ipcv_26"> Image Processing and Computer Vision (SS 2026)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.mia.uni-saarland.de/weickert/index.shtml">Prof. Dr. Joachim Weickert</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../is_sose26">Interactive Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://umtl.cs.uni-saarland.de/people/prof.-dr.-antonio-kr%C3%BCger.html">Prof. Dr. Antonio Krüger</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../it_26">Internet Transport (SS 2026)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thorsten Herfet				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../icl_26">Introduction to Computational Logic</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.ps.uni-saarland.de/~smolka/">Prof. Gert Smolka</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../inv_prob_sose_26">Inverse Problems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thomas Schuster				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../la26">Lineare Algebra 2</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Mark Groves				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ml26">Machine Learning (SS 2026)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Isabel Valera				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mathstat26">Mathematical Statistics</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Frederik Herzberg				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mfi2_mfcs2_sose26">Mathematik für Informatiker*innen II / Mathematics for Computer Scientists II</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Mark Groves, Dr. Tobias Mai				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mfn_ii_ss26"> Mathematik für Naturwissenschaftler*innen II</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Davide Veniani				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mathmod26">Mathematische Modellierung</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andreas Rupp				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../brain_26">Neural Networks in Brains and Computers</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Michael Hahn				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../os_26">Operating Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Antoine Kaufmann, Björn Brandenburg, Laurent Bindschaedler				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../pde26">Partial Differential Equations</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Christian Steinhart				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../prog2_26">Programming 2</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://compilers.cs.uni-saarland.de/people/hack/">Sebastian Hack</a>, <a href="https://fai.cs.uni-saarland.de/hoffmann/">Jörg Hoffmann</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../p2vorkurs26">Programming 2 Pre-Course</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Yağız Aktaş, Elvira Mayer, Felix F. Caglioti, Ben Sievers, Maike Kalms				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../prog_bi_26"> Programming Course (MSc Bioinformatics) </a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Pascal Hirsch				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../dsaiproject26">Project Seminar Data Science and Artificial Intelligence</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dr. Till Koebe, Prof. Dr. Ingmar Weber				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ps_foodhci_26">Proseminar: FoodHCI - Grundlagen und Stand der Forschung</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dr. André Zenner, Dr. Felix Kosmalla, Prof. Dr. Antonio Krüger				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../inf_26">Proseminar Introduction to Information Theory</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Sven Rahmann, Johanna Schmitz, Kamila Szewczyk, Jens Zentgraf				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../quantum_groups_26">Quantum Groups</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Luca Junk, Jonas Metzinger				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../random_graphs_26">Random Graphs</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Felix Sachse, Henryk Zähle				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ris_26">Realistic Image Synthesis</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Philipp Slusallek, Karol Myszkowski, Corentin Salaün				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../s_ar4sports_26">Seminar: Augmented Reality for Sports</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dr. André Zenner, Dr. Felix Kosmalla, Muhammad Moiz Sakha, Dr. Florian Daiber, Prof. Dr. Antonio Krüger				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../semla26">Seminar für Lehramtsstudierende</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andreas Rupp				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../nummeth26">Seminar: Numerische Methoden</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andreas Rupp				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../holomorphic_spaces26">Seminar/Proseminar: Spaces of Holomorphic Functions</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Michael Hartz, Maximilian Leist				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../taip26">Seminar: Trusted AI Planning</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://fai.cs.uni-saarland.de/hoeller">Daniel Höller</a>, <a href="https://fai.cs.uni-saarland.de/hoffmann">Jörg Hoffmann</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../se_lab_26">Software Engineering Lab (Software-Praktikum)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.se.cs.uni-saarland.de/apel/index.php">Prof. Dr. Sven Apel</a>, <a href="https://www.se.cs.uni-saarland.de/people/peitek.php">Dr. Norman Peitek</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../sopralasi_26">Softwarepraktikum für Informatik-Lehramt Sekundarstufe I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../stdrl26"> Special Topics in Deep Reinforcement Learning </a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Verena Wolf, Timo Gros				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../snlp26">Statistical Natural Language Processing</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dietrich Klakow				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../statlab_26">Statistics Lab</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Verena Wolf				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../stoch1">Stochastik I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Henryk Zähle				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../sto_26">Storage Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr.-Ing. André Brinkmann, Benedikt Schardt				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../sysarch26">System Architecture</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Jan Reineke, Dr. Guillaume Didier, Gideon Mohr				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ml_theory_lm_ss26">Theory of Machine Learning for Language Models</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.mhahn.info/">Prof. Michael Hahn</a>, <a href="https://yashsarrof.com/">Yash Sarrof</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../translationsurfaces">Translation surfaces</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Gabriela Weitze-Schmithuesen				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../numpde26">Vertiefung der Numerik partieller Differentialgleichungen</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andreas Rupp				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+			</table>
+</section>
+<section>
+	<h3>
+		Winter term 2025/2026	</h3>
+	<table class="table">
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cv_4d">3D and 4D Computer Vision</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dr. Vladislav Golyanik				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../alg">Algebra</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Vladimir Lazić				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../algodat25">Algorithmen und Datenstrukturen für Informatik-Lehramt Sekundarstufe I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ana1_2526">Analysis 1</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Michael Hartz				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../anna3_25">Analysis III</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Moritz Weber				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ag_2526">Analytische Geometrie (LS1+2)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Weitze-Schmithüsen				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ai_2526">Artificial Intelligence</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://fai.cs.uni-saarland.de/hoffmann/">Prof. Dr. Jörg Hoffmann</a>, <a href="https://fai.cs.uni-saarland.de/hoeller">Dr. Daniel Höller</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../avcn_2526">Audio-Visual Communication &amp; Networks (WS 2025)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thorsten Herfet				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../bioinformatik1_25">Bioinformatik 1</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.rahmannlab.de/people/rahmann">Prof. Dr. Sven Rahmann</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../biostatslab25">BioStatsLab</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.rahmannlab.de/people/rahmann">Prof. Dr. Sven Rahmann</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../buildos_25">Building an Operating System from Scratch</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Antoine Kaufmann				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cc2526">Compiler Construction</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Sebastian Hack				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cg_25">Computer Graphics</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Pascal Grittmann, Philipp Slusallek				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cr2526">Current Research in Databases</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://bigdata.uni-saarland.de">Prof. Dr. Jens Dittrich</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../das_2526">Data and Society</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Annika Hass, Till Koebe, Ingmar Weber				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../deeppgms">Deep Probabilistic Generative Models </a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										María Martínez-García, Isabel Valera				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../dic25">Differential Equations in Image Processing and Computer Vision</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.mia.uni-saarland.de/weickert/index.shtml">Prof. Dr. Joachim Weickert</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../dtsp_2526">Digital Transmission &amp; Signal Processing (WS 2025)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thorsten Herfet				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../dyn_sys25">Dynamical Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Christian Steinhart				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../i2cl_2526">Einführung in die Computerlinguistik</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.uni-saarland.de/lehrstuhl/demberg.html">Prof. Dr. Vera Demberg</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../eidnws2526">Einführung in die Numerik</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thomas Schuster				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../enumpde25">Einführung in die Numerik partieller Differentialgleichungen | Introduction to numerical methods for partial differential equations</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andreas Rupp				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../edsai25">Elements of Data Science and Artificial Intelligence</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Vera Demberg, Dr. Till Koebe, Prof. Dr. Bernt Schiele, Prof. Dr. Andrea Volkamer, Prof. Dr. Ingmar Weber				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../eml25">Elements of Machine Learning</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Kavya Gupta, Joerg Hoffmann, Sara Magliacane, Isabel Valera				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../exml">Explainable Machine Learning</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Jonas Fischer				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../fml">Formalizing Mathematics in LEAN</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://leonpernak.gitlab.io/">Leon Pernak</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../fof_math_ss2526">Foundations of Mathematics</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.mhahn.info/">Prof. Michael Hahn</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../fa2526">Functional Analysis</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Michael Hartz				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ggtii_ws2025">Geometric Group Theory II (Geometrische Gruppentheorie II)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Gabriela Weitze-Schmithuesen				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../gdmi_2526">Grundlagen der Medieninformatik</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://umtl.cs.uni-saarland.de/people/prof.-dr.-antonio-kr%C3%BCger.html">Prof. Dr. Antonio Krüger</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../gsv_ws25">Grundlagen der Signalverarbeitung</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dietrich Klakow				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../gis_25">Grundlagen von Informatiksystemen</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hmi12526">Höhere Mathematik für Ingenieure I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thomas Schuster, Dean Zenner				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hci_2526">Human Computer Interaction</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Jürgen Steimle, Prof. Dr. Anna Maria Feit				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ideen2526">Ideen der Informatik</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://people.mpi-inf.mpg.de/~mehlhorn/">Kurt Mehlhorn</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../iam25">Image Acquisition Methods</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.uni-saarland.de/en/fakultaet-mi/peter.html">Dr. Pascal Peter</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../iavc25">Interpolation and Approximation for Visual Computing</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Vassillen Chizhov				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../gralgodat25">Introduction to Algorithms and Data Structures</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Karl Bringmann and Prof. Markus Bläser				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ti2526">Introduction to Theoretical Computer Science</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Raimund Seidel				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../la125">Lineare Algebra 1</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Mark Groves				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../bi_mla_25">Machine Learning Approaches for Building Virtual Cell Models</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Simon Graf, Matthias Flotho, Jonas Fischer, Andreas Keller				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mathfin_ws25">Mathematical Finance</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Frederik Herzberg				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mfcs3_wise2526">Mathematics for Computer Scientists III</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Henryk Zähle				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mfi1_mfcs1_wise2526">Mathematik für Informatiker*innen I / Mathematics for Computer Scientists I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Mark Groves, Dr. Tobias Mai				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mfn_i_ws25_26">Mathematik für Naturwissenschaftler*innen I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Davide Veniani				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mda_ws25">Microbiome Data Analysis</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Alexey Gurevich				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../milestones_2526">Milestones in Machine Learning and Language: Historical Readings</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Yash Sarrof				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../nnia_25">Neural Networks: Implementation and Application (CoLI/LST students only!!!!)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dietrich Klakow				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../nnti_25">Neural Networks: Theory and Implementation</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dietrich Klakow				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ncconv">Noncommutative convexity</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Tea Štrekelj				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../nso25">Non-smooth Analysis and Optimization in Data Science</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Peter Ochs				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../numla25">Numerik für Lehramtsstudierende</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andreas Rupp				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../opii25v2">Operatoralgebren II</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Moritz Weber				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../oc25">Optimal Control Seminar</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Kathrin Flaßkamp, Martina Maggio, Amine Othmane				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../perspectives25">Perspectives of Computer Science</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Tomohiro Nagashima				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../pa25">Program Analysis</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Jan Reineke				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../p1_2526">Programming 1</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Holger Hermanns				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../bdb25">Proseminar Buch der Beweise</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Christian Bender, Michael Hartz				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ps_sportshci_ws25">Proseminar: Mensch-Maschine-Interaktion im Sport - Grundlagen und Stand der Forschung</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dr. Felix Kosmalla, Dr. André Zenner, Prof. Dr. Antonio Krüger				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../s_mmph">(Pro-)Seminar Modern Minimal Perfect Hashing: A Survey</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Johanna Schmitz, Jens Zentgraf				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ps_vr_ws25">Proseminar: Virtual Reality - Grundlagen und Stand der Forschung</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dr. André Zenner, Dr. Felix Kosmalla, Prof. Dr. Antonio Krüger				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../rl_25">Reinforcement Learning</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Verena Wolf				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../securehardware2526">Security at the Hardware-Software Interface</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Jan Reineke, Guillaume Didier, Gideon Mohr				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../semantics_ws2526">Semantics</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Derek Dreyer				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../sofm">Seminar on Foundations of Flow Matching for Generative Modelling</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Peter Ochs				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../matroide_ws25">Seminar über Matroidentheorie</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Davide Veniani				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../bi_sco_25">Single-cell Omics for Systems Immunology</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Friederike Grandke, Tobias Wolff, Andreas Keller				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../se_2526">Software Engineering</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.se.cs.uni-saarland.de/apel/index.php">Prof. Dr. Sven Apel</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../statr_2526">Statistics with R</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="mailto:emilia@lst.uni-saarland.de">Emilia Ellsiepen</a>, Laura Pissani				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../stoch2_ws25">Stochastics II</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Christian Bender				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../teichtheory">Teichmüller Theory</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Konstantin Bogdanov, Gabriela Weitze-Schmithuesen				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../theory_2526">Theoretical Abilities and Limitations of Language Models</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Xinting Huang				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../tsa_ws25">Time Series Analysis</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Henryk Zähle				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../tds2526">Tutor Didactics Seminar</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Vera Demberg, Niels Goedicke, Lea Herrmann, Janine Lohse, Tarik Rosin				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+			</table>
+</section>
+<section>
+	<h3>
+		Summer term 2025	</h3>
+	<table class="table">
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../tsa25">Advanced Time Series Analysis: From probabilistic to foundational models</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Tim Bauerschmidt, Batuhan Koyuncu, María Martínez-García, Isabel Valera				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../se_seminar_ss_25">AI Coding Assistants: Hype or Game Changer?</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.se.cs.uni-saarland.de/apel/index.php">Prof. Dr. Sven Apel</a>, <a href="https://www.se.cs.uni-saarland.de/people/wyrich.php">Dr. Marvin Wyrich</a>, <a href="https://www.se.cs.uni-saarland.de/people/peitek.php">Dr. Norman Peitek</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../alsa25">Algorithms for Sequence Analysis</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Sven Rahmann				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ana2_25">Analysis 2</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Moritz Weber				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../bde25">Big Data Engineering</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://bigdata.uni-saarland.de/people/jensdittrich.html">Prof. Dr. Jens Dittrich</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../bdela_25">Big Data Engineering für Informatik-Lehramt Sekundarstufe I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../bioinf2_ss25">Bioinformatik 2</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andrea Volkamer, Olga Kalinina				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../v8bit">Build an 8-bit Computer from Scratch</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://compilers.cs.uni-saarland.de/people/hack/">Sebastian Hack</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../causcompl25">Causality for Complexity Theorists</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Markus Bläser				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../causal">Causethical Machine Learning </a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Kavya Gupta, Nektarios Kalampalikis, Deborah Dormah Kanubala, Isabel Valera				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cp_25">Concurrent Programming</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Felix Freiberger				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cps_25">Cyber-Physical Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Martina Maggio				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../dsp25">Digital Signal Processing</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dietrich Klakow				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../distsys">Distributed Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.mpi-sws.org/~druschel">Peter Druschel</a> and <a href="https://www.mpi-sws.org/~dg">Deepak Garg</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../progla25">Einführung in die Programmierung für Informatik-Lehramt Sekundarstufe I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ezt25">Elementare Zahlentheorie</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Mark Groves				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../eprog_25">Elemente der Programmierung</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dean Zenner				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../emse_25">Empirical Software Engineering Research</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.se.cs.uni-saarland.de/apel/index.php">Prof. Dr. Sven Apel</a>, <a href="https://www.se.cs.uni-saarland.de/people/peitek.php">Dr. Norman Peitek</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../eqsat">Equality Saturation</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://compilers.cs.uni-saarland.de/people/hack/">Sebastian Hack</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../fsala_25">Formale Sprachen und Automaten für Informatik-Lehramt Sekundarstufe I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ggt25">Geometric Group Theory (Geometrische Gruppentheorie)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Manuel Kany, Gabriela Weitze-Schmithuesen				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../gdps25">Gescheiterte Digitalisierung</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://bigdata.uni-saarland.de">Prof. Dr. Jens Dittrich</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../gk_ki">Grundkurs Künstliche Intelligenz (Studierende anderer Fächer)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. V. Wolf				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hon_25">Hands on Networking (Block Course March 2025)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thorsten Herfet				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hlcvss25">High-Level Computer Vision</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.mpi-inf.mpg.de/departments/computer-vision-and-machine-learning/people/bernt-schiele/">Bernt Schiele</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hmi4a_ss25">Höhere Mathematik für Ingenieure IV A</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Christian Steinhart				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../hmi4b_ss25">Höhere Mathematik für Ingenieure IV B</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Christian Steinhart				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ic25">Image Compression</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.uni-saarland.de/en/fakultaet-mi/peter.html">Dr. Pascal Peter</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ipcv_25"> Image Processing and Computer Vision</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.mia.uni-saarland.de/weickert/index.shtml">Prof. Dr. Joachim Weickert</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ishl_25">Intelligent Systems and Human Learning</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Tomohiro Nagashima				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ias_25">Interactive Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Jürgen Steimle				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../it_25">Internet Transport (SS 2025)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thorsten Herfet				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../probing_25">Interpreting and Analyzing Neural Language Models</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Xinting Huang				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../icl_25">Introduction to Computational Logic</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.ps.uni-saarland.de/~smolka/">Prof. Gert Smolka</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ipbs25">Inverse Problems in Banach Spaces</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Thomas Schuster				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../la2_sose25">Lineare Algebra II</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Vladimir Lazić				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ml25">Machine Learning</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Peter Ochs				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mathstat25">Mathematical Statistics</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Henryk Zähle				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mfi2_mfcs2_sose25">Mathematik für Informatiker*innen II / Mathematics for Computer Scientists II</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Mark Groves, Dr. Tobias Mai				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../mfnii25">Mathematik für Naturwissenschaftler II</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Simon Brandhorst				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../brain_25">Neural Networks in Brains and Computers</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Michael Hahn				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../nlim">Non-Life Insurance Mathematics</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Thuan Nguyen				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../navc25">Numerical Algorithms for Visual Computing</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Vassillen Chizhov				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../numev">Numerik von Eigenwerten</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andreas Buchheit, Andreas Rupp				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../pi_pde">Parameter Identification for Partial Differential Equations</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Thomas Schuster				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../fp_25">Pearls of Functional Programming</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dominic Zimmer				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../prog2_25">Programming 2</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://compilers.cs.uni-saarland.de/people/hack/">Sebastian Hack</a>, <a href="https://fai.cs.uni-saarland.de/hoffmann/">Jörg Hoffmann</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../p2vorkurs25">Programming 2 Pre-Course</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prog2 Pre-Course Team				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../prog_bi_25">Programming Course (MSc Bioinformatics)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Pascal Hirsch				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../dsaiproject25">Project Seminar Data Science and Artificial Intelligence</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dr. Till Koebe, Prof. Dr. Ingmar Weber				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../prposeminar_llms_25">Proseminar Large Language Models</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Michael Hahn				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../qmc_25">Quantitative Model Checking</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Holger Hermanns				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ris_25">Realistic Image Synthesis</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Philipp Slusallek, Karol Myszkowski, Corentin Salaün, Pascal Grittmann				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../cldrel_25">Reliability in Modern Cloud Systems</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Vaastav Anand				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../srmim">Reproducible methods in metagenomics</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Sven Rahmann, Johanna Schmitz, Jens Zentgraf				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../seminar_gf">Seminar Generating Functions</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Gabriela Weitze-Schmithuesen				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../se_lab_25">Software Engineering Lab (Software-Praktikum)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://www.se.cs.uni-saarland.de/apel/index.php">Prof. Dr. Sven Apel</a>, <a href="https://www.se.cs.uni-saarland.de/people/peitek.php">Dr. Norman Peitek</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../sopral_25">Softwarepraktikum für Informatik-Lehramt Sekundarstufe I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Lukas Wachter				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../software_interp_25">Software Project: Linguistic Interpretibility for Neural Models of Language</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://kmccurdy.github.io/">Kate McCurdy</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../spamo">Spatiotemporal Models and Inference (Seminar)</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dr. Jonas Wahl				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../snlp25">Statistical Natural Language Processing</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Dietrich Klakow				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../statslab25">StatsLab</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="mailto:vera@lst.uni-saarland.de">Vera Demberg</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../stoch1_25">Stochastik I</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Christian Bender				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../sysarch25">System Architecture</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Prof. Dr. Jan Reineke, Dr. Guillaume Didier				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../odes">Theorie und Numerik gewöhnlicher Differentialgleichungen</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										Andreas Rupp				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../taip25">Trusted AI Planning</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="http://fai.cs.uni-saarland.de/hoeller/index.html">Dr. Daniel Höller</a>, <a href="https://fai.cs.uni-saarland.de/hoffmann/">Prof. Dr. Jörg Hoffmann</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+				<tr class="">
+			<td class="py-2">
+				<div class="mb-1">
+					<h6 class="d-inline">
+						<a href="/system/../ver25">Verification</a>					</h6>
+					<span class="text-nowrap">
+					
+										</span>
+				</div>
+				
+				<div class="text-muted">
+										<a href="https://quave.cs.uni-saarland.de/benjamin-kaminski/">Prof. Dr. Benjamin Kaminski</a>				</div>
+
+				
+			</td>
+			<td class="td-action">
+							</td>
+		</tr>
+			</table>
+</section>
+
+
+<p><a href="/system/courses/index/all">Show older courses...</a></p>		</div>
+
+		        	</div>
+</div>
+<!-- /main-content -->
+
+<!-- page-footer -->
+<div class="border-top flex-shrink-0">
+	<div class="container text-center py-4">
+		
+
+<small class="page-footer text-muted">
+	<a href="https://www.uni-saarland.de/en/privacy.html" target="_blank">Privacy Policy</a> | <a href="https://www.uni-saarland.de/en/legal-notice.html" target="_blank">Legal Notice</a><br/>
+	If you encounter technical problems, please contact <a href="mailto:cakecms@cs.uni-saarland.de?subject=[]&amp;body=Please%20provide%20sufficient%20informations%20as%3A%20Name%2C%20Date%2C%20Role%2C%20Which%20System%2C%20What%20Error%21">the administrators</a>.</small>	</div>
+</div>
+<!-- /page-footer -->
+
+</body>
+</html>

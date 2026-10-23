@@ -4,10 +4,12 @@ import GRDB
 public enum SyncJob: String, CaseIterable, Sendable {
     case moodleFast = "moodle.fast"
     case moodleMaterials = "moodle.materials"
+    case cmsPublic = "cms.public"
 
     var source: SourceKind {
         switch self {
         case .moodleFast, .moodleMaterials: .moodle
+        case .cmsPublic: .cms
         }
     }
 
@@ -15,6 +17,7 @@ public enum SyncJob: String, CaseIterable, Sendable {
         switch self {
         case .moodleFast: 30 * 60
         case .moodleMaterials: 3 * 3600
+        case .cmsPublic: 3600
         }
     }
 }
@@ -86,25 +89,43 @@ public actor SyncScheduler {
         await task.value
     }
 
+    /// The work for `job`, or nil when there is nothing to do yet (not connected, no courses chosen).
+    private func work(for job: SyncJob) -> (@Sendable () async throws -> SyncOutcome)? {
+        let database = database, transport = transport
+        switch job {
+        case .moodleFast, .moodleMaterials:
+            guard let token = try? secrets.readString(.moodleToken), !token.isEmpty else { return nil }
+            if (try? database.source(.moodle).status) == .needsReconnect {
+                return nil  // no retries until the user reconnects
+            }
+            let sync = MoodleSync(database: database, client: MoodleClient(token: token, transport: transport))
+            if job == .moodleFast {
+                return { @Sendable in try await sync.runFast() }
+            }
+            return { @Sendable in try await sync.runMaterials() }
+        case .cmsPublic:
+            let hasCourses = (try? database.writer.read { db in
+                try Bool.fetchOne(db, sql: """
+                    SELECT EXISTS (SELECT 1 FROM uni_course c JOIN uni_source s ON s.id = c.source_id
+                                   WHERE s.kind = 'cms' AND c.active = 1)
+                    """)
+            }) ?? nil
+            guard hasCourses == true else { return nil }
+            let sync = CMSSync(database: database, client: CMSClient(transport: transport))
+            return { @Sendable in try await sync.runPublic() }
+        }
+    }
+
     private func perform(_ job: SyncJob) async {
         lastAttempt[job] = .now
-        guard let token = try? secrets.readString(.moodleToken), !token.isEmpty else {
-            return  // not connected yet; nothing to do
-        }
-        if (try? database.source(job.source).status) == .needsReconnect {
-            return  // no retries until the user reconnects
-        }
+        guard let work = work(for: job) else { return }
 
         let started = Date.now
         let pending = UniSyncRun(sourceId: (try? database.source(job.source).id) ?? 0, job: job.rawValue, startedAt: started)
         var run = (try? await database.writer.write { db in try pending.inserted(db) }) ?? pending
 
         do {
-            let sync = MoodleSync(database: database, client: MoodleClient(token: token, transport: transport))
-            let outcome = switch job {
-            case .moodleFast: try await sync.runFast()
-            case .moodleMaterials: try await sync.runMaterials()
-            }
+            let outcome = try await work()
             failures[job] = 0
             let degraded = !outcome.suspectCourseIds.isEmpty
             try database.setStatus(job.source, degraded ? .degraded : .ok,
@@ -128,6 +149,15 @@ public actor SyncScheduler {
             failures[job, default: 0] += 1
             try? database.setStatus(job.source, .degraded, error: "Moodle returned HTTP \(status)")
             finish(&run, ok: false, counts: nil, error: "http \(status)")
+        } catch CMSError.http(let status, let path) where status >= 500 {
+            failures[job, default: 0] += 1
+            try? database.setStatus(job.source, .degraded, error: "CMS returned HTTP \(status) for \(path)")
+            finish(&run, ok: false, counts: nil, error: "http \(status) \(path)")
+        } catch let error as CMSPageError {
+            // A page no longer looks as expected: keep the old data, flag the source.
+            failures[job, default: 0] += 1
+            try? database.setStatus(job.source, .degraded, error: "CMS page changed: \(error)")
+            finish(&run, ok: false, counts: nil, error: String(describing: error))
         } catch {
             failures[job, default: 0] += 1
             try? database.setStatus(job.source, .error, error: String(describing: error))

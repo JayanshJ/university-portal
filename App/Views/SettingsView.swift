@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var showPaste = false
     @State private var pasted = ""
     @State private var launchLink: URL?
+    @State private var showPicker = false
 
     var body: some View {
         Form {
@@ -14,18 +15,67 @@ struct SettingsView: View {
             if model.isMoodleConnected || model.overview.diagnostics != nil {
                 checksSection
             }
-            if !model.overview.courses.isEmpty {
+            if model.overview.courses.contains(where: { $0.source == .moodle }) {
                 coursesSection
             }
+            cmsSection
             if !model.overview.recentRuns.isEmpty {
                 runsSection
             }
-            Section("CMS") {
-                LabeledContent("Status", value: "Arrives in Phases 3 and 4")
-            }
         }
         .formStyle(.grouped)
-        .frame(width: 540, height: 640)
+        .frame(width: 540, height: 680)
+        .sheet(isPresented: $showPicker) { CMSCoursePicker().environment(model) }
+    }
+
+    // MARK: - CMS
+
+    private var cmsCourses: [PortalOverview.CourseRow] {
+        model.overview.courses.filter { $0.source == .cms }
+    }
+
+    private var cmsSection: some View {
+        Section("CMS") {
+            LabeledContent("Status") {
+                if !cmsCourses.contains(where: \.active) {
+                    Text("No courses chosen").foregroundStyle(.secondary)
+                } else {
+                    StatusText(source: model.overview.cms, connected: true)
+                }
+            }
+            HStack {
+                Button("Choose Courses…") { showPicker = true }
+                if model.isSyncing { ProgressView().controlSize(.small) }
+            }
+            let categories = model.eventCategories()
+            ForEach(cmsCourses) { course in
+                HStack {
+                    Toggle(isOn: Binding(
+                        get: { course.active },
+                        set: { model.setCMSCourse(id: course.id, selected: $0) }
+                    )) {
+                        VStack(alignment: .leading) {
+                            Text(course.fullName)
+                            Text(course.externalId).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    if let names = categories[course.id], !names.isEmpty {
+                        let hidden = model.hiddenCategories(courseId: course.id)
+                        Menu("Schedule") {
+                            ForEach(names, id: \.self) { name in
+                                Toggle(name, isOn: Binding(
+                                    get: { !hidden.contains(name) },
+                                    set: { model.setCategory(name, hidden: !$0, courseId: course.id) }
+                                ))
+                            }
+                        }
+                        .fixedSize()
+                        .help("Choose which calendar categories appear in Schedule")
+                    }
+                }
+            }
+            Text("Login and materials arrive in Phase 4.").font(.caption).foregroundStyle(.secondary)
+        }
     }
 
     // MARK: - Moodle
@@ -138,8 +188,8 @@ struct SettingsView: View {
     }
 
     private var coursesSection: some View {
-        Section("Courses") {
-            ForEach(model.overview.courses) { course in
+        Section("Moodle courses") {
+            ForEach(model.overview.courses.filter { $0.source == .moodle }) { course in
                 Toggle(isOn: Binding(
                     get: { course.active },
                     set: { model.setCourse(course.id, active: $0) }

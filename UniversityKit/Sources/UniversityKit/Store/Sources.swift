@@ -26,6 +26,32 @@ extension UniDatabase {
         }
     }
 
+    /// Hides or shows one calendar category (e.g. "Tutorial") of a course in the schedule.
+    public func setCategory(_ category: String, hidden: Bool, courseId: Int64) throws {
+        try writer.write { db in
+            guard var course = try UniCourse.fetchOne(db, key: courseId) else { return }
+            var categories = Set(course.hiddenCategories)
+            if hidden { categories.insert(category) } else { categories.remove(category) }
+            course.hiddenCategories = categories.sorted()
+            try course.update(db)
+        }
+    }
+
+    /// The calendar categories each course has, for the "hide a category" menu.
+    public func eventCategories() throws -> [Int64: [String]] {
+        try writer.read { db in
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT DISTINCT course_id, category FROM uni_item
+                WHERE kind = 'event' AND category IS NOT NULL AND deleted_at IS NULL ORDER BY category
+                """)
+            return Dictionary(grouping: rows, by: { $0["course_id"] as Int64 }).mapValues { $0.map { $0["category"] } }
+        }
+    }
+
+    public func hiddenCategories(courseId: Int64) throws -> Set<String> {
+        try writer.read { db in Set(try UniCourse.fetchOne(db, key: courseId)?.hiddenCategories ?? []) }
+    }
+
     /// The user's choice wins over the automatic value; nil goes back to automatic.
     public func setCourseActive(id: Int64, override: Bool?) throws {
         try writer.write { db in
