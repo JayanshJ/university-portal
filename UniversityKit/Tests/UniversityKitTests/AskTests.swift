@@ -126,6 +126,23 @@ func indexedDatabase() throws -> (UniDatabase, process: Int64, demis: Int64, she
         #expect(excerpts.contains { $0.itemId == sheet && $0.page == 2 })
     }
 
+    @Test func pagesSharingOnlyOneLooseWordAreDropped() throws {
+        let (database, _, _, _) = try indexedDatabase()
+        try database.writer.write { db in
+            let item = try Int64.fetchOne(db, sql: "SELECT id FROM uni_item WHERE title LIKE 'DeMIS Lecture 01%'")!
+            try db.execute(sql: "INSERT INTO uni_page (item_id, page, ordinal, text) VALUES (?, 9, 9, ?)",
+                           arguments: [item, "Limitsystematiken im Risikomanagement setzen Limits für Händler."])
+        }
+        let retriever = Retriever(database: database)
+
+        // Nothing in the materials is about "beta pruning limits"; one shared word is not enough.
+        #expect(try retriever.excerpts(for: "What are the limits of beta pruning heuristics?").isEmpty)
+        // A real match shares several terms and stays.
+        #expect(try retriever.excerpts(for: "limitations of the alpha miner").contains { $0.text.contains("short loops") })
+        // A single-word question needs only that word.
+        #expect(try !retriever.excerpts(for: "BPMN").isEmpty)
+    }
+
     @Test func courseFilterRestrictsResults() throws {
         let (database, _, _, _) = try indexedDatabase()
         let demisCourse = try database.writer.read { db in try Int64.fetchOne(db, sql: "SELECT id FROM uni_course WHERE external_id = '2'") }

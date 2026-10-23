@@ -42,6 +42,7 @@ public struct Retriever: Sendable {
 
             // Ranked hits across the selectable materials.
             let terms = Self.searchTerms(question) + extraTerms.flatMap(Self.searchTerms)
+            let stems = Self.stems(terms)
             var hits: [Hit] = []
             if let pattern = FTS5Pattern(matchingAnyTokenIn: terms.joined(separator: " ")) {
                 hits = try Row.fetchAll(db, sql: """
@@ -54,6 +55,10 @@ public struct Retriever: Sendable {
                     guard byId[itemId] != nil else { return nil }
                     return Hit(itemId: itemId, page: row["page"], ordinal: row["ordinal"], text: row["text"], rank: row["rank"])
                 }
+                // Relevance floor (the counterpart of Study GPT's similarity floor): a page that shares
+                // only one loose word with a multi-word question is noise, not a source.
+                let needed = min(2, stems.count)
+                hits = hits.filter { Self.matchedStems(stems, in: $0.text) >= needed }
             }
 
             // Material routing: best hit per material → top 4, plus anything named explicitly.
@@ -152,6 +157,22 @@ public struct Retriever: Sendable {
             """, arguments: [hit.itemId, hit.ordinal - 1, hit.ordinal + 1]).map {
             Hit(itemId: $0["item_id"], page: $0["page"], ordinal: $0["ordinal"], text: $0["text"])
         }
+    }
+
+    /// Distinct, comparable word stems: case- and accent-folded, cut to their first letters so
+    /// "recursion" also finds "recursive" while "limitations" doesn't find "Limitsystematiken".
+    static func stems(_ terms: [String]) -> [String] {
+        var seen = Set<String>()
+        return terms.compactMap { term in
+            let folded = term.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            let stem = folded.count > 5 ? String(folded.prefix(max(5, folded.count - 3))) : folded
+            return seen.insert(stem).inserted ? stem : nil
+        }
+    }
+
+    static func matchedStems(_ stems: [String], in text: String) -> Int {
+        let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        return stems.filter { folded.contains($0) }.count
     }
 
     /// Words worth searching for: 3+ letters (or any number), minus common English and German filler.
