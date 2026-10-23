@@ -11,7 +11,7 @@ University Portal is a native macOS app (SwiftUI) that pulls deadlines, announce
 - **Auth**: Moodle is reconnected in your normal browser: the app registers the `moodlemobile://` link type, so Moodle's redirect lands back in the app (an in-app sheet and a paste box are fallbacks); the SSO password is never stored. CMS re-logs in automatically with its password stored in the Keychain.
 - **Stack**: SwiftUI app + a `UniversityKit` Swift package (all logic, testable with `swift test`), SQLite via GRDB, Keychain for secrets, PDFKit for PDFs.
 
-Verified on 23 Oct in the app: the browser → `moodlemobile://` → app reconnect, the deadlines call with the token, and the site-hash formula. Still untested: the CMS login POST end to end, the Moodle token's lifetime, and the CMS personal status page (your own tutorial slot).
+Verified on 23 Oct in the app: the browser → `moodlemobile://` → app reconnect, the deadlines call with the token, the site-hash formula, and the CMS login with materials. Still untested: the Moodle token's lifetime, and the CMS personal status page (your own tutorial slot).
 
 ## What's verified
 
@@ -37,7 +37,7 @@ All rows below were run on 23 Oct 2026 against Jayansh's own accounts. "Token" m
 | CMS session scope | Same cookie across courses | One login covers every course instance. |
 | CMS login form | `/<slug>/users/login` (inspected, not submitted) | CakePHP 2 form with SecurityComponent tokens and a remember-me option. |
 
-Verified in the app on 23 Oct: the deadlines call with the token alone, the full browser → `moodlemobile://` reconnect, and the site hash `md5(wwwroot + passport)`. Not yet tested: the in-app `ASWebAuthenticationSession` sheet after its fixes (on 23 Oct it showed Moodle's login chooser but did not accept clicks), submitting the CMS login form from the app, how long a Moodle token lives, and parsing the CMS personal status page.
+Verified in the app on 23 Oct: the deadlines call with the token alone, the full browser → `moodlemobile://` reconnect, the site hash `md5(wwwroot + passport)`, and the CMS login POST with the logged-in materials pages. Not yet tested: the in-app `ASWebAuthenticationSession` sheet after its fixes (on 23 Oct it showed Moodle's login chooser but did not accept clicks), how long a Moodle token lives, and parsing the CMS personal status page.
 
 ## Architecture
 
@@ -144,19 +144,20 @@ CMS regenerates every `UID` on each download (verified 23 Oct: two downloads a f
 
 **News (public).** `GET /<slug>/`. Each entry is an `<h4>` link to `/<slug>/news/view/<id>`, a byline ("Written on dd.mm.yy by \<name>", or in German courses "Geschrieben am … von \<name>") whose date tooltip carries the full timestamp (`dd.MM.yyyy HH:mm:ss`, Saarbrücken time), and the body. Long entries appear twice, shortened (`.collapse.show`) and full (`.collapse`); the full one is stored. Becomes `announcement` items keyed by the news id, with the author in `category`.
 
-**Materials (login required).** `GET /<slug>/materials`. File links look like `/<slug>/dl/<id>/<filename>`; there is also a "Download all" link. Becomes `material` items keyed by the `dl` id; the list's hash detects new uploads. Logged out, the page says "You need to login in order to access more course material".
+**Materials (login required).** `GET /<slug>/materials/` (the path without the slash redirects there). Files are linked as `/<slug>/dl/<id>/<filename>`, grouped in sections (accordion headings such as "1.1 Lecture Notes & Slides"); a file may be linked twice (name and icon). Each section has a "Download all" zip at `/<slug>/materials/download/<n>/<name>.zip`, which is skipped. Sections also list links to other sites (Prog 1: the lecture code folder, kNobel, the interactive Sheet A), stored as link materials keyed by a hash of the URL; same-site links that are not files (e.g. "Sheet B will be published at …", pointing back at the page) are skipped. Files become `material` items keyed by the `dl` id, with the section in `category`. Logged out, the page says "You need to login in order to access more course material". Each run records the file and link counts and every skipped link in `uni_state.cms_materials_diagnostics`, to spot markup changes.
 
 **Login.** The form posts to `/<slug>/users/login` and is a CakePHP 2 form protected by SecurityComponent:
 
-1. `GET` any course page with the cookie jar; find the form that contains a password input.
-2. Copy every hidden input exactly: `_method`, `data[_Token][key]`, `data[_Token][fields]`, `data[_Token][unlocked]`, `data[User][redirect]`.
-3. Set `data[User][username]`, `data[User][password]` and `data[Auth][remember_me] = 1`.
-4. `POST` to the form's action, follow redirects, save the cookie jar to the Keychain.
-5. Success = the next page has no password form. Otherwise treat it as a failed login.
+1. `GET` a course page with the cookie jar; find the form that contains a password input (it is in every page's navigation bar when logged out).
+2. Send every field the browser would, in document order: `_method`, `data[_Token][key]`, `data[User][username]`, `data[User][password]`, `data[Auth][remember_me]` twice (the hidden `0`, then the ticked checkbox's `1`), `data[User][redirect]`, `data[_Token][fields]`, `data[_Token][unlocked]`.
+3. `POST` to the form's action. The answer is a 302 to `/<slug>/landing` that sets the `CakeCMS` session cookie, so the app follows redirects itself (URLSession's automatic redirects and cookie storage are off for CMS) and keeps its own cookie jar, saved to the Keychain.
+4. Success = the final page is not a login page (see below). Otherwise it is a failed login.
+
+Verified 23 Oct: the first real login succeeded, and later runs reused the saved session without logging in again.
 
 SecurityComponent rejects ("blackholes") any request whose fields differ from the rendered form, so never hand-build the field list: always take it from a fresh `GET`.
 
-**Logout detection,** on every logged-in fetch: a redirect to `/users/login`, a password input in the page's main form, or the "You need to login" text. On detection: re-login once, retry the request once, then give up for this run.
+**Logout detection,** on every logged-in fetch: a redirect to `/users/login`, or, on a page without a logout link, a password input or the "You need to login" text. Files (non-HTML responses) never count as a login page. On detection: re-login once, retry the request once, then give up for this run.
 
 **Out of scope for now:** Discourse forums linked from some courses (e.g. `prog126.forum.mi.uni-saarland.de`), points and submissions, and the personal status page.
 
@@ -286,6 +287,7 @@ Five phases, each ending in an acceptance test against real data, so an implemen
    - Result (23 Oct, live against cms.sic.saarland with `prog1_26`, `i2cl_2627`, `introalgdat2627`): 170 items on the first run, 0 new and 0 updated on the second despite fresh UIDs; 5 exams found (Prog 1 Midterm, Midterm Retake, Endterm, Endterm Retake; i2cl "Klausur (1. Termin)"); news from all three courses including "Tutorial Assignment" (20 Oct).
 4. **CMS login + materials.** Login flow, Keychain cookie jar, logout detection, materials parser, `cms.materials`.
    - Accept: materials for the three selected courses are stored (12, 6 and 13 links on 23 Oct); deleting the cookie jar triggers exactly one re-login and the run still succeeds; a wrong password produces one failed attempt and `needs_reconnect`, with no second attempt.
+   - Result (23 Oct, real login, `prog1_26` and `introalgdat2627` selected): 6 + 4 files with their sections, plus 3 link materials in Prog 1. Every `dl` link on the pages was taken; the 23 Oct link counts also included "Download all" zips and external links. Re-login, deleted cookie jar and wrong password are covered by tests against a simulated CMS that checks the form fields like SecurityComponent; the public job can no longer clear `needs_reconnect`.
 5. **UI + events.** Today, the four sections, the PDF viewer, the menu bar extra, the in-app event stream, open at login.
    - Accept: Today shows the next deadlines and the new-items counts; marking an announcement read clears it from the count; the reconnect banner and menu bar badge appear when a source needs it; a PDF opens in the viewer and the dark pages toggle survives a relaunch.
 
@@ -300,7 +302,7 @@ The biggest risk is CMS markup changing under the scrapers; everything on the Mo
 | Risk or question | Impact | Mitigation |
 | --- | --- | --- |
 | CMS HTML changes | Materials or news stop syncing | Fixture tests; the zero-results guard marks the source `degraded` instead of deleting data |
-| CMS login POST untested from the app | Phase 4 may need fixes | Built and verified first in Phase 4; the field list is always read from a fresh form |
+| CMS login markup changes | Login stops working | The field list is always read from a fresh form; a failed login stops at one attempt and shows `needs_reconnect` |
 | The `moodlemobile://` callback may not reach the app (another app claims the scheme, or the browser blocks the prompt) | One-click reconnect fails | The in-app sheet and the paste box remain; Settings shows which route connected |
 | Sync only runs while the app runs | Stale data after the Mac was off or the app quit | Menu bar extra keeps it running, open at login, catch-up on launch and wake |
 | Moodle token lifetime unknown | Reconnect frequency unknown | Handled by `needs_reconnect`; log the token's age at each failure to learn the real lifetime |

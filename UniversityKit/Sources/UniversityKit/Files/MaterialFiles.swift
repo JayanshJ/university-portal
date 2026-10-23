@@ -7,12 +7,15 @@ public struct MaterialFiles: Sendable {
     let cache: FileCache
     let secrets: any SecretStore
     let transport: any HTTPTransport
+    let cmsTransport: any HTTPTransport
 
-    public init(database: UniDatabase, cache: FileCache, secrets: any SecretStore, transport: any HTTPTransport) {
+    public init(database: UniDatabase, cache: FileCache, secrets: any SecretStore, transport: any HTTPTransport,
+                cmsTransport: (any HTTPTransport)? = nil) {
         self.database = database
         self.cache = cache
         self.secrets = secrets
         self.transport = transport
+        self.cmsTransport = cmsTransport ?? transport
     }
 
     /// Returns the local file and marks the material as read.
@@ -58,7 +61,15 @@ public struct MaterialFiles: Sendable {
             guard let token = try secrets.readString(.moodleToken) else { throw FileCacheError.notConnected }
             return try await MoodleClient(token: token, transport: transport).download(file.remoteUrl).data
         case .cms:
-            throw FileCacheError.downloadNotImplemented
+            guard let url = URL(string: file.remoteUrl), let slug = url.pathComponents.dropFirst().first else {
+                throw FileCacheError.noFile
+            }
+            let session = await CMSSession(database: database, secrets: secrets, client: CMSClient(transport: cmsTransport))
+            let path = url.path(percentEncoded: true)
+            let page = try await session.page(path, entryPath: "/\(slug)/")
+            try await session.saveCookies()
+            guard (200..<300).contains(page.status) else { throw CMSError.http(status: page.status, path: path) }
+            return page.data
         }
     }
 }

@@ -47,6 +47,8 @@ final class AppModel {
 
     @ObservationIgnored private let secrets = KeychainStore()
     @ObservationIgnored private let transport = URLSessionTransport(session: URLSession(configuration: .ephemeral))
+    /// CMS requests keep their own cookies and follow redirects themselves.
+    @ObservationIgnored private let cmsTransport = URLSessionTransport.manualRedirectsAndCookies()
     @ObservationIgnored private let signIn = MoodleSignIn()
     @ObservationIgnored private var scheduler: SyncScheduler?
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
@@ -67,7 +69,10 @@ final class AppModel {
         guard let database else { return }
         isMoodleConnected = (try? secrets.read(.moodleToken)) != nil
 
-        let scheduler = SyncScheduler(database: database, secrets: secrets, transport: transport)
+        isCMSSignedIn = (try? secrets.readString(.cmsPassword)).flatMap { $0 } != nil
+        cmsUsername = (try? secrets.readString(.cmsUsername)).flatMap { $0 }
+
+        let scheduler = SyncScheduler(database: database, secrets: secrets, transport: transport, cmsTransport: cmsTransport)
         self.scheduler = scheduler
         Task { await scheduler.start() }
 
@@ -201,7 +206,7 @@ final class AppModel {
         isLoadingCMSListing = true
         defer { isLoadingCMSListing = false }
         do {
-            cmsListing = try await CMSSync(database: database, client: CMSClient(transport: transport)).courseListing()
+            cmsListing = try await CMSSync(database: database, client: CMSClient(transport: cmsTransport)).courseListing()
             cmsListingError = nil
         } catch {
             cmsListingError = "Could not load the CMS course list: \(Self.describe(error))"
@@ -216,12 +221,51 @@ final class AppModel {
         try? database?.setCourseActive(id: id, override: selected)
     }
 
-    /// After choosing courses: fetch their news and calendars right away.
+    /// After choosing courses: fetch their news, calendars and (when signed in) materials right away.
     func syncCMS() async {
         guard let scheduler else { return }
         isSyncing = true
         defer { isSyncing = false }
-        await scheduler.run(.cmsPublic)
+        await scheduler.runNow(.cms)
+        await scheduler.catchUp()
+    }
+
+    private(set) var isCMSSignedIn = false
+    private(set) var cmsUsername: String?
+
+    /// Saves the CMS login in the Keychain and tries it once right away.
+    func signInCMS(username: String, password: String) async {
+        guard let database, !isConnecting else { return }
+        isConnecting = true
+        defer { isConnecting = false }
+        do {
+            try secrets.writeString(username, for: .cmsUsername)
+            try secrets.writeString(password, for: .cmsPassword)
+            try secrets.delete(.cmsCookieJar)
+            try database.removeState(.cmsLogin)  // a new password gets a fresh attempt
+            try database.setStatus(.cms, .ok)
+            isCMSSignedIn = true
+            cmsUsername = username
+
+            let entry = overview.courses.first { $0.source == .cms && $0.active }.map { "/\($0.externalId)/" } ?? "/system/courses"
+            let session = await CMSSession(database: database, secrets: secrets, client: CMSClient(transport: cmsTransport))
+            try await session.login(entryPath: entry)
+            message = "Signed in to CMS."
+            await syncCMS()
+        } catch CMSAuthError.loginRejected {
+            try? database.setStatus(.cms, .needsReconnect, error: "CMS login failed. Check your username and password.")
+            message = "CMS didn't accept that username and password. Nothing else will be tried until you change them."
+        } catch {
+            message = "CMS sign-in failed: \(Self.describe(error))"
+        }
+    }
+
+    func signOutCMS() {
+        for kind in [SecretKind.cmsUsername, .cmsPassword, .cmsCookieJar] { try? secrets.delete(kind) }
+        try? database?.removeState(.cmsLogin)
+        isCMSSignedIn = false
+        cmsUsername = nil
+        message = "Signed out of CMS. Its materials stay until you sign in again."
     }
 
     func eventCategories() -> [Int64: [String]] {
@@ -245,7 +289,8 @@ final class AppModel {
             return
         }
         do {
-            let files = MaterialFiles(database: database, cache: FileCache(), secrets: secrets, transport: transport)
+            let files = MaterialFiles(database: database, cache: FileCache(), secrets: secrets, transport: transport,
+                                      cmsTransport: cmsTransport)
             NSWorkspace.shared.open(try await files.open(itemId: item.id))
         } catch {
             message = Self.describe(error)

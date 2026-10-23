@@ -19,6 +19,26 @@ public struct URLSessionTransport: HTTPTransport {
     }
 }
 
+extension URLSessionTransport {
+    /// For `CMSClient`: no cookie handling and no automatic redirects, so the client sees every
+    /// response (and its `Set-Cookie`) itself.
+    public static func manualRedirectsAndCookies() -> URLSessionTransport {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        return URLSessionTransport(session: URLSession(
+            configuration: configuration, delegate: NoRedirects(), delegateQueue: nil))
+    }
+}
+
+private final class NoRedirects: NSObject, URLSessionTaskDelegate, Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest) async -> URLRequest? {
+        nil  // hand the 3xx back to the caller
+    }
+}
+
 enum FormEncoding {
     private static let allowed = CharacterSet(
         charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")

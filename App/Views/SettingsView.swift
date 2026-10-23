@@ -8,6 +8,8 @@ struct SettingsView: View {
     @State private var pasted = ""
     @State private var launchLink: URL?
     @State private var showPicker = false
+    @State private var cmsUser = ""
+    @State private var cmsPassword = ""
 
     var body: some View {
         Form {
@@ -74,7 +76,34 @@ struct SettingsView: View {
                     }
                 }
             }
-            Text("Login and materials arrive in Phase 4.").font(.caption).foregroundStyle(.secondary)
+            if model.isCMSSignedIn {
+                LabeledContent("Signed in as") {
+                    HStack {
+                        Text(model.cmsUsername ?? "")
+                        Button("Sign Out") { model.signOutCMS() }
+                    }
+                }
+                if model.overview.cms?.status == .needsReconnect {
+                    Text("CMS rejected the saved password. Sign out and sign in again with the right one.")
+                        .font(.caption).foregroundStyle(.red)
+                }
+            } else {
+                TextField("CMS username", text: $cmsUser)
+                    .textContentType(.username)
+                SecureField("CMS password", text: $cmsPassword)
+                    .textContentType(.password)
+                HStack {
+                    Button("Sign In to CMS") {
+                        let (user, password) = (cmsUser, cmsPassword)
+                        cmsPassword = ""
+                        Task { await model.signInCMS(username: user, password: password) }
+                    }
+                    .disabled(cmsUser.isEmpty || cmsPassword.isEmpty || model.isConnecting)
+                    if model.isConnecting { ProgressView().controlSize(.small) }
+                }
+                Text("Needed for materials. Stored in your Keychain; the app tries it at most once per 15 minutes if it stops working.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 

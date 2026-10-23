@@ -1,5 +1,7 @@
+import CryptoKit
 import Foundation
 import GRDB
+import UniformTypeIdentifiers
 
 /// The public CMS job (`cms.public`): news and calendar of every selected course. No login needed.
 public struct CMSSync: Sendable {
@@ -42,6 +44,52 @@ public struct CMSSync: Sendable {
             try Upserter.apply(db, kind: .announcement, courseIds: scope, items: foundNews, now: now)
                 + Upserter.apply(db, kind: .event, courseIds: scope, items: foundEvents, now: now)
         }
+    }
+
+    /// `cms.materials`: the materials page of every selected course, through a logged-in session.
+    public func runMaterials(session: CMSSession) async throws -> SyncOutcome {
+        let now = now()
+        let sourceId = try database.source(.cms).id!
+        let courses = try await database.writer.read { db in
+            try UniCourse.filter(Column("source_id") == sourceId && Column("active") == true).fetchAll(db)
+        }
+
+        var items: [ItemInput] = []
+        for course in courses {
+            guard let courseId = course.id else { continue }
+            let slug = course.externalId
+            let page = try await session.page("/\(slug)/materials/", entryPath: "/\(slug)/")
+            guard (200..<300).contains(page.status) else { throw CMSError.http(status: page.status, path: "/\(slug)/materials/") }
+            let pageURL = client.url("/\(slug)/materials/").absoluteString
+            let (materials, links) = try CMSPages.materialsPage(page.body, slug: slug)
+            let skipped = try CMSPages.otherContentLinks(page.body, slug: slug)
+            try database.updateState(.cmsMaterialsDiagnostics, default: [String: [String]]()) {
+                $0[slug] = ["files: \(materials.count), links: \(links.count)"] + skipped
+            }
+            items += links.map { link in
+                ItemInput(courseId: courseId, kind: .material, externalId: "link:" + Self.shortHash(link.url),
+                          title: link.title, url: link.url, category: link.section)
+            }
+            items += materials.map { material in
+                let ext = (material.filename as NSString).pathExtension
+                return ItemInput(
+                    courseId: courseId, kind: .material, externalId: String(material.id),
+                    title: material.title, url: pageURL, category: material.section,
+                    file: FileInput(filename: material.filename,
+                                    mimetype: UTType(filenameExtension: ext)?.preferredMIMEType,
+                                    remoteUrl: client.url(material.path).absoluteString))
+            }
+        }
+        try await session.saveCookies()
+
+        let (scope, found) = (Set(courses.compactMap(\.id)), items)
+        return try await database.writer.write { db in
+            try Upserter.apply(db, kind: .material, courseIds: scope, items: found, now: now)
+        }
+    }
+
+    static func shortHash(_ text: String) -> String {
+        SHA256.hash(data: Data(text.utf8)).prefix(12).map { String(format: "%02x", $0) }.joined()
     }
 
     private func fetchNews(slug: String, courseId: Int64) async throws -> [ItemInput] {

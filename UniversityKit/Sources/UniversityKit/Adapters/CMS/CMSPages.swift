@@ -26,6 +26,23 @@ public struct CMSCalendarCategory: Sendable, Equatable {
     public var name: String
 }
 
+/// A file on `/<slug>/materials/`, linked as `/<slug>/dl/<id>/<filename>`.
+public struct CMSMaterial: Sendable, Equatable {
+    public var id: Int
+    public var filename: String
+    public var title: String
+    public var section: String?
+    /// Site-relative path of the download.
+    public var path: String
+}
+
+/// A link to another site listed among the materials (e.g. a code folder or an interactive sheet).
+public struct CMSMaterialLink: Sendable, Equatable {
+    public var url: String
+    public var title: String
+    public var section: String?
+}
+
 public enum CMSPageError: Error, Equatable {
     case unexpectedMarkup(String)
 }
@@ -97,6 +114,71 @@ enum CMSPages {
                   seen.insert(id).inserted else { return nil }
             return CMSCalendarCategory(id: id, name: try link.text())
         }
+    }
+
+    /// The materials page (logged in): files (`/<slug>/dl/<id>/<file>`) and links to other sites,
+    /// each with the nearest preceding section heading or accordion button. Same-site links that are
+    /// not files ("Download all" zips, placeholders pointing back at the page) are skipped.
+    static func materials(_ html: String, slug: String) throws -> [CMSMaterial] {
+        try materialsPage(html, slug: slug).files
+    }
+
+    static func materialsPage(_ html: String, slug: String) throws -> (files: [CMSMaterial], links: [CMSMaterialLink]) {
+        let document = try SwiftSoup.parse(html)
+        let root = try document.select("#content").first() ?? document
+        let pattern = try NSRegularExpression(
+            pattern: "^(?:https?://[^/]+)?(/\(NSRegularExpression.escapedPattern(for: slug))/dl/(\\d+)/([^?#]+))")
+        let cmsHost = CMSClient.siteURL.host
+        var section: String?
+        var order: [Int] = []
+        var byId: [Int: CMSMaterial] = [:]
+        var links: [CMSMaterialLink] = []
+
+        for element in try root.select("h3, h4, h5, .accordion-button, a[href]") {
+            guard element.tagName() == "a", !element.hasClass("accordion-button") else {
+                let text = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty { section = text }
+                continue
+            }
+            let href = try element.attr("href")
+            let text = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let match = pattern.firstMatch(in: href, range: NSRange(href.startIndex..., in: href)),
+                  let pathRange = Range(match.range(at: 1), in: href),
+                  let idRange = Range(match.range(at: 2), in: href), let id = Int(href[idRange]),
+                  let nameRange = Range(match.range(at: 3), in: href) else {
+                if let url = URL(string: href), let host = url.host, host != cmsHost,
+                   ["http", "https"].contains(url.scheme ?? ""), !text.isEmpty,
+                   !links.contains(where: { $0.url == href }) {
+                    links.append(CMSMaterialLink(url: href, title: text, section: section))
+                }
+                continue
+            }
+            let filename = String(href[nameRange]).removingPercentEncoding ?? String(href[nameRange])
+
+            if var existing = byId[id] {
+                // The same file linked twice (e.g. a name and a download icon): keep the better title.
+                if existing.title == existing.filename, !text.isEmpty { existing.title = text }
+                byId[id] = existing
+                continue
+            }
+            order.append(id)
+            byId[id] = CMSMaterial(id: id, filename: filename, title: text.isEmpty ? filename : text,
+                                   section: section, path: String(href[pathRange]))
+        }
+        return (order.compactMap { byId[$0] }, links)
+    }
+
+    /// Diagnostics for the parser: every link inside the page content that is not a `dl` file link,
+    /// with its text. Addresses only; no cookies or form values.
+    static func otherContentLinks(_ html: String, slug: String) throws -> [String] {
+        let document = try SwiftSoup.parse(html)
+        let content = try document.select("#content").first() ?? document.body()
+        return try content?.select("a[href]").compactMap { link in
+            let href = try link.attr("href")
+            guard !href.contains("/\(slug)/dl/"), !href.hasPrefix("#"), !href.hasPrefix("mailto:") else { return nil }
+            let text = try link.text().trimmingCharacters(in: .whitespacesAndNewlines)
+            return "\(href) [\(text.prefix(60))]"
+        } ?? []
     }
 
     private static func berlinFormatter(_ format: String) -> DateFormatter {

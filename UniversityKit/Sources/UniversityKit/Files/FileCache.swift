@@ -2,8 +2,6 @@ import CryptoKit
 import Foundation
 
 public enum FileCacheError: Error, Equatable {
-    /// CMS downloads arrive with the CMS login in Phase 4.
-    case downloadNotImplemented
     case notConnected
     case noFile
 }

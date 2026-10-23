@@ -5,11 +5,12 @@ public enum SyncJob: String, CaseIterable, Sendable {
     case moodleFast = "moodle.fast"
     case moodleMaterials = "moodle.materials"
     case cmsPublic = "cms.public"
+    case cmsMaterials = "cms.materials"
 
     var source: SourceKind {
         switch self {
         case .moodleFast, .moodleMaterials: .moodle
-        case .cmsPublic: .cms
+        case .cmsPublic, .cmsMaterials: .cms
         }
     }
 
@@ -18,6 +19,7 @@ public enum SyncJob: String, CaseIterable, Sendable {
         case .moodleFast: 30 * 60
         case .moodleMaterials: 3 * 3600
         case .cmsPublic: 3600
+        case .cmsMaterials: 3 * 3600
         }
     }
 }
@@ -31,6 +33,8 @@ public actor SyncScheduler {
     let database: UniDatabase
     let secrets: any SecretStore
     let transport: any HTTPTransport
+    /// For CMS: must not follow redirects or handle cookies (see `URLSessionTransport.manualRedirectsAndCookies`).
+    let cmsTransport: any HTTPTransport
 
     private var loops: [SyncJob: Task<Void, Never>] = [:]
     private var running: [SourceKind: Task<Void, Never>] = [:]
@@ -39,10 +43,12 @@ public actor SyncScheduler {
 
     private static let log = Log(category: "sync")
 
-    public init(database: UniDatabase, secrets: any SecretStore, transport: any HTTPTransport) {
+    public init(database: UniDatabase, secrets: any SecretStore, transport: any HTTPTransport,
+                cmsTransport: (any HTTPTransport)? = nil) {
         self.database = database
         self.secrets = secrets
         self.transport = transport
+        self.cmsTransport = cmsTransport ?? transport
     }
 
     /// Starts one loop per job. Each loop first catches up if its last good run is older than its interval.
@@ -91,7 +97,7 @@ public actor SyncScheduler {
 
     /// The work for `job`, or nil when there is nothing to do yet (not connected, no courses chosen).
     private func work(for job: SyncJob) -> (@Sendable () async throws -> SyncOutcome)? {
-        let database = database, transport = transport
+        let database = database, transport = transport, cmsTransport = cmsTransport, secrets = secrets
         switch job {
         case .moodleFast, .moodleMaterials:
             guard let token = try? secrets.readString(.moodleToken), !token.isEmpty else { return nil }
@@ -103,7 +109,7 @@ public actor SyncScheduler {
                 return { @Sendable in try await sync.runFast() }
             }
             return { @Sendable in try await sync.runMaterials() }
-        case .cmsPublic:
+        case .cmsPublic, .cmsMaterials:
             let hasCourses = (try? database.writer.read { db in
                 try Bool.fetchOne(db, sql: """
                     SELECT EXISTS (SELECT 1 FROM uni_course c JOIN uni_source s ON s.id = c.source_id
@@ -111,8 +117,18 @@ public actor SyncScheduler {
                     """)
             }) ?? nil
             guard hasCourses == true else { return nil }
-            let sync = CMSSync(database: database, client: CMSClient(transport: transport))
-            return { @Sendable in try await sync.runPublic() }
+            let client = CMSClient(transport: cmsTransport)
+            let sync = CMSSync(database: database, client: client)
+            if job == .cmsPublic {
+                return { @Sendable in try await sync.runPublic() }
+            }
+            guard (try? secrets.readString(.cmsPassword)).flatMap({ $0 }) != nil,
+                  (try? database.source(.cms).status) != .needsReconnect else {
+                return nil  // not signed in, or waiting for the user to fix the password
+            }
+            return { @Sendable in
+                try await sync.runMaterials(session: await CMSSession(database: database, secrets: secrets, client: client))
+            }
         }
     }
 
@@ -128,13 +144,19 @@ public actor SyncScheduler {
             let outcome = try await work()
             failures[job] = 0
             let degraded = !outcome.suspectCourseIds.isEmpty
-            try database.setStatus(job.source, degraded ? .degraded : .ok,
-                                   error: degraded ? "No items returned for a course that had items; kept the old ones." : nil,
-                                   syncedAt: .now)
+            try setStatus(job, degraded ? .degraded : .ok,
+                          error: degraded ? "No items returned for a course that had items; kept the old ones." : nil,
+                          syncedAt: .now)
             finish(&run, ok: true, counts: outcome.counts.dictionary, error: nil)
             Self.log.info("\(job.rawValue): \(outcome.counts.dictionary)")
+        } catch CMSAuthError.loginRejected, CMSAuthError.stillLoggedOut, CMSAuthError.loginFormMissing {
+            try? setStatus(job, .needsReconnect, error: "CMS login failed. Check your username and password in Settings.")
+            finish(&run, ok: false, counts: nil, error: "cms login failed")
+            Self.log.warning("\(job.rawValue): CMS login failed, needs reconnect")
+        } catch CMSAuthError.waitBeforeRetry(let until) {
+            finish(&run, ok: false, counts: nil, error: "waiting until \(until.formatted(.iso8601)) before the next login attempt")
         } catch MoodleError.invalidToken {
-            try? database.setStatus(job.source, .needsReconnect, error: "Moodle token is no longer valid")
+            try? setStatus(job, .needsReconnect, error: "Moodle token is no longer valid")
             try? recordTokenAge()
             finish(&run, ok: false, counts: nil, error: "invalidtoken")
             Self.log.warning("\(job.rawValue): token rejected, needs reconnect")
@@ -143,27 +165,38 @@ public actor SyncScheduler {
             finish(&run, ok: false, counts: nil, error: "offline")
         } catch let error as URLError {
             failures[job, default: 0] += 1
-            try? database.setStatus(job.source, .degraded, error: error.localizedDescription)
+            try? setStatus(job, .degraded, error: error.localizedDescription)
             finish(&run, ok: false, counts: nil, error: "\(error.code.rawValue): \(error.localizedDescription)")
         } catch MoodleError.http(let status) where status >= 500 {
             failures[job, default: 0] += 1
-            try? database.setStatus(job.source, .degraded, error: "Moodle returned HTTP \(status)")
+            try? setStatus(job, .degraded, error: "Moodle returned HTTP \(status)")
             finish(&run, ok: false, counts: nil, error: "http \(status)")
         } catch CMSError.http(let status, let path) where status >= 500 {
             failures[job, default: 0] += 1
-            try? database.setStatus(job.source, .degraded, error: "CMS returned HTTP \(status) for \(path)")
+            try? setStatus(job, .degraded, error: "CMS returned HTTP \(status) for \(path)")
             finish(&run, ok: false, counts: nil, error: "http \(status) \(path)")
         } catch let error as CMSPageError {
             // A page no longer looks as expected: keep the old data, flag the source.
             failures[job, default: 0] += 1
-            try? database.setStatus(job.source, .degraded, error: "CMS page changed: \(error)")
+            try? setStatus(job, .degraded, error: "CMS page changed: \(error)")
             finish(&run, ok: false, counts: nil, error: String(describing: error))
         } catch {
             failures[job, default: 0] += 1
-            try? database.setStatus(job.source, .error, error: String(describing: error))
+            try? setStatus(job, .error, error: String(describing: error))
             finish(&run, ok: false, counts: nil, error: String(describing: error))
             Self.log.error("\(job.rawValue): \(error)")
         }
+    }
+
+    /// Every status write of a run. The public CMS job needs no login, so none of its outcomes may
+    /// replace `needs_reconnect` left by a failed login: only the user fixing the password clears it.
+    private func setStatus(_ job: SyncJob, _ status: SourceStatus, error: String?, syncedAt: Date? = nil) throws {
+        if job == .cmsPublic, status != .needsReconnect, let current = try? database.source(.cms),
+           current.status == .needsReconnect {
+            try database.setStatus(.cms, .needsReconnect, error: current.lastError, syncedAt: syncedAt)
+            return
+        }
+        try database.setStatus(job.source, status, error: error, syncedAt: syncedAt)
     }
 
     private func finish(_ run: inout UniSyncRun, ok: Bool, counts: [String: Int]?, error: String?) {

@@ -7,6 +7,9 @@ public enum StateKey: String, Sendable {
     case pdfDarkPages = "pdf_dark_pages"
     case moodlePassport = "moodle_passport"
     case moodleDiagnostics = "moodle_diagnostics"
+    case cmsLogin = "cms_login"
+    /// Per course: the file count and the content links the materials parser did not take.
+    case cmsMaterialsDiagnostics = "cms_materials_diagnostics"
 }
 
 /// What the Moodle side has learned about itself. No secrets: safe to show in Settings and to inspect.
