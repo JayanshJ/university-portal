@@ -3,7 +3,8 @@ University Portal
 
 Your Moodle and CMS (cms.sic.saarland) in one Mac app: deadlines, announcements,
 materials with a built-in PDF viewer, and your week's schedule. Everything stays on
-your Mac; nothing is sent anywhere except to Moodle and CMS themselves.
+your Mac; nothing is sent anywhere except to Moodle and CMS themselves, and to
+ChatGPT when you use Ask.
 
 Needs: any Mac (Apple silicon or Intel) with macOS 15 or newer, and your own
 Saarland University Moodle account (CMS is optional).
@@ -45,6 +46,18 @@ In Settings > CMS:
   - "Choose Courses…" adds a course's news and calendar (no login needed).
   - Sign in with your CMS username and password to also get materials. They are saved in
     your Keychain; after a wrong password the app stops trying until you sign in again.
+
+
+5. Ask your materials (optional, needs ChatGPT Plus or Pro)
+----------------------------------------------------------
+  1. Open Ask in the sidebar and click "Continue with ChatGPT". Sign in in your browser
+     and allow University Portal to use your ChatGPT plan.
+  2. Click "Index now" once; new materials are indexed automatically afterwards.
+  3. Ask a question. Answers cite your PDFs; click [1] to open the page. Try
+     "make flashcards for ..." or "visualize ...".
+
+Only your question and the matching excerpts are sent to OpenAI, never whole files.
+Usage counts against your ChatGPT plan (Manage usage in Ask).
 
 
 Good to know

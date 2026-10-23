@@ -1,12 +1,12 @@
 # University Portal
 
-A native macOS app that brings Saarland University's **Moodle** and **CMS** (cms.sic.saarland) into one place: deadlines, announcements, course materials with a built-in PDF viewer, and your weekly schedule. Everything is stored on your Mac; the app talks only to Moodle and CMS.
+A native macOS app that brings Saarland University's **Moodle** and **CMS** (cms.sic.saarland) into one place: deadlines, announcements, course materials with a built-in PDF viewer, and your weekly schedule. Everything is stored on your Mac; the app talks only to Moodle and CMS, and to ChatGPT if you use Ask.
 
 <img src="Config/Icon/icon-1024.png" width="128" alt="University Portal icon">
 
 ## Features
 
-- **Ask your materials**: questions answered from your lecture PDFs, with citations that open the PDF at the cited page. Runs on your ChatGPT Plus/Pro plan via "Continue with ChatGPT" (no API key); the PDFs are indexed on your Mac and only the question and matching excerpts are sent to OpenAI.
+- **Ask your materials**: questions answered from your lecture PDFs, with citations that open the PDF at the cited page. Answers render like [StudyGPT](https://github.com/JayanshJ/studygpt): Markdown, KaTeX math, code, tables, flashcard decks and sandboxed visualizations. Runs on your ChatGPT Plus/Pro plan via "Continue with ChatGPT" (no API key); the PDFs are indexed on your Mac and only the question and matching excerpts are sent to OpenAI.
 - **Today**: what's due soon, today's and tomorrow's lectures, upcoming exams, and what's new since your last visit.
 - **Deadlines** from Moodle, grouped by week and month, with mark-as-done. Submitted assignments are marked done automatically.
 - **Announcements** from Moodle news forums and CMS course news in one feed, with a reader.
@@ -36,7 +36,7 @@ Data lives in a local SQLite database (GRDB); secrets live in the Keychain. The 
 Xcode 27 or newer.
 
 ```bash
-cd UniversityKit && swift test        # 103 tests, against recorded fixtures
+cd UniversityKit && swift test        # 105 tests, against recorded fixtures
 ./Scripts/install.sh                  # build Release, install to /Applications
 ./Scripts/package.sh                  # build dist/University-Portal-<version>.dmg
 ```
@@ -46,7 +46,7 @@ Release builds are signed with a local certificate named "Conscious Dev"; change
 ## Layout
 
 ```
-App/                 SwiftUI app (views, theme, PDF viewer, menu bar)
+App/                 SwiftUI app (views, theme, PDF viewer, menu bar, Chat/ answer renderer)
 UniversityKit/       Swift package: Moodle and CMS adapters, sync, store, Keychain
 Config/              entitlements, Info.plist additions, icon, read-me for the disk image
 Scripts/             install.sh, package.sh
