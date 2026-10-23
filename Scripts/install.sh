@@ -5,8 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 osascript -e 'quit app "University Portal"' 2>/dev/null || true
-xcodebuild -project UniversityPortal.xcodeproj -scheme UniversityPortal -configuration Release \
-  -destination 'generic/platform=macOS' -derivedDataPath .build/DerivedData build | grep -E "error:|BUILD"
+./Scripts/build.sh
 
 ditto ".build/DerivedData/Build/Products/Release/University Portal.app" "/Applications/University Portal.app"
 

@@ -9,5 +9,15 @@
 	<!-- "Continue with ChatGPT" receives its sign-in reply on 127.0.0.1 -->
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<!-- Sparkle.framework is signed with the same certificate, but a self-signed certificate has no
+	     Team ID, so the hardened runtime's library validation would refuse to load it. -->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+	<!-- Sparkle's installer service, which installs updates outside the sandbox -->
+	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spks</string>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spki</string>
+	</array>
 </dict>
 </plist>

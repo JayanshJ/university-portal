@@ -30,6 +30,7 @@ struct SettingsView: View {
                 Text("Keeps syncing in the menu bar after the window is closed.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            UpdatesSection(updater: model.updater)
             if !model.overview.recentRuns.isEmpty {
                 runsSection
             }
@@ -308,6 +309,29 @@ struct StatusText: View {
 }
 
 /// "Continue with ChatGPT" for Ask: account, plan usage, model, sign-out.
+private struct UpdatesSection: View {
+    @Bindable var updater: Updater
+
+    var body: some View {
+        Section("Updates") {
+            LabeledContent("Version", value: Updater.version)
+            Toggle("Check for updates automatically", isOn: $updater.checksAutomatically)
+            Toggle("Download and install updates automatically", isOn: $updater.installsAutomatically)
+                .disabled(!updater.checksAutomatically)
+            HStack {
+                Button("Check Now") { updater.checkForUpdates() }
+                    .disabled(!updater.canCheck)
+                if let last = updater.lastCheck {
+                    Text("Last checked \(last.formatted(.relative(presentation: .named)))")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Text("New versions come from the GitHub releases and are verified before they're installed.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+}
+
 private struct ChatGPTSection: View {
     let ask: AskModel
 

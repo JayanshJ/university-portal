@@ -16,5 +16,16 @@
 			<string>Viewer</string>
 		</dict>
 	</array>
+	<!-- Sparkle: updates from the latest GitHub release's appcast.xml, signed with this EdDSA key
+	     (private key in the maintainer's Keychain, account "university-portal"). -->
+	<key>SUFeedURL</key>
+	<string>https://github.com/JayanshJ/university-portal/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>6397nvhsGBFmxTVo6LXmwrl007sFscmBSfFjOwZOWuY=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<!-- The sandboxed app hands installation to Sparkle's installer service. -->
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
 </dict>
 </plist>

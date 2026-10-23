@@ -4,8 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-xcodebuild -project UniversityPortal.xcodeproj -scheme UniversityPortal -configuration Release \
-  -destination 'generic/platform=macOS' -derivedDataPath .build/DerivedData build | grep -E "error:|BUILD"
+./Scripts/build.sh
 
 app=".build/DerivedData/Build/Products/Release/University Portal.app"
 version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$app/Contents/Info.plist")

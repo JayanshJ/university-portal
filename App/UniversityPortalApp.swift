@@ -22,6 +22,12 @@ struct UniversityPortalApp: App {
         .defaultSize(width: 1280, height: 800)
         .windowStyle(.hiddenTitleBar)
         .handlesExternalEvents(matching: ["moodlemobile"])
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { model.updater.checkForUpdates() }
+                    .disabled(!model.updater.canCheck)
+            }
+        }
 
         Settings {
             SettingsView()
@@ -62,6 +68,8 @@ final class AppModel {
     var materialsCourse: Int64?
     /// "Ask your materials" (nil only when the database could not be opened).
     private(set) var ask: AskModel?
+    /// Updates from GitHub Releases (not started in screenshot runs).
+    let updater = Updater(start: !CommandLine.arguments.contains("--snapshot"))
 
     @ObservationIgnored private let secrets = KeychainStore()
     @ObservationIgnored private let transport = URLSessionTransport(session: URLSession(configuration: .ephemeral))
