@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 
 osascript -e 'quit app "University Portal"' 2>/dev/null || true
 xcodebuild -project UniversityPortal.xcodeproj -scheme UniversityPortal -configuration Release \
-  -derivedDataPath .build/DerivedData build | grep -E "error:|BUILD"
+  -destination 'generic/platform=macOS' -derivedDataPath .build/DerivedData build | grep -E "error:|BUILD"
 
 ditto ".build/DerivedData/Build/Products/Release/University Portal.app" "/Applications/University Portal.app"
 
