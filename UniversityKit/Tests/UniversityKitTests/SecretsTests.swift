@@ -7,7 +7,7 @@ import Testing
     let store = KeychainStore(service: "app.jayansh.UniversityPortal.tests.\(UUID().uuidString)")
 
     @Test func secretRoundTripsThroughKeychain() throws {
-        defer { try? store.delete(.moodleToken) }
+        defer { try? store.removeAll() }
 
         try store.writeString("first-token", for: .moodleToken)
         #expect(try store.readString(.moodleToken) == "first-token")
@@ -21,6 +21,29 @@ import Testing
 
     @Test func deletingAMissingSecretSucceeds() throws {
         try store.delete(.cmsPassword)
+    }
+
+    @Test func allSecretsShareOneItem() throws {
+        defer { try? store.removeAll() }
+        try store.writeString("token", for: .moodleToken)
+        try store.writeString("user", for: .cmsUsername)
+
+        #expect(try store.readItem(KeychainStore.account) != nil)
+        #expect(store.legacyAccounts().isEmpty)
+        // Another store for the same service sees the same secrets.
+        #expect(try KeychainStore(service: store.service).readString(.cmsUsername) == "user")
+    }
+
+    @Test func itemsFromBeforeOnePointThreeAreMovedIn() throws {
+        defer { try? store.removeAll() }
+        try store.writeItem(SecretKind.moodleToken.rawValue, data: Data("old-token".utf8))
+        try store.writeItem(SecretKind.cmsPassword.rawValue, data: Data("old-password".utf8))
+        #expect(Set(store.legacyAccounts()) == ["moodle_token", "cms_password"])
+
+        #expect(try store.readString(.moodleToken) == "old-token")
+        #expect(try store.readString(.cmsPassword) == "old-password")
+        #expect(store.legacyAccounts().isEmpty)
+        #expect(try store.readItem(KeychainStore.account) != nil)
     }
 }
 

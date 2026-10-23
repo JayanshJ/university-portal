@@ -31,14 +31,14 @@ Requires macOS 15 or newer (Apple silicon or Intel).
 | Updates | [Sparkle](https://sparkle-project.org) reads `appcast.xml` from the latest GitHub release. Each disk image is signed with an EdDSA key (checked against `SUPublicEDKey`) and the app inside must carry the same code signature as the installed one. |
 | Ask (ChatGPT) | OpenAI's [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source) for open-source local apps: dynamic registration, PKCE, a loopback redirect, verified ID token, refresh with rotation; answers via the Responses API on your plan. Retrieval is local full-text search (SQLite FTS5) over PDF pages, with ChatGPT widening the question into English and German search terms; the selection logic is ported from [StudyGPT](https://github.com/JayanshJ/studygpt). |
 
-Data lives in a local SQLite database (GRDB); secrets live in the Keychain. The full design and the verification log are in [the implementation plan](University%20Module%20%E2%80%94%20Implementation%20Plan.md).
+Data lives in a local SQLite database (GRDB); secrets live in one Keychain item (so an update asks for Keychain access only once). The full design and the verification log are in [the implementation plan](University%20Module%20%E2%80%94%20Implementation%20Plan.md).
 
 ## Build from source
 
 Xcode 27 or newer.
 
 ```bash
-cd UniversityKit && swift test        # 105 tests, against recorded fixtures
+cd UniversityKit && swift test        # 107 tests, against recorded fixtures
 ./Scripts/install.sh                  # build Release, install to /Applications
 ./Scripts/package.sh                  # build dist/University-Portal-<version>.dmg
 ./Scripts/release.sh                  # package, sign the update, tag, push, publish the GitHub release

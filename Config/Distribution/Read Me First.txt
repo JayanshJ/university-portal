@@ -67,6 +67,6 @@ Good to know
   - The app syncs while it's running, also with the window closed (menu bar icon).
     Settings > General > "Open at login" keeps it running.
   - The app updates itself: it checks GitHub once a day, or use University Portal >
-    Check for Updates. After an update, macOS asks about the Keychain again; choose
-    "Always Allow" each time.
+    Check for Updates. After an update, macOS asks once about the Keychain again;
+    choose "Always Allow".
   - Right-click an event in Schedule to hide a category, e.g. tutorials that aren't yours.
