@@ -1,0 +1,56 @@
+University Portal
+=================
+
+Your Moodle and CMS (cms.sic.saarland) in one Mac app: deadlines, announcements,
+materials with a built-in PDF viewer, and your week's schedule. Everything stays on
+your Mac; nothing is sent anywhere except to Moodle and CMS themselves.
+
+Needs: any Mac (Apple silicon or Intel) with macOS 15 or newer, and your own
+Saarland University Moodle account (CMS is optional).
+
+
+1. Install
+----------
+Drag "University Portal" onto the Applications folder in this window.
+
+
+2. Open it the first time
+-------------------------
+The app isn't from the App Store or a registered Apple developer, so macOS blocks
+it the first time. This is expected. To allow it once:
+
+  1. Open University Portal from Applications. macOS says it can't be opened. Click "Done".
+  2. Open System Settings > Privacy & Security.
+  3. Scroll down to the message about "University Portal" and click "Open Anyway".
+  4. Confirm with your Mac password. From then on it opens normally.
+
+(Alternative in Terminal:  xattr -dr com.apple.quarantine "/Applications/University Portal.app")
+
+
+3. Connect Moodle
+-----------------
+  1. Open Settings (Cmd+,) and click "Connect in Browser…".
+  2. Moodle opens in your browser; sign in with your university account if asked.
+  3. When the browser asks to open "University Portal", allow it.
+
+If the browser never asks (for example because the official Moodle app is installed and
+takes the link), use "Paste the redirect instead" in Settings and follow the steps there.
+
+Your university password is never stored; only the Moodle app token is, in your Keychain.
+
+
+4. Add CMS courses (optional)
+-----------------------------
+In Settings > CMS:
+  - "Choose Courses…" adds a course's news and calendar (no login needed).
+  - Sign in with your CMS username and password to also get materials. They are saved in
+    your Keychain; after a wrong password the app stops trying until you sign in again.
+
+
+Good to know
+------------
+  - When macOS asks whether University Portal may use items in your Keychain, choose
+    "Always Allow".
+  - The app syncs while it's running, also with the window closed (menu bar icon).
+    Settings > General > "Open at login" keeps it running.
+  - Right-click an event in Schedule to hide a category, e.g. tutorials that aren't yours.

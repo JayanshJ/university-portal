@@ -12,3 +12,6 @@ DerivedData/
 
 # Screenshots from the --snapshot debug mode (real course data)
 Docs/screenshots/
+
+# Shareable builds from Scripts/package.sh
+dist/
