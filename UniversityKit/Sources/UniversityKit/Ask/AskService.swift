@@ -85,9 +85,23 @@ public struct AskService: Sendable {
         - If the excerpts don't contain the answer, say so first ("I couldn't find this in your materials."). You may \
         then add a short explanation labelled "General knowledge:" without citations.
         - Answer in the language of the question, even when the materials are in another language.
-        - Be concise and structured: short paragraphs or bullet points, key terms in bold. Write formulas in plain \
-        text (no LaTeX).
+        - Lead with intuition before the formal definition; use worked examples. Be concise and structured: \
+        short sections with headings, bullet points, key terms in bold.
         - For exercise sheets, explain the concepts and give hints; don't write complete solutions to graded tasks.
         - Never invent page numbers, file names or facts that are not in the excerpts.
+
+        Formatting (the answer is rendered as Markdown with KaTeX):
+        - Math: ALWAYS $...$ for inline and $$...$$ for display math; never \\(...\\) or \\[...\\]. Put any \
+        equation with fractions, sums, integrals or limits in display math on its own line with a blank line above and below. \
+        Use inline math only for single variables or short expressions. Keep explanatory text and the math on separate lines.
+        - Tables (GitHub Markdown) for comparisons; fenced code blocks with the language for code.
+
+        Flashcards: when asked for flashcards, a quiz or to test the student, emit ONE fenced block with the language \
+        `flashcard`: an optional first line "# Deck title", then "Q: question" and "A: answer" lines (6–12 cards, one idea \
+        per card, math as above). Nothing else inside the block.
+
+        Visualizations: only when asked to visualize, plot, draw or diagram something, emit ONE fenced block with the \
+        language `artifact` containing a complete, self-contained HTML document (inline <style>/<script>; libraries such as \
+        Chart.js, Plotly, D3, Mermaid or KaTeX may be loaded from a CDN). It renders in a sandboxed frame.
         """
 }

@@ -61,33 +61,31 @@ private struct AskScreen: View {
             .compactMap { seen.insert($0.courseId).inserted ? $0.courseId : nil }
     }
 
+    /// Starting points shown before the first question, in StudyGPT's style.
+    private var suggestions: [String] {
+        let names = courseIds.prefix(3).map { app.overview.style(for: $0).name }
+        var prompts = names.prefix(2).map { "Summarise the key ideas of the latest \($0) lecture" }
+        if let first = names.first { prompts.append("Make flashcards for \(first)") }
+        return prompts + ["What should I revise for my next exam?", "Explain the hardest concept from this week, with an example"]
+    }
+
     private var conversation: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    if ask.pending.count > 0 || ask.indexProgress.isRunning {
-                        IndexCard(ask: ask, first: false)
-                    }
-                    if ask.turns.isEmpty {
-                        Suggestions(courseIds: courseIds) { draft = $0 }
-                    }
-                    ForEach(ask.turns) { turn in
-                        TurnView(turn: turn) { excerpt in
-                            openWindow(id: "viewer", value: ViewerTarget(itemId: excerpt.itemId, page: excerpt.page))
-                        }
-                        .id(turn.id)
-                    }
-                }
-                .padding(.horizontal, Theme.gutter).padding(.bottom, 16)
-                .frame(maxWidth: 860, alignment: .leading)
-                .frame(maxWidth: .infinity)
+        VStack(spacing: 0) {
+            if ask.pending.count > 0 || ask.indexProgress.isRunning {
+                IndexCard(ask: ask, first: false)
+                    .padding(.horizontal, Theme.gutter).padding(.bottom, 8)
+                    .frame(maxWidth: 860 + 2 * Theme.gutter)
             }
-            .onChange(of: ask.turns.last?.answer) {
-                if let last = ask.turns.last { proxy.scrollTo(last.id, anchor: .bottom) }
-            }
-            .onChange(of: ask.turns.count) {
-                if let last = ask.turns.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
-            }
+            ChatTranscript(
+                turns: ask.turns,
+                model: ask.models.first { $0.slug == ask.model }?.displayName ?? ask.model,
+                suggestions: suggestions,
+                courseColor: { app.overview.style(for: $0).color.hex },
+                onCite: { excerpt in
+                    openWindow(id: "viewer", value: ViewerTarget(itemId: excerpt.itemId, page: excerpt.page))
+                },
+                onSuggest: { draft = $0 },
+                onRegenerate: { ask.regenerate($0) })
         }
     }
 }
@@ -207,167 +205,6 @@ private struct WelcomeSheet: View {
     }
 }
 
-// MARK: - Conversation
-
-private struct Suggestions: View {
-    @Environment(AppModel.self) private var app
-    let courseIds: [Int64]
-    let pick: (String) -> Void
-
-    var body: some View {
-        let names = courseIds.prefix(3).map { app.overview.style(for: $0).name }
-        let prompts = names.map { "Summarise the key ideas of the latest \($0) lecture" }
-            + ["What should I revise for my next exam?", "Explain the hardest concept from this week's slides"]
-        VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("Try asking")
-            ForEach(prompts, id: \.self) { prompt in
-                Button { pick(prompt) } label: {
-                    HStack {
-                        Image(systemName: "arrow.up.right").font(.system(size: 11)).foregroundStyle(Theme.tertiary)
-                        Text(prompt).font(.system(size: 13)).foregroundStyle(Theme.secondary)
-                        Spacer()
-                    }
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    .rowBackground()
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.top, 8)
-    }
-}
-
-private struct TurnView: View {
-    @Environment(AppModel.self) private var app
-    let turn: AskTurn
-    let open: (Excerpt) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Spacer(minLength: 80)
-                Text(turn.question)
-                    .font(.system(size: 13)).foregroundStyle(Theme.text)
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 14).padding(.vertical, 10)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Theme.raised))
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                switch turn.phase {
-                case .searching:
-                    status("Searching your materials…")
-                case .writing where turn.answer.isEmpty:
-                    status("Reading \(turn.excerpts.count) passages…")
-                case .failed(let message):
-                    if !turn.answer.isEmpty { AnswerText(text: turn.answer, excerpts: turn.excerpts, open: open) }
-                    Label(message, systemImage: "exclamationmark.triangle")
-                        .font(.system(size: 12)).foregroundStyle(Theme.overdue)
-                    if message.contains("usage limit") { Link("Manage usage", destination: AskModel.manageUsageURL).font(.system(size: 12)) }
-                default:
-                    AnswerText(text: turn.answer, excerpts: turn.excerpts, open: open)
-                }
-                if !turn.excerpts.isEmpty, turn.phase != .searching {
-                    Sources(excerpts: turn.excerpts, cited: turn.cited, open: open)
-                }
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: Theme.corner).fill(Theme.panel))
-            .overlay(RoundedRectangle(cornerRadius: Theme.corner).stroke(Theme.border))
-        }
-    }
-
-    private func status(_ text: String) -> some View {
-        HStack(spacing: 8) {
-            ProgressView().controlSize(.small)
-            Text(text).font(.system(size: 13)).foregroundStyle(Theme.secondary)
-        }
-    }
-}
-
-/// The answer with its "[2]" citations turned into links that open the cited page.
-private struct AnswerText: View {
-    let text: String
-    let excerpts: [Excerpt]
-    let open: (Excerpt) -> Void
-
-    var body: some View {
-        Text(Self.attributed(text))
-            .font(.system(size: 14))
-            .lineSpacing(4)
-            .foregroundStyle(Theme.text)
-            .tint(Theme.accent)
-            .textSelection(.enabled)
-            .environment(\.openURL, OpenURLAction { url in
-                guard url.scheme == "uportal-cite", let number = Int(url.host() ?? ""),
-                      let excerpt = excerpts.first(where: { $0.number == number }) else { return .systemAction }
-                open(excerpt)
-                return .handled
-            })
-    }
-
-    static func attributed(_ text: String) -> AttributedString {
-        let pattern = try! NSRegularExpression(pattern: #"\[(\d+(?:\s*,\s*\d+)*)\]"#)
-        let range = NSRange(text.startIndex..., in: text)
-        var linked = ""
-        var last = text.startIndex
-        for match in pattern.matches(in: text, range: range) {
-            guard let whole = Range(match.range, in: text), let inner = Range(match.range(at: 1), in: text) else { continue }
-            linked += text[last..<whole.lowerBound]
-            linked += text[inner].split(separator: ",").map { number in
-                let n = number.trimmingCharacters(in: .whitespaces)
-                return "[\\[\(n)\\]](uportal-cite://\(n))"
-            }.joined()
-            last = whole.upperBound
-        }
-        linked += text[last...]
-        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        return (try? AttributedString(markdown: linked, options: options)) ?? AttributedString(text)
-    }
-}
-
-private struct Sources: View {
-    @Environment(AppModel.self) private var app
-    let excerpts: [Excerpt]
-    let cited: [Int]
-    let open: (Excerpt) -> Void
-
-    var body: some View {
-        // Cited sources first; uncited ones (if any were cited at all) are dimmed.
-        let ordered = excerpts.filter { cited.contains($0.number) } + excerpts.filter { !cited.contains($0.number) }
-        VStack(alignment: .leading, spacing: 6) {
-            SectionLabel("Sources")
-            FlowLayout(spacing: 6) {
-                ForEach(ordered) { excerpt in
-                    let isCited = cited.isEmpty || cited.contains(excerpt.number)
-                    let style = app.overview.style(for: excerpt.courseId)
-                    Button { open(excerpt) } label: {
-                        HStack(spacing: 6) {
-                            Text("\(excerpt.number)").font(.system(size: 10, weight: .bold).monospacedDigit())
-                                .foregroundStyle(Theme.canvas)
-                                .frame(width: 16, height: 16)
-                                .background(Circle().fill(isCited ? style.color : Theme.tertiary))
-                            Text("\(Self.shortTitle(excerpt.title)) · p. \(excerpt.page)")
-                                .font(.system(size: 12)).foregroundStyle(isCited ? Theme.text : Theme.tertiary)
-                                .lineLimit(1)
-                        }
-                        .padding(.leading, 4).padding(.trailing, 10).padding(.vertical, 4)
-                        .background(Capsule().fill(Theme.raised))
-                    }
-                    .buttonStyle(.plain)
-                    .help("\(style.name) — \(excerpt.title), page \(excerpt.page)\n\n\(excerpt.text.prefix(240))…")
-                }
-            }
-        }
-    }
-
-    static func shortTitle(_ title: String) -> String {
-        let name = (title as NSString).deletingPathExtension
-        return name.count > 38 ? String(name.prefix(36)) + "…" : name
-    }
-}
-
 private struct Composer: View {
     @Bindable var ask: AskModel
     @Binding var draft: String
@@ -431,33 +268,5 @@ private struct Composer: View {
         let question = draft
         draft = ""
         ask.ask(question)
-    }
-}
-
-/// Wraps its children onto new lines when they don't fit.
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 6
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? 600
-        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > 0, x + size.width > width { x = 0; y += rowHeight + spacing; rowHeight = 0 }
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
-        return CGSize(width: width, height: y + rowHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX, y = bounds.minY, rowHeight: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > bounds.minX, x + size.width > bounds.maxX { x = bounds.minX; y += rowHeight + spacing; rowHeight = 0 }
-            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
     }
 }

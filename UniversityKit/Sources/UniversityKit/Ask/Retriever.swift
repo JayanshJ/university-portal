@@ -12,6 +12,16 @@ public struct Excerpt: Sendable, Equatable, Identifiable {
     public var text: String
 
     public var id: Int { number }
+
+    public init(number: Int, itemId: Int64, courseId: Int64, title: String, course: String, page: Int, text: String) {
+        self.number = number
+        self.itemId = itemId
+        self.courseId = courseId
+        self.title = title
+        self.course = course
+        self.page = page
+        self.text = text
+    }
 }
 
 /// Picks the passages for a question. Ported from Study GPT's retrieval (lib/retrieval): explicit

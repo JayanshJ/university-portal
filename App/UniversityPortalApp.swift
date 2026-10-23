@@ -96,7 +96,12 @@ final class AppModel {
                     for try await overview in database.overviewUpdates() { self?.overview = overview }
                 } catch {}
             }
-            ask = AskModel(database: database, secrets: NoSecrets(), transport: transport, files: files(database))
+            let ask = AskModel(database: database, secrets: NoSecrets(), transport: transport, files: files(database))
+            self.ask = ask
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(1))
+                ask.showDemo(courseId: self?.overview.courses.first { $0.shortName.hasPrefix("Programming") }?.id)
+            }
             Task { await Snapshotter.run(model: self) }
             return
         }

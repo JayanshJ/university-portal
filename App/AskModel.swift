@@ -176,9 +176,63 @@ final class AskModel {
         }
     }
 
+    /// Asks the last question again (StudyGPT's "regen").
+    func regenerate(_ id: UUID) {
+        guard !isAnswering, let index = turns.firstIndex(where: { $0.id == id }), index == turns.count - 1 else { return }
+        let turn = turns.remove(at: index)
+        let filter = courseFilter
+        courseFilter = turn.courseId
+        ask(turn.question)
+        courseFilter = filter
+    }
+
     func stop() {
         answering?.cancel()
     }
+
+    /// Screenshot runs only: a signed-in look with a sample answer, no Keychain and no network.
+    func showDemo(courseId: Int64?) {
+        account = Account(email: "demo", canUsePlan: true)
+        models = [ChatGPTModel(slug: "demo", displayName: "GPT-6.1 Sol")]
+        model = "demo"
+        if indexStatus.indexed == 0 { indexStatus = MaterialIndexer.Status(indexed: 30, total: 30, pages: 1_593) }
+        pending = (0, 0)
+        var turn = AskTurn(question: "Explain tail recursion with the examples from Programming 1", courseId: nil)
+        turn.answer = Self.demoAnswer
+        turn.excerpts = [
+            Excerpt(number: 1, itemId: -1, courseId: courseId ?? 0, title: "A Getting Started.pdf", course: "Programming 1", page: 8,
+                    text: "Tail-Recursive Version of pow: pow (x, n) = x * pow (x, n - 1) …"),
+            Excerpt(number: 2, itemId: -2, courseId: courseId ?? 0, title: "Lecture Notes.pdf", course: "Programming 1", page: 282,
+                    text: "Conversely, the application of a tail-recursive function can also be implemented as a loop …"),
+        ]
+        turn.phase = .done
+        turns = [turn]
+    }
+
+    static let demoAnswer = """
+        ## Tail recursion
+
+        A function is **tail-recursive** when the recursive call is its *last* step, so nothing is pending afterwards [2]. \
+        Programming 1 contrasts `pow` with an accumulator version [1].
+
+        The naive version needs $n$ nested calls:
+
+        $$
+        \\text{pow}(x, n) = x \\cdot \\text{pow}(x, n-1), \\qquad \\text{pow}(x, 0) = 1
+        $$
+
+        | Version | Stack depth |
+        |---|---|
+        | naive | $O(n)$ |
+        | tail-recursive | $O(1)$ |
+
+        ```sml
+        fun pow (x, 0, a) = a
+          | pow (x, n, a) = pow (x, n - 1, a * x)
+        ```
+
+        > A tail call can be compiled into a jump [2].
+        """
 
     func clear() {
         stop()

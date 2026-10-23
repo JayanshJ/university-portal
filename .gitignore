@@ -15,3 +15,6 @@ Docs/screenshots/
 
 # Shareable builds from Scripts/package.sh
 dist/
+
+# Local preview server for the chat renderer
+.claude/
