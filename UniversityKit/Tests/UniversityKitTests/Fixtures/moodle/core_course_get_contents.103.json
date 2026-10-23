@@ -1,0 +1,6 @@
+[
+ {"id":10,"name":"General","visible":1,"modules":[
+  {"id":501,"name":"Script","modname":"resource","url":"https://moodle.uni-saarland.de/mod/resource/view.php?id=501","contents":[
+   {"type":"file","filename":"script.pdf","filepath":"/","filesize":2097152,"fileurl":"https://moodle.uni-saarland.de/webservice/pluginfile.php/60/mod_resource/content/2/script.pdf?forcedownload=1","timemodified":1792058400,"mimetype":"application/pdf"}]}
+ ]}
+]

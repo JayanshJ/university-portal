@@ -1,0 +1,4 @@
+[{"id":20,"name":"General","visible":1,"modules":[
+  {"id":601,"name":"Old slides","modname":"resource","url":"https://moodle.uni-saarland.de/mod/resource/view.php?id=601","contents":[
+   {"type":"file","filename":"old.pdf","filepath":"/","filesize":1000,"fileurl":"https://moodle.uni-saarland.de/webservice/pluginfile.php/61/mod_resource/content/1/old.pdf?forcedownload=1","timemodified":1780000000,"mimetype":"application/pdf"}]}
+]}]

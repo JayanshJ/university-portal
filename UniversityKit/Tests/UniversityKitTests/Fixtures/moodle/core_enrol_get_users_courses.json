@@ -1,0 +1,5 @@
+[
+ {"id":101,"shortname":"PM WS26","fullname":"Process Mining","displayname":"Process Mining","visible":1,"startdate":1790841600,"enddate":1806451200},
+ {"id":102,"shortname":"Deskriptive&amp;WR SoSe26","fullname":"Deskriptive Statistik &amp; Wahrscheinlichkeitsrechnung","visible":1,"startdate":1775000000,"enddate":1790726400},
+ {"id":103,"shortname":"ALGO","fullname":"Algorithms","visible":1,"startdate":1790841600,"enddate":0}
+]

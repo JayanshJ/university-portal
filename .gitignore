@@ -1,0 +1,11 @@
+.DS_Store
+.build/
+UniversityKit/.build/
+UniversityKit/.swiftpm/
+xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# Never commit secrets or unsanitized captures
+*.token
+*.cookies

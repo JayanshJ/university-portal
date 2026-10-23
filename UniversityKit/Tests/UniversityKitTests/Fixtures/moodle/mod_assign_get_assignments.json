@@ -1,0 +1,7 @@
+{"courses":[
+ {"id":101,"fullname":"Process Mining","assignments":[
+  {"id":71,"cmid":901,"name":"Blatt 2","duedate":1793404740},
+  {"id":69,"cmid":899,"name":"Blatt 0","duedate":1780000000},
+  {"id":73,"cmid":903,"name":"Bonus (no due date)","duedate":0}]},
+ {"id":103,"fullname":"Algorithms","assignments":[]}
+],"warnings":[]}

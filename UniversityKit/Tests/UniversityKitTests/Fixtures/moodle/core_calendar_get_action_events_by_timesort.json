@@ -1,0 +1,6 @@
+{"events":[
+ {"id":5001,"name":"Blatt 2 ist fällig.","modulename":"assign","instance":71,"course":{"id":101,"fullname":"Process Mining"},"timesort":1793404740,"url":"https://moodle.uni-saarland.de/mod/assign/view.php?id=901","action":{"name":"Add submission","itemcount":1,"actionable":true}},
+ {"id":5002,"name":"Quiz 1 is due","modulename":"quiz","instance":72,"course":{"id":103,"fullname":"Algorithms"},"timesort":1794009540,"url":"https://moodle.uni-saarland.de/mod/quiz/view.php?id=902","action":{"name":"Attempt quiz now","itemcount":1,"actionable":true}},
+ {"id":5003,"name":"Blatt 1 ist fällig.","modulename":"assign","instance":70,"course":{"id":101,"fullname":"Process Mining"},"timesort":1792540740,"url":"https://moodle.uni-saarland.de/mod/assign/view.php?id=900","action":{"name":"Add submission","itemcount":1,"actionable":true}},
+ {"id":5009,"name":"Personal reminder","modulename":null,"timesort":1793404740,"url":"https://moodle.uni-saarland.de/calendar/view.php"}
+],"firstid":5001,"lastid":5009}

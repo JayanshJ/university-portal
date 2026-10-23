@@ -1,0 +1,16 @@
+[
+ {"id":1,"name":"General","visible":1,"modules":[
+  {"id":401,"name":"Ankündigungen","modname":"forum","url":"https://moodle.uni-saarland.de/mod/forum/view.php?id=401"},
+  {"id":402,"name":"Slides 01","modname":"resource","url":"https://moodle.uni-saarland.de/mod/resource/view.php?id=402","contents":[
+   {"type":"file","filename":"01-intro.pdf","filepath":"/","filesize":1048576,"fileurl":"https://moodle.uni-saarland.de/webservice/pluginfile.php/55/mod_resource/content/1/01-intro.pdf?forcedownload=1","timemodified":1790841600,"mimetype":"application/pdf"}]},
+  {"id":403,"name":"Course page","modname":"page","url":"https://moodle.uni-saarland.de/mod/page/view.php?id=403","contents":[
+   {"type":"file","filename":"index.html","filepath":"/","filesize":0,"fileurl":"https://moodle.uni-saarland.de/webservice/pluginfile.php/56/mod_page/content/index.html","timemodified":1790841600}]}
+ ]},
+ {"id":2,"name":"Week 1 &amp; 2","visible":1,"modules":[
+  {"id":404,"name":"Exercises","modname":"folder","url":"https://moodle.uni-saarland.de/mod/folder/view.php?id=404","contents":[
+   {"type":"file","filename":"sheet1.pdf","filepath":"/sheets/","filesize":20480,"fileurl":"https://moodle.uni-saarland.de/webservice/pluginfile.php/57/mod_folder/content/0/sheets/sheet1.pdf?forcedownload=1","timemodified":1792058400,"mimetype":"application/pdf"},
+   {"type":"file","filename":"data.zip","filepath":"/","filesize":4096,"fileurl":"https://moodle.uni-saarland.de/webservice/pluginfile.php/57/mod_folder/content/0/data.zip?forcedownload=1","timemodified":1792058400,"mimetype":"application/zip"}]},
+  {"id":405,"name":"ProM download","modname":"url","url":"https://moodle.uni-saarland.de/mod/url/view.php?id=405","contents":[
+   {"type":"url","filename":"ProM download","filepath":null,"filesize":0,"fileurl":"https://promtools.org/","timemodified":1790841600}]}
+ ]}
+]
