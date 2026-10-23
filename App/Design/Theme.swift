@@ -1,35 +1,20 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import UniversityKit
 
-/// The app's dark theme: near-black canvas, slightly raised panels, hairline borders, one warm
-/// accent for "new" and "due soon", red only for overdue, and one colour per course.
+/// Colours follow the system appearance (light or dark): semantic colours for text and surfaces,
+/// the system accent for selection and unread, red for overdue, orange for due soon, and one
+/// system colour per course.
 enum Theme {
-    static let canvas = Color(hex: 0x0B0B0D)
-    static let panel = Color(hex: 0x131316)
-    static let raised = Color(hex: 0x1A1A1E)
-    static let hover = Color(hex: 0x202025)
-    static let border = Color(hex: 0x26262B)
-    static let text = Color(hex: 0xEDEDEF)
-    static let secondary = Color(hex: 0xA1A1AA)
-    static let tertiary = Color(hex: 0x6B6B74)
-    static let accent = Color(hex: 0xF5C451)
-    static let overdue = Color(hex: 0xF87171)
-    static let done = Color(hex: 0x4ADE80)
+    static let overdue = Color.red
+    static let dueSoon = Color.orange
+    static let done = Color.green
 
-    static let coursePalette: [Color] = [
-        Color(hex: 0x6E9BFF), Color(hex: 0x3DD68C), Color(hex: 0xF472B6), Color(hex: 0xA78BFA),
-        Color(hex: 0x22D3EE), Color(hex: 0xFB8F5A), Color(hex: 0x94A3B8), Color(hex: 0xE879F9),
-    ]
+    static let coursePalette: [Color] = [.blue, .green, .pink, .purple, .teal, .orange, .indigo, .brown]
 
-    static let corner: CGFloat = 10
-    static let gutter: CGFloat = 24
-}
-
-extension Color {
-    init(hex: UInt32) {
-        self.init(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255,
-                  blue: Double(hex & 0xFF) / 255)
-    }
+    /// The reading surface: white in light mode, near-black in dark mode (Mail's message pane).
+    static let paper = Color(nsColor: .textBackgroundColor)
 }
 
 /// A course's colour and a short name without the term ("Process Mining WS 26/27" → "Process Mining").
@@ -59,164 +44,82 @@ extension PortalOverview {
         return CourseStyle(color: Theme.coursePalette[index % Theme.coursePalette.count],
                            name: CourseStyle.displayName(base))
     }
+
+    /// Active courses in sidebar order.
+    var activeCourses: [CourseRow] {
+        courses.filter(\.active).sorted { ($0.source == .moodle ? 0 : 1, $0.id) < ($1.source == .moodle ? 0 : 1, $1.id) }
+    }
 }
 
 // MARK: - Components
 
-/// A raised panel with a title row.
-struct Card<Content: View, Accessory: View>: View {
-    let title: String?
-    @ViewBuilder var accessory: Accessory
-    @ViewBuilder var content: Content
+/// A small coloured word after a title: "Exam", "Submitted", "Due date changed".
+struct Tag: View {
+    let text: String
+    var color: Color = Theme.dueSoon
 
-    init(_ title: String? = nil, @ViewBuilder accessory: () -> Accessory = { EmptyView() },
-         @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.accessory = accessory()
-        self.content = content()
+    init(_ text: String, color: Color = Theme.dueSoon) {
+        self.text = text
+        self.color = color
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if let title {
-                HStack {
-                    SectionLabel(title)
-                    Spacer()
-                    accessory
-                }
-                .padding(.horizontal, 14)
-                .padding(.top, 12)
-                .padding(.bottom, 6)
-            }
-            content
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: Theme.corner).fill(Theme.panel))
-        .overlay(RoundedRectangle(cornerRadius: Theme.corner).stroke(Theme.border, lineWidth: 1))
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(RoundedRectangle(cornerRadius: 4).fill(color.opacity(0.15)))
     }
 }
 
-struct SectionLabel: View {
+/// Mail's unread dot.
+struct UnreadDot: View {
+    var visible = true
+
+    var body: some View {
+        Circle()
+            .fill(visible ? Color.accentColor : .clear)
+            .frame(width: 8, height: 8)
+            .accessibilityHidden(!visible)
+            .accessibilityLabel("Unread")
+    }
+}
+
+/// A section header with a link on the right, e.g. "Due Soon … Show All".
+struct SectionHeader: View {
+    let title: String
+    var action: (title: String, run: () -> Void)?
+
+    init(_ title: String, action: (title: String, run: () -> Void)? = nil) {
+        self.title = title
+        self.action = action
+    }
+
+    var body: some View {
+        HStack {
+            Text(title)
+            Spacer()
+            if let action {
+                Button(action.title, action: action.run)
+                    .buttonStyle(.link)
+                    .font(.subheadline)
+            }
+        }
+    }
+}
+
+/// A quiet line in an empty section.
+struct EmptyRow: View {
     let text: String
     init(_ text: String) { self.text = text }
 
     var body: some View {
-        Text(text.uppercased())
-            .font(.system(size: 11, weight: .semibold))
-            .tracking(0.6)
-            .foregroundStyle(Theme.tertiary)
+        Text(text).foregroundStyle(.secondary).padding(.vertical, 2)
     }
 }
 
-/// Page title, a one-line summary, and actions on the right.
-struct PageHeader<Actions: View>: View {
-    let title: String
-    let subtitle: String?
-    @ViewBuilder var actions: Actions
-
-    init(_ title: String, subtitle: String? = nil, @ViewBuilder actions: () -> Actions = { EmptyView() }) {
-        self.title = title
-        self.subtitle = subtitle
-        self.actions = actions()
-    }
-
-    var body: some View {
-        HStack(alignment: .lastTextBaseline) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.system(size: 24, weight: .semibold)).foregroundStyle(Theme.text)
-                if let subtitle {
-                    Text(subtitle).font(.system(size: 13)).foregroundStyle(Theme.secondary)
-                }
-            }
-            Spacer()
-            actions
-        }
-        .padding(.horizontal, Theme.gutter)
-        .padding(.top, 20)
-        .padding(.bottom, 14)
-    }
-}
-
-/// A coloured dot and the course's short name.
-struct CourseChip: View {
-    let style: CourseStyle
-    var compact = false
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle().fill(style.color).frame(width: 7, height: 7)
-            Text(style.name)
-                .font(.system(size: compact ? 11 : 12))
-                .foregroundStyle(Theme.secondary)
-                .lineLimit(1)
-        }
-    }
-}
-
-/// "TUE / 3 / NOV" for a list's date column.
-struct DateBlock: View {
-    let date: Date
-    var tint: Color = Theme.secondary
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased())
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(tint.opacity(0.8))
-            Text(date.formatted(.dateTime.day()))
-                .font(.system(size: 18, weight: .semibold).monospacedDigit())
-                .foregroundStyle(tint == Theme.secondary ? Theme.text : tint)
-            Text(date.formatted(.dateTime.month(.abbreviated)).uppercased())
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(Theme.tertiary)
-        }
-        .frame(width: 40)
-    }
-}
-
-struct Pill: View {
-    let text: String
-    var color: Color = Theme.accent
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(color)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(color.opacity(0.14)))
-    }
-}
-
-struct NewDot: View {
-    var body: some View {
-        Circle().fill(Theme.accent).frame(width: 6, height: 6).accessibilityLabel("New")
-    }
-}
-
-/// A row that highlights on hover and when selected.
-struct RowBackground: ViewModifier {
-    var selected = false
-    @State private var hovering = false
-
-    func body(content: Content) -> some View {
-        content
-            .contentShape(Rectangle())
-            .background(RoundedRectangle(cornerRadius: 7)
-                .fill(selected ? Theme.raised : (hovering ? Theme.hover.opacity(0.6) : .clear)))
-            .onHover { hovering = $0 }
-    }
-}
-
-extension View {
-    func rowBackground(selected: Bool = false) -> some View { modifier(RowBackground(selected: selected)) }
-
-    /// The canvas behind every page.
-    func pageBackground() -> some View {
-        frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).background(Theme.canvas)
-    }
-}
-
+/// A whole page with nothing to show yet.
 struct EmptyState: View {
     let title: String
     let systemImage: String
@@ -224,21 +127,37 @@ struct EmptyState: View {
     var showsSettings = true
 
     var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: systemImage).font(.system(size: 28)).foregroundStyle(Theme.tertiary)
-            Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text)
-            Text(message).font(.system(size: 13)).foregroundStyle(Theme.secondary).multilineTextAlignment(.center)
-            if showsSettings {
-                SettingsLink { Text("Open Settings") }.padding(.top, 4)
-            }
+        ContentUnavailableView {
+            Label(title, systemImage: systemImage)
+        } description: {
+            Text(message)
+        } actions: {
+            if showsSettings { SettingsLink { Text("Open Settings…") } }
         }
-        .frame(maxWidth: 360)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Finder's icon for a file name, or a link symbol for web links.
+struct FileIcon: View {
+    let filename: String?
+    var size: CGFloat = 20
+
+    var body: some View {
+        if let filename {
+            let ext = (filename as NSString).pathExtension
+            Image(nsImage: NSWorkspace.shared.icon(for: UTType(filenameExtension: ext) ?? .data))
+                .resizable()
+                .frame(width: size, height: size)
+        } else {
+            Image(systemName: "link")
+                .foregroundStyle(.secondary)
+                .frame(width: size, height: size)
+        }
     }
 }
 
 enum DueText {
-    /// "today, 23:59", "tomorrow, 23:59", "in 2 days", "Mon 9 Nov", "overdue · yesterday".
+    /// "today", "tomorrow", "in 2 days", "in 3 weeks", "overdue · yesterday".
     static func relative(_ due: Date, now: Date = .now) -> String {
         let calendar = Calendar.current
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: due)).day ?? 0
@@ -257,10 +176,15 @@ enum DueText {
         "\(relative(due, now: now)), \(due.formatted(date: .omitted, time: .shortened))"
     }
 
+    /// "Sun 25 Oct, 23:59"
+    static func date(_ due: Date) -> String {
+        due.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())
+    }
+
     static func color(_ due: Date, now: Date = .now) -> Color {
         if due < now { return Theme.overdue }
-        if due.timeIntervalSince(now) < 48 * 3600 { return Theme.accent }
-        return Theme.secondary
+        if due.timeIntervalSince(now) < 48 * 3600 { return Theme.dueSoon }
+        return .secondary
     }
 }
 

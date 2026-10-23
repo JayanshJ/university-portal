@@ -1,5 +1,6 @@
 /* Chat transcript for Ask, ported from StudyGPT's "prose-chat" styles (app/globals.css,
-   components/ChatMessage.tsx) onto University Portal's dark palette. */
+   components/ChatMessage.tsx). Colours follow the system appearance like the rest of the app; the
+   accent (--rule) is the system accent colour, set from Swift. */
 
 @font-face { font-family: "Newsreader"; font-weight: 400; font-style: normal; src: url(newsreader-latin-400-normal.woff2) format("woff2"); }
 @font-face { font-family: "Newsreader"; font-weight: 400; font-style: italic; src: url(newsreader-latin-400-italic.woff2) format("woff2"); }
@@ -11,20 +12,39 @@
 @font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url(jetbrains-mono-latin-500-normal.woff2) format("woff2"); }
 
 :root {
-  --paper: #0b0b0d;    /* page */
-  --paper-2: #131316;  /* message cards */
-  --paper-3: #1a1a1e;  /* user bubble, code, table heads */
-  --ink: #ededef;
-  --ink-2: #a1a1aa;
-  --ink-3: #6b6b74;
-  --rule: #f5c451;     /* signature accent: margin rule, links, citations */
-  --feynman: #7aa8d8;  /* secondary accent: sources */
-  --line: #26262b;
-  --overdue: #f87171;
+  /* Dark: matches NSColor.textBackgroundColor and the system greys. */
+  --paper: #1e1e1e;    /* page */
+  --paper-2: #262628;  /* message cards */
+  --paper-3: #2e2e31;  /* user bubble, code, table heads */
+  --ink: #ececec;
+  --ink-2: #a8a8ad;
+  --ink-3: #7c7c82;
+  --rule: #0a84ff;     /* accent: margin rule, links, citations (the system accent, set from Swift) */
+  --on-rule: #ffffff;
+  --feynman: #64a8e8;  /* secondary accent: sources */
+  --line: #38383b;
+  --code-bg: rgba(255, 255, 255, 0.08);
+  --overdue: #ff6961;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.34), 0 1px 1px rgba(0, 0, 0, 0.2);
   --serif: "Newsreader", Georgia, "Times New Roman", serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
-  color-scheme: dark;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --paper: #ffffff;
+    --paper-2: #f5f5f7;
+    --paper-3: #ececee;
+    --ink: #1d1d1f;
+    --ink-2: #5a5a60;
+    --ink-3: #8a8a90;
+    --rule: #007aff;
+    --feynman: #2f6db3;
+    --line: #dcdce0;
+    --code-bg: rgba(0, 0, 0, 0.05);
+    --overdue: #d70015;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 1px rgba(0, 0, 0, 0.04);
+  }
 }
 
 * { box-sizing: border-box; }
@@ -102,7 +122,7 @@ body {
 .prose-chat ol { list-style: decimal; }
 .prose-chat li input[type=checkbox] { margin-right: 0.45em; accent-color: var(--rule); }
 .prose-chat hr { border: 0; border-top: 1px solid var(--line); margin: 1.4em 0; }
-.prose-chat code { font-family: var(--mono); font-size: 0.85em; background: rgba(236, 234, 216, 0.1); padding: 0.1em 0.32em; border-radius: 3px; }
+.prose-chat code { font-family: var(--mono); font-size: 0.85em; background: var(--code-bg); padding: 0.1em 0.32em; border-radius: 3px; }
 .prose-chat pre { position: relative; background: var(--paper-3); border: 1px solid var(--line); padding: 0.85em 1em; border-radius: 3px; overflow-x: auto; margin: 0.4em 0; font-size: 0.85rem; line-height: 1.55; }
 .prose-chat pre code { background: none; padding: 0; font-size: 0.85rem; }
 .prose-chat pre .copy { position: absolute; top: 8px; right: 8px; border: 1px solid var(--line); background: var(--paper-2); padding: 1px 6px; border-radius: 2px; opacity: 0; transition: opacity 0.15s; }
@@ -124,9 +144,9 @@ body {
 .cite {
   display: inline-block; min-width: 1.35em; padding: 0 0.3em; margin: 0 0.08em;
   font-family: var(--mono); font-size: 0.68em; line-height: 1.5; text-align: center; vertical-align: 0.25em;
-  color: var(--paper); background: var(--rule); border-radius: 3px; cursor: pointer; text-decoration: none !important;
+  color: var(--on-rule); background: var(--rule); border-radius: 3px; cursor: pointer; text-decoration: none !important;
 }
-.prose-chat a.cite { color: var(--paper); }
+.prose-chat a.cite { color: var(--on-rule); }
 .cite:hover { filter: brightness(1.15); }
 .cite.missing { background: var(--ink-3); cursor: default; }
 
@@ -138,11 +158,11 @@ body {
 .flash-head { font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em; color: var(--ink-3); background: var(--paper-3); border-bottom: 1px solid var(--line); padding: 6px 12px; display: flex; align-items: center; gap: 8px; }
 .flash-head .count { margin-left: auto; font-variant-numeric: tabular-nums; }
 .flash-face { min-height: 140px; padding: 16px 20px; background: var(--paper); border-bottom: 1px solid var(--line); cursor: pointer; }
-.flash-face:hover { background: #0f0f12; }
+.flash-face:hover { background: var(--paper-2); }
 .flash-face .side { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-bottom: 8px; }
 .flash-bar { display: flex; gap: 8px; padding: 8px 12px; }
 .flash-bar button { font-size: 12px; color: var(--ink-2); border: 1px solid var(--line); background: var(--paper); border-radius: 3px; padding: 5px 12px; }
-.flash-bar button:hover:not(:disabled) { border-color: rgba(236, 234, 216, 0.4); }
+.flash-bar button:hover:not(:disabled) { border-color: var(--ink-3); }
 .flash-bar button:disabled { opacity: 0.4; cursor: default; }
 
 /* ---- Artifacts (StudyGPT Artifact): sandboxed live HTML ---- */
@@ -158,7 +178,7 @@ body {
 .sources summary:hover { color: var(--ink); }
 .sources .arrow { display: inline-block; transition: transform 0.15s; }
 .sources[open] .arrow { transform: rotate(90deg); }
-.material { margin-top: 8px; background: rgba(26, 26, 30, 0.6); border-radius: 2px; padding: 8px 10px; }
+.material { margin-top: 8px; background: var(--paper-3); border-radius: 2px; padding: 8px 10px; }
 .material-head { font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em; display: flex; align-items: center; gap: 6px; color: var(--ink-3); }
 .material-head .course { width: 6px; height: 6px; border-radius: 50%; }
 .material-head .title { color: var(--feynman); }
@@ -176,8 +196,8 @@ body {
 .empty p { color: var(--ink-2); margin: 0 0 18px; font-size: 15px; line-height: 1.6; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { font-family: var(--serif); font-size: 14px; color: var(--ink-2); background: var(--paper-2); border: 1px solid var(--line); border-radius: 3px; padding: 7px 12px; cursor: pointer; text-align: left; }
-.chip:hover { color: var(--ink); border-color: rgba(236, 234, 216, 0.3); }
+.chip:hover { color: var(--ink); border-color: var(--ink-3); }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #2a2a2f; border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #3a3a40; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }

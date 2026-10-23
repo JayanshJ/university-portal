@@ -365,6 +365,7 @@
 
   window.UP = {
     setState(state) {
+      if (state.accent) document.documentElement.style.setProperty("--rule", state.accent);
       const stick = nearBottom();
       const container = root();
       if (!state.turns.length) {

@@ -25,33 +25,37 @@ private struct AskScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader("Ask your materials", subtitle: subtitle) {
-                if !ask.turns.isEmpty {
-                    Button("New conversation") { ask.clear() }
-                        .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.secondary)
-                }
-            }
-
             if !signedInForPlan {
-                ScrollView { SignInCard(ask: ask).padding(.horizontal, Theme.gutter) }
+                SignInView(ask: ask)
             } else if ask.indexStatus.indexed == 0 {
-                ScrollView { IndexCard(ask: ask, first: true).padding(.horizontal, Theme.gutter) }
+                IndexView(ask: ask)
             } else {
-                FilterBar(courseIds: courseIds, selection: $ask.courseFilter)
-                    .padding(.horizontal, Theme.gutter).padding(.bottom, 10)
                 conversation
                 Composer(ask: ask, draft: $draft)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.paper)
+        .navigationTitle("Ask")
+        .navigationSubtitle(subtitle)
+        .toolbar {
+            if signedInForPlan && ask.indexStatus.indexed > 0 {
+                ToolbarItem { CoursePicker(courseIds: courseIds, selection: $ask.courseFilter) }
+                ToolbarItem {
+                    Button { ask.clear() } label: { Label("New Conversation", systemImage: "square.and.pencil") }
+                        .help("New Conversation")
+                        .disabled(ask.turns.isEmpty)
+                }
+            }
+        }
         .sheet(isPresented: $ask.showWelcome) { WelcomeSheet(ask: ask) }
         .onAppear { ask.indexNewMaterialsIfIndexedBefore() }
     }
 
     private var subtitle: String {
         let status = ask.indexStatus
-        guard status.total > 0 else { return "Answers from your lecture PDFs, with page references" }
-        return "\(status.indexed) of \(status.total) PDFs indexed · \(status.pages) pages · answers cite the page"
+        guard status.total > 0 else { return "Answers from your lecture PDFs" }
+        return "\(status.indexed) of \(status.total) PDFs indexed · \(status.pages) pages"
     }
 
     /// Courses that have indexed PDFs.
@@ -72,9 +76,8 @@ private struct AskScreen: View {
     private var conversation: some View {
         VStack(spacing: 0) {
             if ask.pending.count > 0 || ask.indexProgress.isRunning {
-                IndexCard(ask: ask, first: false)
-                    .padding(.horizontal, Theme.gutter).padding(.bottom, 8)
-                    .frame(maxWidth: 860 + 2 * Theme.gutter)
+                IndexBar(ask: ask)
+                Divider()
             }
             ChatTranscript(
                 turns: ask.turns,
@@ -92,95 +95,96 @@ private struct AskScreen: View {
 
 // MARK: - Sign-in and indexing
 
-private struct SignInCard: View {
+private struct SignInView: View {
     let ask: AskModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Image(systemName: "sparkles").font(.system(size: 26)).foregroundStyle(Theme.accent)
-            Text("Ask questions about your lecture PDFs")
-                .font(.system(size: 20, weight: .semibold)).foregroundStyle(Theme.text)
-            VStack(alignment: .leading, spacing: 8) {
-                bullet("text.magnifyingglass", "Finds the right pages in your Moodle and CMS PDFs, in English or German.")
-                bullet("quote.bubble", "Answers cite each source; click a citation to open the PDF at that page.")
-                bullet("person.crop.circle.badge.checkmark", "Runs on your ChatGPT Plus or Pro plan. No API key, no extra cost.")
-                bullet("lock", "Your PDFs are indexed on this Mac. Only your question and the matching excerpts are sent to OpenAI, and not stored there.")
+        ContentUnavailableView {
+            Label("Ask Your Lecture Materials", systemImage: "sparkles")
+        } description: {
+            VStack(spacing: 10) {
+                Text("Answers come from your Moodle and CMS PDFs, in English or German, and cite the page they're from. Click a citation to open the PDF there.")
+                Text("Runs on your ChatGPT Plus or Pro plan, with no API key. Your PDFs are indexed on this Mac; only your question and the matching excerpts are sent to OpenAI, and they aren't stored there.")
+                    .font(.callout)
             }
-            HStack(spacing: 12) {
-                Button {
-                    Task { await ask.signIn() }
-                } label: {
-                    Text(ask.isSigningIn ? "Finish in your browser…" : "Continue with ChatGPT")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.black)
-                        .padding(.horizontal, 16).padding(.vertical, 8)
-                        .background(Capsule().fill(Color.white))
-                }
-                .buttonStyle(.plain)
-                .disabled(ask.isSigningIn)
-                if ask.isSigningIn { ProgressView().controlSize(.small) }
+        } actions: {
+            Button(ask.isSigningIn ? "Finish in Your Browser…" : "Continue with ChatGPT") {
+                Task { await ask.signIn() }
             }
-            .padding(.top, 4)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(ask.isSigningIn)
             if let error = ask.signInError {
-                Text(error).font(.system(size: 12)).foregroundStyle(Theme.overdue)
+                Text(error).font(.callout).foregroundStyle(Theme.overdue).multilineTextAlignment(.center)
             }
         }
-        .padding(24)
-        .frame(maxWidth: 620, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: Theme.corner).fill(Theme.panel))
-        .overlay(RoundedRectangle(cornerRadius: Theme.corner).stroke(Theme.border))
-        .padding(.top, 8)
-    }
-
-    private func bullet(_ icon: String, _ text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: icon).frame(width: 18).foregroundStyle(Theme.secondary)
-            Text(text).font(.system(size: 13)).foregroundStyle(Theme.secondary)
-        }
+        .frame(maxWidth: 520)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-private struct IndexCard: View {
+private struct IndexView: View {
     let ask: AskModel
-    let first: Bool
 
     var body: some View {
         let progress = ask.indexProgress
-        VStack(alignment: .leading, spacing: 10) {
+        ContentUnavailableView {
+            Label(progress.isRunning ? "Indexing Your PDFs" : "Index Your PDFs First", systemImage: "doc.text.magnifyingglass")
+        } description: {
             if progress.isRunning {
-                HStack {
-                    Text("Indexing \(min(progress.done + 1, progress.total)) of \(progress.total)")
-                        .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text)
-                    Spacer()
-                    if progress.failed > 0 {
-                        Text("\(progress.failed) skipped").font(.system(size: 12)).foregroundStyle(Theme.tertiary)
-                    }
+                VStack(spacing: 8) {
+                    ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1)))
+                    Text("\(min(progress.done + 1, progress.total)) of \(progress.total)\(progress.current.map { ": \($0)" } ?? "")")
+                        .font(.callout).lineLimit(1)
                 }
-                ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1))).tint(Theme.accent)
-                if let current = progress.current {
-                    Text(current).font(.system(size: 11)).foregroundStyle(Theme.tertiary).lineLimit(1)
-                }
+                .frame(width: 320)
             } else {
-                Text(first ? "Index your PDFs first" : "\(ask.pending.count) new PDF\(ask.pending.count == 1 ? "" : "s") to index")
-                    .font(.system(size: first ? 17 : 13, weight: .semibold)).foregroundStyle(Theme.text)
-                Text(first
-                     ? "University Portal reads the text of your \(ask.pending.count) lecture PDFs on this Mac, so it can find the right pages. \(download)"
-                     : "New materials arrived since the last index. \(download)")
-                    .font(.system(size: 13)).foregroundStyle(Theme.secondary)
-                Button(first ? "Index now" : "Index") { ask.indexNow() }
+                Text("University Portal reads the text of your \(ask.pending.count) lecture PDFs on this Mac, so it can find the right pages. \(ask.downloadNote)")
+            }
+        } actions: {
+            if !progress.isRunning {
+                Button("Index Now") { ask.indexNow() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                     .disabled(ask.pending.count == 0)
             }
         }
-        .padding(first ? 24 : 14)
-        .frame(maxWidth: first ? 620 : .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: Theme.corner).fill(Theme.panel))
-        .overlay(RoundedRectangle(cornerRadius: Theme.corner).stroke(Theme.border))
-        .padding(.top, first ? 8 : 0)
+        .frame(maxWidth: 520)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
 
-    private var download: String {
-        ask.pending.downloadBytes > 0
-            ? "This downloads about \(ask.pending.downloadBytes.fileSizeText) once."
+/// New materials waiting to be indexed, or indexing in progress, above the conversation.
+private struct IndexBar: View {
+    let ask: AskModel
+
+    var body: some View {
+        let progress = ask.indexProgress
+        HStack(spacing: 10) {
+            Image(systemName: "doc.text.magnifyingglass").foregroundStyle(.secondary)
+            if progress.isRunning {
+                Text("Indexing \(min(progress.done + 1, progress.total)) of \(progress.total)")
+                ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1))).frame(maxWidth: 220)
+                Spacer()
+                if progress.failed > 0 { Text("\(progress.failed) skipped").foregroundStyle(.secondary) }
+            } else {
+                Text("\(ask.pending.count) new PDF\(ask.pending.count == 1 ? "" : "s") to index. \(ask.downloadNote)")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Index") { ask.indexNow() }
+            }
+        }
+        .font(.callout)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+}
+
+extension AskModel {
+    var downloadNote: String {
+        pending.downloadBytes > 0
+            ? "This downloads about \(pending.downloadBytes.fileSizeText) once."
             : "The files are already on this Mac."
     }
 }
@@ -205,61 +209,62 @@ private struct WelcomeSheet: View {
     }
 }
 
+/// The message field at the bottom, like Messages, with the model and plan underneath.
 private struct Composer: View {
     @Bindable var ask: AskModel
     @Binding var draft: String
     @FocusState private var focused: Bool
 
+    private var isEmpty: Bool { draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .bottom, spacing: 10) {
-                TextField("Ask about your lecture materials…", text: $draft, axis: .vertical)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("Ask about your lecture materials", text: $draft, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 14))
-                    .lineLimit(1...6)
+                    .lineLimit(1...8)
                     .focused($focused)
                     .onSubmit(send)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(Theme.paper))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.separator))
                 if ask.isAnswering {
-                    Button { ask.stop() } label: { Image(systemName: "stop.circle.fill").font(.system(size: 22)) }
-                        .buttonStyle(.plain).foregroundStyle(Theme.secondary).help("Stop")
+                    Button { ask.stop() } label: { Image(systemName: "stop.circle.fill").font(.title) }
+                        .buttonStyle(.plain).foregroundStyle(.secondary).help("Stop")
                 } else {
-                    Button(action: send) { Image(systemName: "arrow.up.circle.fill").font(.system(size: 22)) }
+                    Button(action: send) { Image(systemName: "arrow.up.circle.fill").font(.title) }
                         .buttonStyle(.plain)
-                        .foregroundStyle(draft.trimmingCharacters(in: .whitespaces).isEmpty ? Theme.tertiary : Theme.accent)
+                        .foregroundStyle(isEmpty ? Color.secondary : Color.accentColor)
+                        .disabled(isEmpty)
                         .keyboardShortcut(.return, modifiers: .command)
                         .help("Send (⌘↩)")
                 }
             }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.panel))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(focused ? Theme.accent.opacity(0.5) : Theme.border))
-
-            HStack(spacing: 10) {
-                Menu {
-                    ForEach(ask.models) { model in
-                        Button { ask.setModel(model.slug) } label: {
-                            if model.slug == ask.model { Label(model.displayName, systemImage: "checkmark") } else { Text(model.displayName) }
-                        }
-                    }
-                } label: {
-                    Text(ask.models.first { $0.slug == ask.model }?.displayName ?? ask.model ?? "Model")
+            HStack(spacing: 6) {
+                Picker("Model", selection: Binding(get: { ask.model }, set: { ask.setModel($0) })) {
+                    ForEach(ask.models) { Text($0.displayName).tag(String?.some($0.slug)) }
                 }
-                .menuStyle(.borderlessButton)
+                .pickerStyle(.menu)
+                .buttonStyle(.borderless)
+                .labelsHidden()
                 .fixedSize()
-                .font(.system(size: 12))
-                Text("Using ChatGPT plan").font(.system(size: 12)).foregroundStyle(Theme.tertiary)
-                Link("Manage usage", destination: AskModel.manageUsageURL).font(.system(size: 12))
+                Text("·")
+                Text("Using ChatGPT plan")
+                Link("Manage usage", destination: AskModel.manageUsageURL)
                 Spacer()
-                if ask.courseFilter != nil {
-                    Text("Searching one course").font(.system(size: 12)).foregroundStyle(Theme.tertiary)
-                }
+                if ask.courseFilter != nil { Text("Searching one course") }
             }
-            .padding(.horizontal, 4)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.leading, 4)
         }
-        .padding(.horizontal, Theme.gutter).padding(.vertical, 14)
-        .frame(maxWidth: 860 + 2 * Theme.gutter)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(maxWidth: 900)
         .frame(maxWidth: .infinity)
-        .background(Theme.canvas)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
         .onAppear { focused = true }
     }
 

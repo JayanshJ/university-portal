@@ -12,7 +12,6 @@ struct UniversityPortalApp: App {
         WindowGroup("University Portal", id: "main") {
             ContentView()
                 .environment(model)
-                .preferredColorScheme(.dark)
                 // The browser hands moodlemobile://token=… to this window instead of opening a new one.
                 .handlesExternalEvents(preferring: ["moodlemobile"], allowing: ["*"])
                 .onOpenURL { url in
@@ -20,7 +19,6 @@ struct UniversityPortalApp: App {
                 }
         }
         .defaultSize(width: 1280, height: 800)
-        .windowStyle(.hiddenTitleBar)
         .handlesExternalEvents(matching: ["moodlemobile"])
         .commands {
             CommandGroup(after: .appInfo) {
@@ -32,13 +30,11 @@ struct UniversityPortalApp: App {
         Settings {
             SettingsView()
                 .environment(model)
-                .preferredColorScheme(.dark)
         }
 
         WindowGroup("Material", id: "viewer", for: ViewerTarget.self) { $target in
             ViewerWindow(target: target)
                 .environment(model)
-                .preferredColorScheme(.dark)
         }
         .defaultSize(width: 900, height: 1000)
 

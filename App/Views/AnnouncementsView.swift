@@ -1,7 +1,7 @@
 import SwiftUI
 import UniversityKit
 
-/// One feed across Moodle and CMS, unread first, with the reader on the right.
+/// One feed across Moodle and CMS, unread first, with the message on the right (like Mail).
 struct AnnouncementsView: View {
     @Environment(AppModel.self) private var model
     @State private var selection: Int64?
@@ -12,99 +12,116 @@ struct AnnouncementsView: View {
         return all.filter(\.isNew) + all.filter { !$0.isNew }
     }
 
+    private var selected: PortalOverview.ItemRow? {
+        model.overview.announcements.first { $0.id == selection }
+    }
+
     var body: some View {
-        if model.overview.announcements.isEmpty {
-            EmptyState(title: "No announcements", systemImage: "megaphone",
-                       message: "News from Moodle and CMS courses appears here.")
-        } else {
-            HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 0) {
-                    PageHeader("Announcements", subtitle: subtitle) {
-                        Button("Mark all read") { model.markAllRead(.announcement) }
-                            .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.secondary)
-                            .disabled(!model.overview.announcements.contains(where: \.isNew))
-                    }
-                    FilterBar(courseIds: courseIds, selection: $courseFilter)
-                        .padding(.horizontal, Theme.gutter).padding(.bottom, 12)
-                    ScrollView {
-                        LazyVStack(spacing: 2) {
-                            ForEach(feed) { item in
-                                AnnouncementLine(item: item, selected: item.id == selection)
-                                    .onTapGesture { select(item) }
-                            }
+        Group {
+            if model.overview.announcements.isEmpty {
+                EmptyState(title: "No Announcements", systemImage: "megaphone",
+                           message: "News from Moodle and CMS courses appears here.")
+            } else {
+                HSplitView {
+                    List(selection: $selection) {
+                        ForEach(feed) { item in
+                            AnnouncementLine(item: item).tag(item.id)
                         }
-                        .padding(.horizontal, 14).padding(.bottom, 14)
                     }
-                }
-                .frame(width: 400)
-                .background(Theme.canvas)
+                    .listStyle(.inset)
+                    .frame(minWidth: 280, idealWidth: 360, maxWidth: 520)
 
-                Rectangle().fill(Theme.border).frame(width: 1)
-
-                Group {
-                    if let item = model.overview.announcements.first(where: { $0.id == selection }) {
-                        AnnouncementReader(item: item)
-                    } else {
-                        EmptyState(title: "Select an announcement", systemImage: "megaphone",
-                                   message: "Unread ones are at the top.", showsSettings: false)
+                    Group {
+                        if let selected {
+                            AnnouncementReader(item: selected)
+                        } else {
+                            ContentUnavailableView("No Announcement Selected", systemImage: "megaphone")
+                        }
                     }
+                    .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.paper)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Theme.panel)
+                .onAppear { if selection == nil { selection = feed.first?.id } }
+                .onChange(of: selection) {
+                    if let selected, selected.isNew { model.setRead(selected, read: true) }
+                }
             }
-            .onAppear { if selection == nil { selection = feed.first?.id } }
+        }
+        .navigationTitle("Announcements")
+        .navigationSubtitle(subtitle)
+        .toolbar {
+            ToolbarItem { CoursePicker(courseIds: courseIds, selection: $courseFilter) }
+            ToolbarItemGroup {
+                Button { model.markAllRead(.announcement) } label: {
+                    Label("Mark All as Read", systemImage: "envelope.open")
+                }
+                .help("Mark All as Read")
+                .disabled(!model.overview.announcements.contains(where: \.isNew))
+                Button { if let selected { model.setRead(selected, read: false) } } label: {
+                    Label("Mark as Unread", systemImage: "envelope.badge")
+                }
+                .help("Mark as Unread")
+                .disabled(selected == nil || selected?.isNew == true)
+                Button { if let selected { model.openLink(selected) } } label: {
+                    Label("Open Original", systemImage: "safari")
+                }
+                .help("Open in Moodle or CMS")
+                .disabled(selected == nil)
+            }
         }
     }
 
     private var subtitle: String {
         let unread = model.overview.announcements.filter(\.isNew).count
-        return "\(model.overview.announcements.count) total · \(unread) unread"
+        return unread == 0 ? "\(model.overview.announcements.count) announcements" : "\(unread) unread"
     }
 
     private var courseIds: [Int64] {
         var seen = Set<Int64>()
         return model.overview.announcements.compactMap { seen.insert($0.courseId).inserted ? $0.courseId : nil }
     }
-
-    private func select(_ item: PortalOverview.ItemRow) {
-        selection = item.id
-        if item.isNew { model.setRead(item, read: true) }
-    }
 }
 
+/// Mail's message row: unread dot, course and date, title, two lines of preview.
 private struct AnnouncementLine: View {
     @Environment(AppModel.self) private var model
     let item: PortalOverview.ItemRow
-    let selected: Bool
 
     var body: some View {
         let style = model.overview.style(for: item.courseId)
-        HStack(alignment: .top, spacing: 10) {
-            Circle().fill(item.isNew ? Theme.accent : .clear).frame(width: 6, height: 6).padding(.top, 6)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    CourseChip(style: style, compact: true)
-                    Spacer()
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            UnreadDot(visible: item.isNew)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(style.name).fontWeight(.semibold).lineLimit(1)
+                    Spacer(minLength: 6)
                     if let date = item.date {
-                        Text(date, format: .relative(presentation: .named))
-                            .font(.system(size: 11)).foregroundStyle(Theme.tertiary)
+                        Text(shortDate(date)).font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
-                Text(item.title)
-                    .font(.system(size: 13, weight: item.isNew ? .semibold : .medium))
-                    .foregroundStyle(Theme.text).lineLimit(2)
+                Text(item.title).lineLimit(1)
                 if let body = item.body, !body.isEmpty {
                     Text(body.replacingOccurrences(of: "\n", with: " "))
-                        .font(.system(size: 12)).foregroundStyle(Theme.secondary).lineLimit(2)
+                        .font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
         }
-        .padding(10)
-        .rowBackground(selected: selected)
+        .padding(.vertical, 4)
         .contextMenu {
             Button(item.isNew ? "Mark as Read" : "Mark as Unread") { model.setRead(item, read: item.isNew) }
             Button("Open Original") { model.openLink(item) }
+            Divider()
+            Button("Go to \(style.name)") { model.selection = .course(item.courseId) }
         }
+    }
+
+    /// Mail's dates: time today, "Yesterday", the weekday this week, otherwise the date.
+    private func shortDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return date.formatted(date: .omitted, time: .shortened) }
+        if calendar.isDateInYesterday(date) { return "Yesterday" }
+        if date > Date.now.addingTimeInterval(-6 * 86_400) { return date.formatted(.dateTime.weekday(.wide)) }
+        return date.formatted(date: .numeric, time: .omitted)
     }
 }
 
@@ -115,34 +132,26 @@ private struct AnnouncementReader: View {
     var body: some View {
         let style = model.overview.style(for: item.courseId)
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                CourseChip(style: style)
-                Text(item.title).font(.system(size: 22, weight: .semibold)).foregroundStyle(Theme.text)
-                    .textSelection(.enabled)
-                HStack(spacing: 6) {
-                    if let author = item.section { Text(author) }
-                    if let date = item.date {
-                        Text("·")
-                        Text(date.formatted(date: .long, time: .shortened))
-                    }
-                    Text("·")
-                    Text(item.source == .moodle ? "Moodle" : "CMS")
+            VStack(alignment: .leading, spacing: 10) {
+                Text(item.title).font(.title2.weight(.semibold)).textSelection(.enabled)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Circle().fill(style.color).frame(width: 8, height: 8)
+                    Text([style.name, item.section].compactMap { $0 }.joined(separator: " · ")).lineLimit(1)
+                    Spacer(minLength: 12)
+                    if let date = item.date { Text(date.formatted(date: .abbreviated, time: .shortened)).fixedSize() }
                 }
-                .font(.system(size: 12)).foregroundStyle(Theme.tertiary)
-                Rectangle().fill(Theme.border).frame(height: 1)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                Divider().padding(.vertical, 6)
                 Text(item.body ?? "")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Theme.text.opacity(0.92))
-                    .lineSpacing(5)
+                    .font(.body)
+                    .lineSpacing(4)
                     .textSelection(.enabled)
-                HStack(spacing: 12) {
-                    Button("Open original") { model.openLink(item) }
-                    Button("Mark as unread") { model.setRead(item, read: false) }
-                }
-                .padding(.top, 8)
             }
-            .padding(32)
+            .padding(.horizontal, 28)
+            .padding(.vertical, 24)
             .frame(maxWidth: 720, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

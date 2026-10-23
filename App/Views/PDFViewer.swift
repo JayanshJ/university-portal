@@ -29,7 +29,7 @@ struct PDFKitView: NSViewRepresentable {
         view.autoScales = true
         view.displayMode = .singlePageContinuous
         view.displaysPageBreaks = true
-        view.backgroundColor = NSColor(white: 0.08, alpha: 1)
+        view.backgroundColor = .underPageBackgroundColor
         view.wantsLayer = true
         controller.view = view
         context.coordinator.observe(view)

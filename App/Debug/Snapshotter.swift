@@ -2,7 +2,7 @@ import AppKit
 import ScreenCaptureKit
 
 /// Debug aid: launched with `--snapshot`, the app photographs its own main window once per
-/// screen, with real data, and quits. It uses ScreenCaptureKit's current-process content, which
+/// screen and appearance, with real data, and quits. It uses ScreenCaptureKit's current-process content, which
 /// covers only this app's windows and needs no screen-recording permission. The PNGs go to the
 /// sandbox's temporary folder: ~/Library/Containers/app.jayansh.UniversityPortal/Data/tmp/snapshots
 @MainActor
@@ -19,17 +19,21 @@ enum Snapshotter {
         let routes: [(String, Route)] = Route.sections.map { ($0.title.lowercased(), $0) }
             + courses.map { ("course-\($0)", Route.course($0)) }
 
-        for (index, (name, route)) in routes.enumerated() {
-            model.selection = route
-            guard let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 600 }) else { continue }
-            window.setContentSize(NSSize(width: 1280, height: 800))
-            window.makeKeyAndOrderFront(nil)
-            try? await Task.sleep(for: .seconds(2))
-            do {
-                let png = try await capture(window)
-                try png.write(to: folder.appending(path: "\(index)-\(name).png"))
-            } catch {
-                notes.append("\(name): \(error)")
+        // Every screen in dark and then light appearance.
+        for (appearance, suffix) in [(NSAppearance.Name.darkAqua, "dark"), (.aqua, "light")] {
+            NSApp.appearance = NSAppearance(named: appearance)
+            for (index, (name, route)) in routes.enumerated() {
+                model.selection = route
+                guard let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 600 }) else { continue }
+                window.setContentSize(NSSize(width: 1280, height: 800))
+                window.makeKeyAndOrderFront(nil)
+                try? await Task.sleep(for: .seconds(2))
+                do {
+                    let png = try await capture(window)
+                    try png.write(to: folder.appending(path: "\(index)-\(name)-\(suffix).png"))
+                } catch {
+                    notes.append("\(name) \(suffix): \(error)")
+                }
             }
         }
         try? notes.joined(separator: "\n").write(to: log, atomically: true, encoding: .utf8)

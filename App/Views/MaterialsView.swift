@@ -1,7 +1,8 @@
 import SwiftUI
 import UniversityKit
 
-/// Three columns: courses, the chosen course's sections and files, and the viewer.
+/// A course's files by section, Finder-style, with the selected file previewed on the right.
+/// The toolbar picks the course and searches all files.
 struct MaterialsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
@@ -16,9 +17,10 @@ struct MaterialsView: View {
 
     private var courseId: Int64? { model.materialsCourse ?? courseIds.first }
 
+    private var query: String { search.trimmingCharacters(in: .whitespaces).lowercased() }
+
     private var visible: [PortalOverview.ItemRow] {
-        let query = search.trimmingCharacters(in: .whitespaces).lowercased()
-        return model.overview.materials.filter { item in
+        model.overview.materials.filter { item in
             if !query.isEmpty {
                 return "\(item.title) \(item.filename ?? "") \(item.section ?? "")".lowercased().contains(query)
             }
@@ -26,11 +28,12 @@ struct MaterialsView: View {
         }
     }
 
+    /// Sections of the course, or courses when searching.
     private var sections: [(name: String, items: [PortalOverview.ItemRow])] {
         var order: [String] = []
         var byName: [String: [PortalOverview.ItemRow]] = [:]
         for item in visible {
-            let name = search.isEmpty ? (item.section ?? "Other") : model.overview.style(for: item.courseId).name
+            let name = query.isEmpty ? (item.section ?? "Other") : model.overview.style(for: item.courseId).name
             if byName[name] == nil { order.append(name) }
             byName[name, default: []].append(item)
         }
@@ -38,176 +41,133 @@ struct MaterialsView: View {
     }
 
     var body: some View {
-        if model.overview.materials.isEmpty {
-            EmptyState(title: "No materials", systemImage: "folder",
-                       message: "Moodle files and CMS materials (after signing in to CMS) appear here.")
-        } else {
-            HStack(spacing: 0) {
-                courseColumn.frame(width: 230)
-                Rectangle().fill(Theme.border).frame(width: 1)
-                fileColumn.frame(width: 360)
-                Rectangle().fill(Theme.border).frame(width: 1)
-                viewer.frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme.panel)
-            }
-        }
-    }
-
-    private var courseColumn: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PageHeader("Materials")
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(Theme.tertiary)
-                TextField("Search all files", text: $search).textFieldStyle(.plain)
-                if !search.isEmpty {
-                    Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
-                        .buttonStyle(.plain).foregroundStyle(Theme.tertiary)
+        Group {
+            if model.overview.materials.isEmpty {
+                EmptyState(title: "No Materials", systemImage: "folder",
+                           message: "Moodle files and CMS materials (after signing in to CMS) appear here.")
+            } else {
+                HSplitView {
+                    fileList.frame(minWidth: 300, idealWidth: 380, maxWidth: 560)
+                    viewer.frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .font(.system(size: 13))
-            .padding(8)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.raised))
-            .padding(.horizontal, 14).padding(.bottom, 12)
-
-            ScrollView {
-                VStack(spacing: 2) {
+        }
+        .navigationTitle("Materials")
+        .navigationSubtitle(subtitle)
+        .searchable(text: $search, placement: .toolbar, prompt: "Search All Files")
+        .toolbar {
+            ToolbarItem {
+                Picker("Course", selection: Binding(get: { courseId }, set: { model.materialsCourse = $0; search = "" })) {
                     ForEach(courseIds, id: \.self) { id in
-                        let style = model.overview.style(for: id)
-                        let items = model.overview.materials.filter { $0.courseId == id }
-                        let fresh = items.filter(\.isNew).count
-                        Button {
-                            search = ""
-                            model.materialsCourse = id
-                        } label: {
-                            HStack(spacing: 8) {
-                                Circle().fill(style.color).frame(width: 8, height: 8)
-                                Text(style.name).font(.system(size: 13)).foregroundStyle(Theme.text).lineLimit(1)
-                                Spacer(minLength: 4)
-                                if fresh > 0 { Pill(text: "\(fresh) new") }
-                                Text("\(items.count)").font(.system(size: 11).monospacedDigit()).foregroundStyle(Theme.tertiary)
-                            }
-                            .padding(.horizontal, 10).padding(.vertical, 7)
-                            .rowBackground(selected: search.isEmpty && id == courseId)
-                        }
-                        .buttonStyle(.plain)
+                        let fresh = model.overview.materials.filter { $0.courseId == id && $0.isNew }.count
+                        Text(model.overview.style(for: id).name + (fresh > 0 ? " (\(fresh) new)" : "")).tag(Int64?.some(id))
                     }
                 }
-                .padding(.horizontal, 10)
+                .pickerStyle(.menu)
+                .frame(maxWidth: 220)
+                .disabled(!query.isEmpty)
+                .help("Choose a course")
             }
         }
-        .background(Theme.canvas)
     }
 
-    private var fileColumn: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            let title = search.isEmpty ? (courseId.map { model.overview.style(for: $0).name } ?? "") : "Results"
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
-                Text("\(visible.filter(\.hasFile).count) files · \(visible.filter { !$0.hasFile }.count) links")
-                    .font(.system(size: 12)).foregroundStyle(Theme.tertiary)
-            }
-            .padding(.horizontal, 18).padding(.top, 28).padding(.bottom, 12)
+    private var subtitle: String {
+        let files = visible.filter(\.hasFile).count
+        let links = visible.count - files
+        let counts = [files == 1 ? "1 file" : "\(files) files", links == 0 ? nil : links == 1 ? "1 link" : "\(links) links"]
+            .compactMap { $0 }.joined(separator: ", ")
+        return query.isEmpty ? counts : "\(visible.count) results"
+    }
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(sections, id: \.name) { section in
-                        Button {
-                            if collapsed.contains(section.name) { collapsed.remove(section.name) } else { collapsed.insert(section.name) }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 9, weight: .bold))
-                                    .rotationEffect(.degrees(collapsed.contains(section.name) ? 0 : 90))
-                                Text(section.name).font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                                Spacer()
-                                Text("\(section.items.count)").font(.system(size: 11))
-                            }
-                            .foregroundStyle(Theme.secondary)
-                            .padding(.horizontal, 10).padding(.top, 12).padding(.bottom, 4)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        if !collapsed.contains(section.name) {
-                            ForEach(section.items) { item in
-                                MaterialLine(item: item, selected: item.id == selection)
-                                    .onTapGesture(count: 2) {
-                                        if item.hasFile { openWindow(id: "viewer", value: ViewerTarget(itemId: item.id)) } else { model.openLink(item) }
-                                    }
-                                    .onTapGesture { selection = item.id }
-                                    .contextMenu {
-                                        if item.hasFile { Button("Open in New Window") { openWindow(id: "viewer", value: ViewerTarget(itemId: item.id)) } }
-                                        Button("Open Original") { model.openLink(item) }
-                                        Button(item.isNew ? "Mark as Read" : "Mark as Unread") { model.setRead(item, read: item.isNew) }
-                                    }
-                            }
-                        }
-                    }
+    private var fileList: some View {
+        List(selection: $selection) {
+            ForEach(sections, id: \.name) { section in
+                Section(isExpanded: Binding(
+                    get: { !collapsed.contains(section.name) },
+                    set: { if $0 { collapsed.remove(section.name) } else { collapsed.insert(section.name) } }
+                )) {
+                    ForEach(section.items) { MaterialLine(item: $0).tag($0.id) }
+                } header: {
+                    Text(section.name).lineLimit(1)
                 }
-                .padding(.horizontal, 8).padding(.bottom, 14)
             }
         }
-        .background(Theme.canvas)
+        .listStyle(.inset)
+        .contextMenu(forSelectionType: Int64.self) { ids in
+            if let item = material(ids.first) {
+                if item.hasFile { Button("Open in New Window") { open(item) } }
+                Button("Open Original") { model.openLink(item) }
+                Button(item.isNew ? "Mark as Read" : "Mark as Unread") { model.setRead(item, read: item.isNew) }
+            }
+        } primaryAction: { ids in
+            if let item = material(ids.first) { open(item) }
+        }
+        .overlay {
+            if visible.isEmpty && !query.isEmpty { ContentUnavailableView.search(text: search) }
+        }
+    }
+
+    private func material(_ id: Int64?) -> PortalOverview.ItemRow? {
+        id.flatMap { id in model.overview.materials.first { $0.id == id } }
+    }
+
+    private func open(_ item: PortalOverview.ItemRow) {
+        if item.hasFile { openWindow(id: "viewer", value: ViewerTarget(itemId: item.id)) } else { model.openLink(item) }
     }
 
     @ViewBuilder
     private var viewer: some View {
-        if let item = model.overview.materials.first(where: { $0.id == selection }) {
+        if let item = material(selection) {
             if item.hasFile {
                 FileViewer(item: item)
             } else {
-                VStack(spacing: 12) {
-                    Image(systemName: "link").font(.system(size: 28)).foregroundStyle(Theme.tertiary)
-                    Text(item.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text)
-                        .multilineTextAlignment(.center)
-                    Text(item.url ?? "").font(.system(size: 12)).foregroundStyle(Theme.tertiary).lineLimit(2)
-                    Button("Open link") {
+                ContentUnavailableView {
+                    Label(item.title, systemImage: "link")
+                } description: {
+                    Text(item.url ?? "")
+                } actions: {
+                    Button("Open Link") {
                         model.openLink(item)
                         model.setRead(item, read: true)
                     }
                 }
-                .padding(40)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         } else {
-            EmptyState(title: "Select a file", systemImage: "doc.text",
-                       message: "PDFs open here. Double-click to open one in its own window.", showsSettings: false)
+            ContentUnavailableView("No File Selected", systemImage: "doc",
+                                   description: Text("PDFs open here. Double-click a file to open it in its own window."))
         }
     }
 }
 
 private struct MaterialLine: View {
     let item: PortalOverview.ItemRow
-    let selected: Bool
 
-    private var kind: (icon: String, label: String) {
-        guard item.hasFile else { return ("link", "Link") }
+    private var kind: String {
+        guard item.hasFile else { return "Link" }
         let ext = ((item.filename ?? item.title) as NSString).pathExtension.lowercased()
         return switch ext {
-        case "pdf": ("doc.richtext", "PDF")
-        case "zip": ("doc.zipper", "ZIP")
-        case "mp4", "mov", "m4v": ("film", "Video")
-        case "pptx", "ppt", "key": ("rectangle.on.rectangle", "Slides")
-        case "docx", "doc": ("doc.text", "Word")
-        case "ipynb", "py", "java", "c", "sml": ("chevron.left.forwardslash.chevron.right", ext.uppercased())
-        default: ("doc", ext.isEmpty ? "File" : ext.uppercased())
+        case "pdf": "PDF"
+        case "mp4", "mov", "m4v": "Video"
+        case "pptx", "ppt", "key": "Slides"
+        case "docx", "doc": "Word"
+        default: ext.isEmpty ? "File" : ext.uppercased()
         }
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: kind.icon)
-                .font(.system(size: 13))
-                .foregroundStyle(Theme.secondary)
-                .frame(width: 18)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title).font(.system(size: 13)).foregroundStyle(Theme.text).lineLimit(1)
-                Text([kind.label, item.fileSize.map(\.fileSizeText), item.isCached ? "on this Mac" : nil]
-                    .compactMap { $0 }.joined(separator: " · "))
-                    .font(.system(size: 11)).foregroundStyle(Theme.tertiary)
+        HStack(spacing: 8) {
+            FileIcon(filename: item.hasFile ? (item.filename ?? item.title) : nil, size: 22)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.title).lineLimit(1)
+                Text([kind, item.fileSize.map(\.fileSizeText)].compactMap { $0 }.joined(separator: " · "))
+                    .font(.subheadline).foregroundStyle(.secondary)
             }
             Spacer(minLength: 4)
-            if item.isNew { NewDot() }
+            if item.hasFile && !item.isCached {
+                Image(systemName: "icloud.and.arrow.down").foregroundStyle(.secondary).help("Downloads when opened")
+            }
+            UnreadDot(visible: item.isNew)
         }
-        .padding(.horizontal, 10).padding(.vertical, 6)
-        .rowBackground(selected: selected)
+        .padding(.vertical, 1)
     }
 }

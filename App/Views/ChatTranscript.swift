@@ -106,6 +106,7 @@ struct ChatTranscript: NSViewRepresentable {
             let state: [String: Any] = [
                 "turns": turns,
                 "scrollToEnd": scrollToEnd,
+                "accent": Color.accentColor.hex,
                 "empty": [
                     "title": "Ask anything about your lecture materials",
                     "text": "Answers come from your own PDFs and cite the page; click a citation to open it. Math, code, tables, flashcards (“make flashcards for …”) and visualizations render inline.",

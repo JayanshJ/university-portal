@@ -1,7 +1,8 @@
 import SwiftUI
 import UniversityKit
 
-/// A deadline: done circle, date column, title with course, relative due time.
+/// A deadline, Reminders-style: a completion circle in the course colour, title and course, and
+/// when it's due on the right.
 struct DeadlineLine: View {
     @Environment(AppModel.self) private var model
     let item: PortalOverview.ItemRow
@@ -15,56 +16,51 @@ struct DeadlineLine: View {
     var body: some View {
         let style = model.overview.style(for: item.courseId)
         let due = item.date ?? .distantFuture
-        HStack(spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
             Button { model.setDone(item, done: !isDone) } label: {
                 Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 15))
-                    .foregroundStyle(isDone ? Theme.done : Theme.tertiary)
+                    .font(.title3)
+                    .foregroundStyle(style.color)
             }
             .buttonStyle(.plain)
-            .help(isDone ? "Mark not done" : "Mark done")
+            .help(isDone ? "Mark as not done" : "Mark as done")
+            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
 
-            DateBlock(date: due, tint: isDone ? Theme.tertiary : (due < .now ? Theme.overdue : Theme.secondary))
-
-            Rectangle().fill(style.color).frame(width: 3, height: 30).clipShape(Capsule())
-
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(item.title)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(isDone ? Theme.tertiary : Theme.text)
-                        .strikethrough(isDone, color: Theme.tertiary)
+                        .foregroundStyle(isDone ? .secondary : .primary)
+                        .strikethrough(isDone)
                         .lineLimit(1)
-                    if dueChanged { Pill(text: "Due date changed") }
-                    if item.doneSource == .moodle { Pill(text: "Submitted", color: Theme.done) }
+                    if dueChanged { Tag("Due date changed") }
+                    if item.doneSource == .moodle { Tag("Submitted", color: Theme.done) }
                 }
                 if showsCourse {
-                    Text(style.name).font(.system(size: 12)).foregroundStyle(Theme.secondary).lineLimit(1)
+                    Text(style.name).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Spacer(minLength: 12)
-            VStack(alignment: .trailing, spacing: 3) {
+            VStack(alignment: .trailing, spacing: 2) {
                 Text(DueText.relative(due))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(isDone ? Theme.tertiary : DueText.color(due))
-                Text(due.formatted(date: .omitted, time: .shortened))
-                    .font(.system(size: 11).monospacedDigit())
-                    .foregroundStyle(Theme.tertiary)
+                    .foregroundStyle(isDone ? .secondary : DueText.color(due))
+                Text(DueText.date(due))
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .rowBackground()
+        .padding(.vertical, 3)
+        .contentShape(Rectangle())
         .contextMenu {
-            Button(isDone ? "Mark Not Done" : "Mark Done") { model.setDone(item, done: !isDone) }
+            Button(isDone ? "Mark as Not Done" : "Mark as Done") { model.setDone(item, done: !isDone) }
             Button("Open in \(item.source == .moodle ? "Moodle" : "CMS")") { model.openLink(item) }
+            Divider()
             Button("Go to \(style.name)") { model.selection = .course(item.courseId) }
         }
         .onTapGesture(count: 2) { model.openLink(item) }
     }
 }
 
-/// A calendar event (or a deadline on the schedule): time, course colour bar, title, place.
+/// A calendar event (or a deadline on the schedule): time, a dot in the course colour, title, place.
 struct EventLine: View {
     @Environment(AppModel.self) private var model
     let event: PortalOverview.ItemRow
@@ -73,34 +69,27 @@ struct EventLine: View {
 
     var body: some View {
         let style = model.overview.style(for: event.courseId)
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 1) {
-                if showsDay, let start = event.date {
-                    Text(dayText(start)).font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.tertiary)
-                }
-                Text(timeText).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundStyle(Theme.secondary)
-            }
-            .frame(width: 92, alignment: .leading)
-
-            Rectangle().fill(style.color).frame(width: 3, height: 30).clipShape(Capsule())
-
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Circle().fill(style.color).frame(width: 8, height: 8)
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(event.title).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text).lineLimit(1)
-                    if event.isExam { Pill(text: "Exam", color: Theme.overdue) }
-                    if event.kind == .deadline { Pill(text: "Deadline") }
+                    Text(event.title).lineLimit(1)
+                    if event.isExam { Tag("Exam", color: Theme.overdue) }
+                    if event.kind == .deadline { Tag("Deadline") }
                 }
-                Text([showsCourse ? style.name : nil, event.location].compactMap { $0 }.joined(separator: " · "))
-                    .font(.system(size: 12)).foregroundStyle(Theme.secondary).lineLimit(1)
+                let detail = [showsCourse ? style.name : nil, event.location, category].compactMap { $0 }
+                if !detail.isEmpty {
+                    Text(detail.joined(separator: " · ")).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                }
             }
-            Spacer(minLength: 8)
-            if event.kind == .event, let category = event.section, category != "Other" {
-                Text(category).font(.system(size: 11)).foregroundStyle(Theme.tertiary)
+            Spacer(minLength: 12)
+            VStack(alignment: .trailing, spacing: 2) {
+                if showsDay, let start = event.date { Text(dayText(start)) }
+                Text(timeText).font(.subheadline.monospacedDigit()).foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .rowBackground()
+        .padding(.vertical, 3)
+        .contentShape(Rectangle())
         .contextMenu {
             if event.kind == .event, let category = event.section {
                 Button("Hide “\(category)” for \(style.name)") {
@@ -108,8 +97,14 @@ struct EventLine: View {
                 }
             }
             Button("Open in \(event.source == .moodle ? "Moodle" : "CMS")") { model.openLink(event) }
+            Divider()
             Button("Go to \(style.name)") { model.selection = .course(event.courseId) }
         }
+    }
+
+    private var category: String? {
+        guard event.kind == .event, let section = event.section, section != "Other" else { return nil }
+        return section
     }
 
     /// "Today", "Tomorrow", a weekday within the week, otherwise "Tue 3 Nov".
@@ -131,59 +126,79 @@ struct EventLine: View {
     }
 }
 
-/// An announcement or material in a summary: course dot and title.
+/// An announcement or material in a summary list: unread dot, title, and a detail line.
 struct CompactLine: View {
     @Environment(AppModel.self) private var model
     let item: PortalOverview.ItemRow
     var showsCourse = true
     var detail: String?
+    var icon: Bool = false
     let action: () -> Void
 
     var body: some View {
         let style = model.overview.style(for: item.courseId)
         Button(action: action) {
-            HStack(spacing: 10) {
-                Circle().fill(style.color).frame(width: 7, height: 7)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                UnreadDot(visible: item.isNew)
+                if icon {
+                    FileIcon(filename: item.hasFile ? (item.filename ?? item.title) : nil, size: 16)
+                        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+                }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title).font(.system(size: 13)).foregroundStyle(Theme.text).lineLimit(1)
+                    Text(item.title).lineLimit(1)
                     let meta = [showsCourse ? style.name : nil, detail].compactMap { $0 }
                     if !meta.isEmpty {
-                        Text(meta.joined(separator: " · ")).font(.system(size: 11)).foregroundStyle(Theme.tertiary).lineLimit(1)
+                        Text(meta.joined(separator: " · ")).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
-                Spacer(minLength: 4)
-                if item.isNew { NewDot() }
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .rowBackground()
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 }
 
-/// Shown above everything when a source needs the user.
+/// Shown at the top of Today when a source needs the user.
 struct ReconnectBanner: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         if model.overview.needsReconnect {
             let moodle = model.overview.moodle?.status == .needsReconnect
-            HStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.overdue)
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(moodle ? "Moodle needs reconnecting" : "CMS sign-in failed")
-                        .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.text)
+                    Text(moodle ? "Moodle needs reconnecting" : "CMS sign-in failed").fontWeight(.semibold)
                     Text(moodle ? "The Moodle token stopped working. Reconnecting takes about 20 seconds."
                                 : "CMS didn't accept the saved password. Materials stop syncing until you sign in again.")
-                        .font(.system(size: 12)).foregroundStyle(Theme.secondary)
+                        .font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer()
                 SettingsLink { Text("Reconnect…") }
             }
-            .padding(14)
-            .background(RoundedRectangle(cornerRadius: Theme.corner).fill(Theme.overdue.opacity(0.08)))
-            .overlay(RoundedRectangle(cornerRadius: Theme.corner).stroke(Theme.overdue.opacity(0.35)))
+            .padding(.vertical, 4)
         }
+    }
+}
+
+/// "All Courses" and one entry per course, for a toolbar.
+struct CoursePicker: View {
+    @Environment(AppModel.self) private var model
+    let courseIds: [Int64]
+    @Binding var selection: Int64?
+
+    var body: some View {
+        Picker("Course", selection: $selection) {
+            Text("All Courses").tag(Int64?.none)
+            Divider()
+            ForEach(courseIds, id: \.self) { id in
+                Text(model.overview.style(for: id).name).tag(Int64?.some(id))
+            }
+        }
+        .pickerStyle(.menu)
+        .frame(maxWidth: 200)
+        .help("Show one course")
     }
 }
