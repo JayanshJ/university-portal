@@ -21,6 +21,14 @@ struct SettingsView: View {
                 coursesSection
             }
             cmsSection
+            Section("General") {
+                Toggle("Open at login", isOn: Binding(
+                    get: { model.opensAtLogin },
+                    set: { model.setOpensAtLogin($0) }
+                ))
+                Text("Keeps syncing in the menu bar after the window is closed.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if !model.overview.recentRuns.isEmpty {
                 runsSection
             }

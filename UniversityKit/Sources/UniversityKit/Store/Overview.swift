@@ -22,22 +22,66 @@ public struct PortalOverview: Sendable, Equatable {
         public var termIsPast: Bool
     }
 
-    public struct ItemRow: Sendable, Equatable, Identifiable {
+    public struct ItemRow: Sendable, Equatable, Identifiable, Hashable {
         public var id: Int64
+        public var kind: ItemKind
+        public var source: SourceKind
+        public var courseId: Int64
         public var course: String
+        public var courseFullName: String
         public var title: String
+        /// Due date for deadlines, posting date for announcements, start for events, last change for materials.
         public var date: Date?
         public var url: String?
+        /// Section (materials), calendar category (events), module type (deadlines) or author (announcements).
         public var section: String?
-        public var isNew: Bool
+        public var isRead: Bool
+        public var firstSeenAt: Date
         public var hasFile: Bool
         public var isCached: Bool
-        public var source: SourceKind
-        public var courseId: Int64 = 0
-        public var endDate: Date? = nil
-        public var location: String? = nil
-        public var allDay = false
-        public var isExam = false
+        public var filename: String?
+        public var endDate: Date?
+        public var location: String?
+        public var allDay: Bool
+        public var isExam: Bool
+        public var doneAt: Date?
+        public var doneSource: DoneSource?
+        public var dueChangedAt: Date?
+        /// Plain text of an announcement's body.
+        public var body: String?
+
+        /// Unread and not part of a course's first import.
+        public var isNew: Bool { !isRead }
+
+        init(_ item: UniItem, course: UniCourse, source: SourceKind, hasFile: Bool, isCached: Bool, filename: String? = nil) {
+            id = item.id!
+            kind = item.kind
+            self.source = source
+            courseId = item.courseId
+            self.course = course.shortName
+            courseFullName = course.fullName
+            title = item.title
+            date = switch item.kind {
+            case .deadline: item.dueAt
+            case .announcement, .event: item.startsAt
+            case .material: item.updatedAt
+            }
+            url = item.url
+            section = item.category
+            isRead = item.readAt != nil
+            firstSeenAt = item.firstSeenAt
+            self.hasFile = hasFile
+            self.isCached = isCached
+            self.filename = filename
+            endDate = item.endsAt
+            location = item.location
+            allDay = item.allDay
+            isExam = item.isExam
+            doneAt = item.doneAt
+            doneSource = item.doneSource
+            dueChangedAt = item.dueChangedAt
+            body = item.kind == .announcement ? item.bodyHtml.map(HTMLText.plainText) : nil
+        }
     }
 
     public struct RunRow: Sendable, Equatable, Identifiable {
@@ -54,13 +98,28 @@ public struct PortalOverview: Sendable, Equatable {
     public var diagnostics: MoodleDiagnostics?
     public var courses: [CourseRow] = []
     public var openDeadlines: [ItemRow] = []
+    /// Done in the last 30 days, newest first.
+    public var doneDeadlines: [ItemRow] = []
     public var announcements: [ItemRow] = []
     public var materials: [ItemRow] = []
     /// CMS calendar events from today on, for three weeks, without hidden categories.
     public var upcomingEvents: [ItemRow] = []
     public var recentRuns: [RunRow] = []
+    public var lastVisitAt: Date?
+    public var pdfDarkPages = false
 
     public init() {}
+
+    public var needsReconnect: Bool {
+        moodle?.status == .needsReconnect || cms?.status == .needsReconnect
+    }
+
+    /// Unread announcements and materials that arrived after the last visit to Today.
+    public var newSinceVisit: (announcements: [ItemRow], materials: [ItemRow]) {
+        let since = lastVisitAt ?? .distantPast
+        return (announcements.filter { $0.isNew && $0.firstSeenAt > since },
+                materials.filter { $0.isNew && $0.firstSeenAt > since })
+    }
 
     static func fetch(_ db: Database) throws -> PortalOverview {
         var overview = PortalOverview()
@@ -74,12 +133,11 @@ public struct PortalOverview: Sendable, Equatable {
         }
         let kindBySource = Dictionary(uniqueKeysWithValues: sources.compactMap { s in s.id.map { ($0, s.kind) } })
         overview.diagnostics = try UniDatabase.state(db, .moodleDiagnostics, as: MoodleDiagnostics.self)
+        overview.lastVisitAt = try UniDatabase.state(db, .lastVisitAt, as: Date.self)
+        overview.pdfDarkPages = try UniDatabase.state(db, .pdfDarkPages, as: Bool.self) ?? false
 
         let courses = try UniCourse.order(Column("active").desc, Column("short_name")).fetchAll(db)
-        let names = Dictionary(uniqueKeysWithValues: courses.compactMap { c in c.id.map { ($0, c.shortName) } })
-        let courseSource = Dictionary(uniqueKeysWithValues: courses.compactMap { c in
-            c.id.map { ($0, kindBySource[c.sourceId] ?? .moodle) }
-        })
+        let courseById = Dictionary(uniqueKeysWithValues: courses.compactMap { c in c.id.map { ($0, c) } })
         let currentTerm = AcademicTerm.current()
         overview.courses = courses.compactMap { course in
             let term = AcademicTerm.parse("\(course.shortName) \(course.fullName)")
@@ -92,33 +150,33 @@ public struct PortalOverview: Sendable, Equatable {
         }
 
         let activeIds = courses.filter(\.active).compactMap(\.id)
-        let lastVisit = try UniDatabase.state(db, .lastVisitAt, as: Date.self) ?? .distantPast
-        let cached = try Set(Int64.fetchAll(db, sql: "SELECT item_id FROM uni_file WHERE local_path IS NOT NULL"))
-        let withFile = try Set(Int64.fetchAll(db, sql: "SELECT item_id FROM uni_file"))
+        let files = Dictionary(uniqueKeysWithValues: try UniFile.fetchAll(db).map { ($0.itemId, $0) })
 
-        func rows(_ kind: ItemKind, _ request: QueryInterfaceRequest<UniItem>, date: (UniItem) -> Date?) throws -> [ItemRow] {
-            try request.filter(Column("kind") == kind.rawValue && Column("deleted_at") == nil).fetchAll(db).map { item in
-                ItemRow(id: item.id!, course: names[item.courseId] ?? "", title: item.title, date: date(item),
-                        url: item.url, section: item.category, isNew: item.firstSeenAt > lastVisit && item.readAt == nil,
-                        hasFile: withFile.contains(item.id!), isCached: cached.contains(item.id!),
-                        source: courseSource[item.courseId] ?? .moodle, courseId: item.courseId, endDate: item.endsAt,
-                        location: item.location, allDay: item.allDay, isExam: item.isExam)
-            }
+        func rows(_ kind: ItemKind, _ request: QueryInterfaceRequest<UniItem>) throws -> [ItemRow] {
+            try request
+                .filter(Column("kind") == kind.rawValue && Column("deleted_at") == nil
+                        && activeIds.contains(Column("course_id")))
+                .fetchAll(db)
+                .compactMap { item in
+                    guard let course = courseById[item.courseId] else { return nil }
+                    let file = files[item.id!]
+                    return ItemRow(item, course: course, source: kindBySource[course.sourceId] ?? .moodle,
+                                   hasFile: file != nil, isCached: file?.localPath != nil, filename: file?.filename)
+                }
         }
 
-        overview.openDeadlines = try rows(.deadline, UniItem.filter(Column("done_at") == nil).order(Column("due_at")), date: \.dueAt)
-        overview.announcements = try rows(.announcement, UniItem.filter(activeIds.contains(Column("course_id")))
-            .order(Column("starts_at").desc), date: \.startsAt)
-        overview.materials = try rows(.material, UniItem.filter(activeIds.contains(Column("course_id")))
-            .order(Column("course_id"), Column("category"), Column("title")), date: \.updatedAt)
+        overview.openDeadlines = try rows(.deadline, UniItem.filter(Column("done_at") == nil).order(Column("due_at")))
+        overview.doneDeadlines = try rows(.deadline, UniItem
+            .filter(Column("done_at") != nil && Column("done_at") > Date.now.addingTimeInterval(-30 * 86_400))
+            .order(Column("done_at").desc))
+        overview.announcements = try rows(.announcement, UniItem.order(Column("starts_at").desc))
+        overview.materials = try rows(.material, UniItem.order(Column("course_id"), Column("id")))
 
         let startOfToday = Calendar.current.startOfDay(for: .now)
-        let hidden = Dictionary(uniqueKeysWithValues: courses.compactMap { c in c.id.map { ($0, Set(c.hiddenCategories)) } })
         overview.upcomingEvents = try rows(.event, UniItem
-            .filter(activeIds.contains(Column("course_id")))
             .filter(Column("starts_at") >= startOfToday && Column("starts_at") < startOfToday.addingTimeInterval(21 * 86_400))
-            .order(Column("starts_at")), date: \.startsAt)
-            .filter { row in !(row.section.map { hidden[row.courseId]?.contains($0) ?? false } ?? false) }
+            .order(Column("starts_at")))
+            .filter { row in !(row.section.map { courseById[row.courseId]?.hiddenCategories.contains($0) ?? false } ?? false) }
 
         overview.recentRuns = try UniSyncRun.order(Column("started_at").desc).limit(10).fetchAll(db).map {
             RunRow(id: $0.id!, job: $0.job, startedAt: $0.startedAt, ok: $0.ok, counts: $0.counts, error: $0.error)

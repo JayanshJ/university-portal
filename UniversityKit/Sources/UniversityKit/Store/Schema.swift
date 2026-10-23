@@ -123,6 +123,18 @@ extension UniDatabase {
             try db.create(index: "uni_item_on_starts_at", on: "uni_item", columns: ["starts_at"])
         }
 
+        // "Due date changed" is shown on a deadline for a while after Moodle moves it. Everything
+        // stored so far came from first imports, which should not count as unread news.
+        migrator.registerMigration("v5_due_changed_and_read_baseline") { db in
+            try db.alter(table: "uni_item") { t in
+                t.add(column: "due_changed_at", .datetime)
+            }
+            try db.execute(sql: """
+                UPDATE uni_item SET read_at = first_seen_at
+                WHERE read_at IS NULL AND kind IN ('announcement', 'material', 'event')
+                """)
+        }
+
         return migrator
     }
 }

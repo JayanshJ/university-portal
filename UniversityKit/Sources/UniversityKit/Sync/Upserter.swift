@@ -176,6 +176,7 @@ enum Upserter {
             .filter(Column("kind") == kind.rawValue && courseIds.contains(Column("course_id")))
             .fetchAll(db)
         var byKey = Dictionary(uniqueKeysWithValues: existing.map { ("\($0.courseId)/\($0.externalId)", $0) })
+        let coursesWithItems = Set(existing.map(\.courseId))
         var seen = Set<String>()
 
         for input in items where courseIds.contains(input.courseId) {
@@ -197,6 +198,7 @@ enum Upserter {
                 }
                 if changed || wasGone {
                     item.updatedAt = now
+                    if kind == .deadline, dueChanged { item.dueChangedAt = now }
                     outcome.counts.updated += 1
                     outcome.events.append(.itemUpdated(itemId: item.id!, dueDateChanged: dueChanged))
                 } else {
@@ -209,6 +211,8 @@ enum Upserter {
                 var item = UniItem(courseId: input.courseId, kind: kind, externalId: input.externalId,
                                    title: input.title, contentHash: hash, firstSeenAt: now, updatedAt: now)
                 fill(&item, from: input, hash: hash)
+                // A course's first import is history, not news: only later additions start unread.
+                if kind != .deadline, !coursesWithItems.contains(input.courseId) { item.readAt = now }
                 try item.insert(db)
                 outcome.counts.new += 1
                 outcome.events.append(.itemCreated(itemId: item.id!))

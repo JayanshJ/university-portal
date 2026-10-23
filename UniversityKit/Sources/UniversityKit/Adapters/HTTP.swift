@@ -1,4 +1,5 @@
 import Foundation
+import SwiftSoup
 
 /// Sends requests for the adapters. Tests swap in a stub; the app uses `URLSessionTransport`.
 public protocol HTTPTransport: Sendable {
@@ -53,7 +54,7 @@ enum FormEncoding {
     }
 }
 
-enum HTMLText {
+public enum HTMLText {
     private static let named = ["amp": "&", "lt": "<", "gt": ">", "quot": "\"", "apos": "'", "nbsp": "\u{00A0}"]
 
     /// Decodes the entities Moodle leaves in names, e.g. `Deskriptive&amp;WR` → `Deskriptive&WR`.
@@ -74,6 +75,20 @@ enum HTMLText {
             }
         }
         return result + rest
+    }
+
+    /// Readable text from an announcement's HTML: paragraphs and line breaks kept, tags dropped.
+    public static func plainText(_ html: String) -> String {
+        guard let document = try? SwiftSoup.parseBodyFragment(html) else { return html }
+        let marker = "\u{1E}"
+        _ = try? document.select("br").before(marker)
+        _ = try? document.select("p, div, li, h1, h2, h3, h4, h5, tr").before(marker + marker)
+        _ = try? document.select("li").prepend("• ")
+        let text = (try? document.text()) ?? html
+        return text
+            .replacingOccurrences(of: " ?\u{1E} ?", with: "\n", options: .regularExpression)
+            .replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func decodeEntity(_ name: String) -> String? {

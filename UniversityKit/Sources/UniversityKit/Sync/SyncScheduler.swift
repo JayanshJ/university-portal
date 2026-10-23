@@ -35,6 +35,7 @@ public actor SyncScheduler {
     let transport: any HTTPTransport
     /// For CMS: must not follow redirects or handle cookies (see `URLSessionTransport.manualRedirectsAndCookies`).
     let cmsTransport: any HTTPTransport
+    let events: UniEventHub?
 
     private var loops: [SyncJob: Task<Void, Never>] = [:]
     private var running: [SourceKind: Task<Void, Never>] = [:]
@@ -44,11 +45,12 @@ public actor SyncScheduler {
     private static let log = Log(category: "sync")
 
     public init(database: UniDatabase, secrets: any SecretStore, transport: any HTTPTransport,
-                cmsTransport: (any HTTPTransport)? = nil) {
+                cmsTransport: (any HTTPTransport)? = nil, events: UniEventHub? = nil) {
         self.database = database
         self.secrets = secrets
         self.transport = transport
         self.cmsTransport = cmsTransport ?? transport
+        self.events = events
     }
 
     /// Starts one loop per job. Each loop first catches up if its last good run is older than its interval.
@@ -142,6 +144,7 @@ public actor SyncScheduler {
 
         do {
             let outcome = try await work()
+            events?.publish(outcome.events)
             failures[job] = 0
             let degraded = !outcome.suspectCourseIds.isEmpty
             try setStatus(job, degraded ? .degraded : .ok,

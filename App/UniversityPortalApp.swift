@@ -1,5 +1,6 @@
 import AppKit
 import AuthenticationServices
+import ServiceManagement
 import SwiftUI
 import UniversityKit
 
@@ -27,9 +28,19 @@ struct UniversityPortalApp: App {
                 .preferredColorScheme(.dark)
         }
 
-        MenuBarExtra("University Portal", systemImage: "graduationcap") {
+        WindowGroup("Material", id: "viewer", for: Int64.self) { $itemId in
+            ViewerWindow(itemId: itemId)
+                .environment(model)
+                .preferredColorScheme(.dark)
+        }
+        .defaultSize(width: 900, height: 1000)
+
+        MenuBarExtra {
             MenuBarView()
                 .environment(model)
+        } label: {
+            // A warning sign replaces the cap when a source needs reconnecting.
+            Image(systemName: model.overview.needsReconnect ? "exclamationmark.triangle.fill" : "graduationcap")
         }
     }
 }
@@ -51,6 +62,9 @@ final class AppModel {
     @ObservationIgnored private let cmsTransport = URLSessionTransport.manualRedirectsAndCookies()
     @ObservationIgnored private let signIn = MoodleSignIn()
     @ObservationIgnored private var scheduler: SyncScheduler?
+    @ObservationIgnored let events = UniEventHub()
+    /// What the most recent syncs brought, from the event stream, for the menu bar.
+    private(set) var recentChanges: (new: Int, changed: Int, at: Date)?
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
 
     private static let log = Log(category: "app")
@@ -72,7 +86,8 @@ final class AppModel {
         isCMSSignedIn = (try? secrets.readString(.cmsPassword)).flatMap { $0 } != nil
         cmsUsername = (try? secrets.readString(.cmsUsername)).flatMap { $0 }
 
-        let scheduler = SyncScheduler(database: database, secrets: secrets, transport: transport, cmsTransport: cmsTransport)
+        let scheduler = SyncScheduler(database: database, secrets: secrets, transport: transport,
+                                      cmsTransport: cmsTransport, events: events)
         self.scheduler = scheduler
         Task { await scheduler.start() }
 
@@ -82,6 +97,10 @@ final class AppModel {
             } catch {
                 Self.log.error("Overview observation stopped: \(error)")
             }
+        }
+
+        Task { [weak self, events] in
+            for await event in events.events() { self?.record(event) }
         }
 
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(
@@ -280,26 +299,76 @@ final class AppModel {
         try? database?.setCategory(category, hidden: hidden, courseId: courseId)
     }
 
+    // MARK: - Items
+
+    func setDone(_ item: PortalOverview.ItemRow, done: Bool) {
+        try? database?.setDone(itemId: item.id, done: done)
+    }
+
+    func setRead(_ item: PortalOverview.ItemRow, read: Bool) {
+        try? database?.setRead(itemId: item.id, read: read)
+    }
+
+    func markAllRead(_ kind: ItemKind) {
+        try? database?.markAllRead(kind)
+    }
+
+    func markTodayVisited() {
+        try? database?.markTodayVisited()
+    }
+
+    func schedule(from: Date, to: Date) -> [PortalOverview.ItemRow] {
+        (try? database?.schedule(from: from, to: to)) ?? []
+    }
+
+    /// Groups events that arrive close together (one sync) into one "new / changed" summary.
+    private func record(_ event: UniEvent) {
+        var summary = recentChanges.flatMap { Date.now.timeIntervalSince($0.at) < 120 ? $0 : nil } ?? (0, 0, .now)
+        switch event {
+        case .itemCreated: summary.new += 1
+        case .itemUpdated: summary.changed += 1
+        }
+        summary.at = .now
+        recentChanges = summary
+    }
+
     // MARK: - Files
 
-    func open(_ item: PortalOverview.ItemRow) async {
-        guard let database else { return }
-        if !item.hasFile {
-            if let link = item.url.flatMap(URL.init(string:)) { NSWorkspace.shared.open(link) }
-            return
-        }
-        do {
-            let files = MaterialFiles(database: database, cache: FileCache(), secrets: secrets, transport: transport,
-                                      cmsTransport: cmsTransport)
-            NSWorkspace.shared.open(try await files.open(itemId: item.id))
-        } catch {
-            message = Self.describe(error)
-        }
+    /// The local copy of a material's file, downloaded on first open; opening marks it read.
+    func localFile(_ item: PortalOverview.ItemRow) async throws -> URL {
+        guard let database else { throw FileCacheError.noFile }
+        let files = MaterialFiles(database: database, cache: FileCache(), secrets: secrets, transport: transport,
+                                  cmsTransport: cmsTransport)
+        return try await files.open(itemId: item.id)
+    }
+
+    func setDarkPages(_ on: Bool) {
+        try? database?.setState(.pdfDarkPages, to: on)
+    }
+
+    func openInDefaultApp(_ url: URL) {
+        NSWorkspace.shared.open(url)
     }
 
     func openLink(_ item: PortalOverview.ItemRow) {
         if let link = item.url.flatMap(URL.init(string:)) { NSWorkspace.shared.open(link) }
     }
+
+    // MARK: - Open at login
+
+    var opensAtLogin: Bool {
+        SMAppService.mainApp.status == .enabled
+    }
+
+    func setOpensAtLogin(_ on: Bool) {
+        do {
+            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+        } catch {
+            message = "Could not change Open at Login: \(error.localizedDescription)"
+        }
+    }
+
+    func describeError(_ error: Error) -> String { Self.describe(error) }
 
     private static func describe(_ error: Error) -> String {
         switch error {
@@ -307,8 +376,14 @@ final class AppModel {
             "That doesn't contain a Moodle token. Paste the whole location value starting with moodlemobile://token="
         case MoodleConnector.ConnectError.tokenRejected:
             "Moodle rejected that token. Start again with a fresh launch link."
-        case MoodleError.invalidToken:
+        case MoodleError.invalidToken, FileCacheError.notConnected:
             "Moodle no longer accepts the token. Reconnect in Settings."
+        case CMSAuthError.noCredentials:
+            "Sign in to CMS in Settings to open CMS files."
+        case CMSAuthError.loginRejected, CMSAuthError.stillLoggedOut:
+            "CMS didn't accept the saved password. Sign in again in Settings."
+        case CMSAuthError.waitBeforeRetry(let until):
+            "The last CMS login failed; the next attempt is allowed at \(until.formatted(date: .omitted, time: .shortened))."
         case let error as LocalizedError where error.errorDescription != nil:
             error.errorDescription!
         default:

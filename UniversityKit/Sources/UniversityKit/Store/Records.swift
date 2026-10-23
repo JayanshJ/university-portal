@@ -115,6 +115,7 @@ public struct UniItem: Codable, Sendable, Identifiable, FetchableRecord, Mutable
     public var doneSource: DoneSource?
     public var missingCount: Int
     public var deletedAt: Date?
+    public var dueChangedAt: Date?
 
     public init(id: Int64? = nil, courseId: Int64, kind: ItemKind, externalId: String,
                 title: String, bodyHtml: String? = nil, startsAt: Date? = nil, dueAt: Date? = nil,
@@ -122,7 +123,7 @@ public struct UniItem: Codable, Sendable, Identifiable, FetchableRecord, Mutable
                 url: String? = nil, category: String? = nil, isExam: Bool = false,
                 contentHash: String, firstSeenAt: Date = .now, updatedAt: Date = .now,
                 readAt: Date? = nil, doneAt: Date? = nil, doneSource: DoneSource? = nil,
-                missingCount: Int = 0, deletedAt: Date? = nil) {
+                missingCount: Int = 0, deletedAt: Date? = nil, dueChangedAt: Date? = nil) {
         self.id = id
         self.courseId = courseId
         self.kind = kind
@@ -145,6 +146,7 @@ public struct UniItem: Codable, Sendable, Identifiable, FetchableRecord, Mutable
         self.doneSource = doneSource
         self.missingCount = missingCount
         self.deletedAt = deletedAt
+        self.dueChangedAt = dueChangedAt
     }
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {

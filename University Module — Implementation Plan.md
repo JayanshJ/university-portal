@@ -178,7 +178,8 @@ A `SyncScheduler` actor inside the app runs four jobs at roughly the rate the of
 - On launch and on wake from sleep (`NSWorkspace.didWakeNotification`), run every job whose last successful run is older than its interval. "Sync now" in the menu runs all jobs.
 - Requests within a run are sequential, with at most one request per second to CMS.
 - Each run writes a `uni_sync_run` row with counts (new, updated, unchanged, missing).
-- Upsert on (`course_id`, `kind`, `external_id`). A new row publishes `itemCreated` on the in-app event stream; a changed `content_hash` publishes `itemUpdated`. A moved deadline is an update and is surfaced as "due date changed".
+- Upsert on (`course_id`, `kind`, `external_id`). A new row publishes `itemCreated` on the in-app event stream; a changed `content_hash` publishes `itemUpdated`. A moved deadline is an update: it sets `uni_item.due_changed_at` (migration v5) and shows "Due date changed" for a week. `UniEventHub` fans the events out to any listener; the menu bar shows what the last sync brought.
+- A course's first import is history, not news: its announcements, materials and events are stored as read. Only later additions start unread, so "new" means unread.
 - An item missing from two consecutive successful runs gets soft-deleted (`missing_count >= 2`, sets `deleted_at`), never on the first miss.
 - Exception for Moodle deadlines: the action-events call drops an assignment once it is submitted, so a deadline that goes missing before its `due_at` is marked done instead (`done_at` = now, `done_source = 'moodle'`) and stays visible under "Done". One that goes missing after `due_at` is soft-deleted as usual. A teacher deleting an assignment early also looks like "done"; accept that until `mod_assign_get_submission_status` (see Later) can tell the two apart.
 - A run that suddenly returns zero items for a course that had items is treated as a parser failure: keep the old rows and set the source to `degraded`.
@@ -241,7 +242,7 @@ The UI is dark, quiet and small: one main window with a sidebar (Today plus four
 - A reconnect banner first, if any source is `needs_reconnect`.
 - Next 3 deadlines in the next 7 days: course, title, relative due time ("in 2 days, 23:59"), link. Overdue and not done in red.
 - Today's and tomorrow's lectures and exams from the calendars (by `category` and `is_exam`, skipping hidden categories).
-- New since last visit: count of announcements and materials with `first_seen_at` after `uni_state.last_visit_at`, with the top 2 of each ("New in Process Mining: Lecture mode"). Leaving Today moves `last_visit_at` to now.
+- New since last visit: count of unread announcements and materials with `first_seen_at` after `uni_state.last_visit_at`, with the top 2 of each ("New in Process Mining: Lecture mode"). Leaving Today moves `last_visit_at` to now.
 
 **Sidebar sections:**
 
