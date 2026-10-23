@@ -343,7 +343,13 @@ final class AppModel {
     }
 
     func setDarkPages(_ on: Bool) {
-        try? database?.setState(.pdfDarkPages, to: on)
+        Self.log.info("Dark pages toggled: \(on)")
+        do {
+            try database?.setState(.pdfDarkPages, to: on)
+        } catch {
+            Self.log.error("Could not save dark pages: \(error)")
+            message = "Could not save the dark pages setting: \(Self.describe(error))"
+        }
     }
 
     func openInDefaultApp(_ url: URL) {
