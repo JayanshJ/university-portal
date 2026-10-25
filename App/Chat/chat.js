@@ -64,7 +64,7 @@
         if (lang === "artifact" || lang === "flashcard") {
           return '<div class="widget" data-kind="' + lang + '" data-src="' + encodeURIComponent(token.text) + '"></div>';
         }
-        return '<pre><button class="copy">copy</button><code class="language-' + esc(lang) + '">' + esc(token.text) + "</code></pre>";
+        return '<pre><button class="copy">Copy</button><code class="language-' + esc(lang) + '">' + esc(token.text) + "</code></pre>";
       },
     },
   });
@@ -141,17 +141,17 @@
   function flashcardDeck(source) {
     const { title, cards } = parseFlashcards(source);
     const el = document.createElement("div");
-    if (!cards.length) { el.className = "building"; el.textContent = "no flashcards found in this block"; return el; }
+    if (!cards.length) { el.className = "building"; el.textContent = "No flashcards found in this block."; return el; }
     el.className = "flash";
     let order = cards.map((_, i) => i), index = 0, flipped = false;
-    el.innerHTML = '<div class="flash-head"><span class="dot"></span><span class="title"></span><span class="count"></span></div>' +
+    el.innerHTML = '<div class="flash-head"><span class="title"></span><span class="count"></span></div>' +
       '<div class="flash-face" tabindex="0"><div class="side"></div><div class="prose-chat body"></div></div>' +
-      '<div class="flash-bar"><button data-a="flip">flip</button><button data-a="prev">←</button><button data-a="next">→</button><button data-a="shuffle">shuffle</button></div>';
-    el.querySelector(".title").textContent = "flashcards" + (title ? " · " + title : "");
+      '<div class="flash-bar"><button data-a="prev" title="Previous">‹</button><button data-a="flip">Flip</button><button data-a="next" title="Next">›</button><span class="spacer"></span><button data-a="shuffle">Shuffle</button></div>';
+    el.querySelector(".title").textContent = title || "Flashcards";
     const draw = () => {
       const card = cards[order[index]];
-      el.querySelector(".count").textContent = index + 1 + " / " + cards.length;
-      el.querySelector(".side").textContent = flipped ? "A" : "Q";
+      el.querySelector(".count").textContent = index + 1 + " of " + cards.length;
+      el.querySelector(".side").textContent = flipped ? "Answer" : "Question";
       el.querySelector(".body").innerHTML = markdown(flipped ? card.back : card.front);
       el.querySelector('[data-a="prev"]').disabled = index === 0;
       el.querySelector('[data-a="next"]').disabled = index === cards.length - 1;
@@ -189,7 +189,7 @@
   function artifact(html) {
     const el = document.createElement("div");
     el.className = "artifact";
-    el.innerHTML = '<div class="artifact-head"><span class="dot"></span>visualization<button class="copy">copy html</button></div>';
+    el.innerHTML = '<div class="artifact-head">Visualization<button class="copy">Copy HTML</button></div>';
     const frame = document.createElement("iframe");
     frame.setAttribute("sandbox", "allow-scripts");
     const i = html.lastIndexOf("</body>");
@@ -206,7 +206,7 @@
       if (streaming) {
         const placeholder = document.createElement("div");
         placeholder.className = "building";
-        placeholder.textContent = kind === "artifact" ? "building visualization…" : "building flashcards…";
+        placeholder.textContent = kind === "artifact" ? "Building visualization…" : "Building flashcards…";
         w.replaceWith(placeholder);
       } else {
         w.replaceWith(kind === "artifact" ? artifact(src) : flashcardDeck(src));
@@ -214,8 +214,8 @@
     });
     root.querySelectorAll("pre .copy").forEach((b) => b.addEventListener("click", () => {
       post({ type: "copy", text: b.parentElement.querySelector("code").textContent });
-      b.textContent = "copied";
-      setTimeout(() => (b.textContent = "copy"), 1200);
+      b.textContent = "Copied";
+      setTimeout(() => (b.textContent = "Copy"), 1200);
     }));
     root.querySelectorAll("a[data-external]").forEach((a) => a.addEventListener("click", (e) => {
       e.preventDefault();
@@ -225,7 +225,7 @@
 
   // ---- Messages ----
 
-  const STATUS = { searching: "searching your materials…", reading: "reading passages…", writing: "writing…" };
+  const STATUS = { searching: "Searching your materials…", writing: "Writing…" };
   const sourcesOpen = new Map();
 
   function sourcesPanel(turn) {
@@ -242,20 +242,20 @@
     details.className = "sources";
     details.open = !!sourcesOpen.get(turn.id);
     details.addEventListener("toggle", () => sourcesOpen.set(turn.id, details.open));
-    details.innerHTML = '<summary><span class="dot blue"></span>sources · ' + turn.excerpts.length + " excerpt" + (turn.excerpts.length === 1 ? "" : "s") +
-      " from " + materials.length + " material" + (materials.length === 1 ? "" : "s") + ' <span class="arrow">▸</span></summary>';
+    details.innerHTML = '<summary><span class="arrow">›</span>Sources<span class="meta">' + turn.excerpts.length + " excerpt" + (turn.excerpts.length === 1 ? "" : "s") +
+      " from " + materials.length + " file" + (materials.length === 1 ? "" : "s") + "</span></summary>";
     for (const m of materials) {
       const used = cited.size === 0 || m.items.some((e) => cited.has(e.number));
       const box = document.createElement("div");
       box.className = "material" + (used ? "" : " unused");
-      box.innerHTML = '<div class="material-head"><span class="course"></span><span class="title"></span><span></span></div><ul class="excerpts"></ul>';
+      box.innerHTML = '<div class="material-head"><span class="course"></span><span class="title"></span><span class="meta"></span></div><ul class="excerpts"></ul>';
       box.querySelector(".course").style.background = m.color;
-      box.querySelector(".title").textContent = m.course + " — " + m.title;
-      box.querySelector(".material-head span:last-child").textContent = "· " + m.items.length + " excerpt" + (m.items.length === 1 ? "" : "s");
+      box.querySelector(".title").textContent = m.title;
+      box.querySelector(".meta").textContent = m.course;
       for (const e of m.items) {
         const li = document.createElement("li");
         li.innerHTML = '<div class="ref"></div><div class="snippet"></div>';
-        li.querySelector(".ref").textContent = "[" + e.number + "] page " + e.page;
+        li.querySelector(".ref").textContent = e.number + " · Page " + e.page;
         li.querySelector(".snippet").textContent = "“" + e.text.slice(0, 260) + (e.text.length > 260 ? "…" : "") + "”";
         li.addEventListener("click", () => post({ type: "cite", turn: turn.id, number: e.number }));
         box.querySelector(".excerpts").append(li);
@@ -272,35 +272,18 @@
 
     const userRow = document.createElement("div");
     userRow.className = "row user";
-    userRow.innerHTML = '<div class="user-bubble"><div class="label"><span>you</span><span style="color:var(--ink-3)"></span></div><div class="text"></div></div>';
-    userRow.querySelector(".label span:last-child").textContent = "· " + Math.ceil(turn.question.length / 4).toLocaleString() + " tok";
-    userRow.querySelector(".text").textContent = turn.question;
+    userRow.innerHTML = '<div class="user-bubble"></div>';
+    userRow.querySelector(".user-bubble").textContent = turn.question;
     el.append(userRow);
 
     const card = document.createElement("div");
-    card.className = "card";
+    card.className = "answer";
     const streaming = turn.phase === "searching" || turn.phase === "writing";
-    card.innerHTML = '<div class="label"><span class="dot"></span><span class="who"></span><span class="actions"></span></div>';
-    card.querySelector(".who").textContent = "university portal" + (turn.model ? " · " + turn.model : "") +
-      (turn.answer ? " · " + Math.ceil(turn.answer.length / 4).toLocaleString() + " tok" : "");
-    if (!streaming && turn.answer) {
-      const actions = card.querySelector(".actions");
-      const copy = document.createElement("button");
-      copy.textContent = "copy";
-      copy.addEventListener("click", () => { post({ type: "copy", text: turn.answer }); copy.textContent = "copied"; setTimeout(() => (copy.textContent = "copy"), 1200); });
-      actions.append(copy);
-      if (turn.canRegenerate) {
-        const regen = document.createElement("button");
-        regen.textContent = "regen";
-        regen.addEventListener("click", () => post({ type: "regenerate", turn: turn.id }));
-        actions.append(regen);
-      }
-    }
     if (streaming) {
       const status = document.createElement("div");
       status.className = "status";
-      const label = turn.phase === "searching" ? STATUS.searching : turn.answer ? STATUS.writing : "reading " + turn.excerpts.length + " passages…";
-      status.innerHTML = '<span class="dot pulse"></span><span></span>';
+      const label = turn.phase === "searching" ? STATUS.searching : turn.answer ? STATUS.writing : "Reading " + turn.excerpts.length + " passages…";
+      status.innerHTML = '<span class="spinner"></span><span></span>';
       status.querySelector("span:last-child").textContent = label;
       card.append(status);
     }
@@ -320,7 +303,7 @@
     if (turn.error) {
       const error = document.createElement("div");
       error.className = "error";
-      error.textContent = "⚠ " + turn.error;
+      error.textContent = turn.error;
       if (turn.manageUsage) {
         const link = document.createElement("a");
         link.href = "#";
@@ -334,6 +317,27 @@
       const sources = sourcesPanel(turn);
       if (sources) card.append(sources);
     }
+    if (!streaming && turn.answer) {
+      const footer = document.createElement("div");
+      footer.className = "footer";
+      if (turn.model) {
+        const model = document.createElement("span");
+        model.className = "model";
+        model.textContent = turn.model;
+        footer.append(model);
+      }
+      const copy = document.createElement("button");
+      copy.textContent = "Copy";
+      copy.addEventListener("click", () => { post({ type: "copy", text: turn.answer }); copy.textContent = "Copied"; setTimeout(() => (copy.textContent = "Copy"), 1200); });
+      footer.append(copy);
+      if (turn.canRegenerate) {
+        const regen = document.createElement("button");
+        regen.textContent = "Regenerate";
+        regen.addEventListener("click", () => post({ type: "regenerate", turn: turn.id }));
+        footer.append(regen);
+      }
+      card.append(footer);
+    }
     const row = document.createElement("div");
     row.className = "row";
     row.append(card);
@@ -344,7 +348,7 @@
   function renderEmpty(empty) {
     const el = document.createElement("section");
     el.className = "empty";
-    el.innerHTML = '<div class="eyebrow">ask your materials</div><h1></h1><p></p><div class="chips"></div>';
+    el.innerHTML = '<h1></h1><p></p><div class="chips"></div>';
     el.querySelector("h1").textContent = empty.title;
     el.querySelector("p").textContent = empty.text;
     for (const s of empty.suggestions) {
