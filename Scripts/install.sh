@@ -7,6 +7,8 @@ cd "$(dirname "$0")/.."
 osascript -e 'quit app "University Portal"' 2>/dev/null || true
 ./Scripts/build.sh
 
+# Replace, not merge: files dropped from the app must not linger and break its signature.
+rm -rf "/Applications/University Portal.app"
 ditto ".build/DerivedData/Build/Products/Release/University Portal.app" "/Applications/University Portal.app"
 
 # Only the installed copy should receive moodlemobile:// links.
