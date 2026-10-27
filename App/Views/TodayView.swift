@@ -92,6 +92,15 @@ struct TodayView: View {
                 }
             }
 
+            let newGrades = overview.grades.filter { $0.isNew && $0.section != nil }
+            if !newGrades.isEmpty {
+                Section {
+                    ForEach(newGrades) { GradeLine(item: $0) }
+                } header: {
+                    SectionHeader("New Grades", action: ("Show All", { model.selection = .grades }))
+                }
+            }
+
             if !exams.isEmpty {
                 Section("Upcoming Exams") {
                     ForEach(exams) { exam in

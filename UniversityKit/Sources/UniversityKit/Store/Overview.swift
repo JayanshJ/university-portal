@@ -48,8 +48,14 @@ public struct PortalOverview: Sendable, Equatable {
         public var doneAt: Date?
         public var doneSource: DoneSource?
         public var dueChangedAt: Date?
-        /// Plain text of an announcement's body.
+        /// Plain text of the body: an announcement or thread with its replies, course page text, grade feedback.
         public var body: String?
+        /// The posts of an announcement or thread: the first one, then its replies.
+        public var posts: [Post]
+        /// Order on the course page (notes) or in the gradebook (grades).
+        public var position: Int?
+        /// Forum and reply count (threads); range, percentage and weight (grades).
+        public var details: [String: String]
 
         /// Unread and not part of a course's first import.
         public var isNew: Bool { !isRead }
@@ -65,8 +71,8 @@ public struct PortalOverview: Sendable, Equatable {
             title = item.title
             date = switch item.kind {
             case .deadline: item.dueAt
-            case .announcement, .event: item.startsAt
-            case .material: item.updatedAt
+            case .announcement, .event, .discussion, .grade: item.startsAt
+            case .material, .note: item.updatedAt
             }
             url = item.url
             section = item.category
@@ -83,7 +89,36 @@ public struct PortalOverview: Sendable, Equatable {
             doneAt = item.doneAt
             doneSource = item.doneSource
             dueChangedAt = item.dueChangedAt
-            body = item.kind == .announcement ? item.bodyHtml.map(HTMLText.plainText) : nil
+            body = item.kind == .material ? nil : item.bodyHtml.map(HTMLText.plainText)
+            position = item.position
+            details = item.details ?? [:]
+            posts = item.kind == .announcement || item.kind == .discussion
+                ? Self.posts(item.bodyHtml ?? "", author: item.category, date: item.startsAt) : []
+        }
+
+        public struct Post: Sendable, Equatable, Hashable {
+            public var author: String?
+            public var date: Date?
+            public var text: String
+        }
+
+        private static let replyMarker = try! NSRegularExpression(
+            pattern: #"<hr data-reply-author="([^"]*)" data-reply-date="(\d+)">"#)
+
+        /// Splits a thread's HTML at the reply markers the Moodle sync writes.
+        static func posts(_ html: String, author: String?, date: Date?) -> [Post] {
+            var posts: [Post] = []
+            var start = html.startIndex
+            var current = (author: author, date: date)
+            for match in replyMarker.matches(in: html, range: NSRange(html.startIndex..., in: html)) {
+                guard let range = Range(match.range, in: html), let name = Range(match.range(at: 1), in: html),
+                      let seconds = Range(match.range(at: 2), in: html) else { continue }
+                posts.append(Post(author: current.author, date: current.date, text: HTMLText.plainText(String(html[start..<range.lowerBound]))))
+                current = (String(html[name]), Double(html[seconds]).map { Date(timeIntervalSince1970: $0) })
+                start = range.upperBound
+            }
+            posts.append(Post(author: current.author, date: current.date, text: HTMLText.plainText(String(html[start...]))))
+            return posts
         }
     }
 
@@ -105,6 +140,14 @@ public struct PortalOverview: Sendable, Equatable {
     public var doneDeadlines: [ItemRow] = []
     public var announcements: [ItemRow] = []
     public var materials: [ItemRow] = []
+    /// Threads from forums other than announcements, newest first.
+    public var discussions: [ItemRow] = []
+    /// Gradebook items per course, in gradebook order.
+    public var grades: [ItemRow] = []
+    /// Course page text per course, in page order.
+    public var notes: [ItemRow] = []
+    /// Direct messages, most recent first.
+    public var conversations: [UniConversation] = []
     /// CMS calendar events from today on, for three weeks, without hidden categories.
     public var upcomingEvents: [ItemRow] = []
     public var recentRuns: [RunRow] = []
@@ -175,6 +218,10 @@ public struct PortalOverview: Sendable, Equatable {
             .order(Column("done_at").desc))
         overview.announcements = try rows(.announcement, UniItem.order(Column("starts_at").desc))
         overview.materials = try rows(.material, UniItem.order(Column("course_id"), Column("id")))
+        overview.discussions = try rows(.discussion, UniItem.order(Column("starts_at").desc))
+        overview.grades = try rows(.grade, UniItem.order(Column("course_id"), Column("position")))
+        overview.notes = try rows(.note, UniItem.order(Column("course_id"), Column("position")))
+        overview.conversations = try UniConversation.order(Column("last_message_at").desc).fetchAll(db)
 
         let startOfToday = Calendar.current.startOfDay(for: .now)
         overview.upcomingEvents = try rows(.event, UniItem

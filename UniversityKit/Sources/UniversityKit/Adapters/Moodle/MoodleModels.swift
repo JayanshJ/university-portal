@@ -73,6 +73,10 @@ struct MoodleDiscussions: Decodable {
         var created: Int
         var timemodified: Int?
         var userfullname: String?
+        var numreplies: Int?
+        var pinned: Bool?
+        /// The first post's files.
+        var attachments: [MoodleAttachment]?
     }
 
     var discussions: [Discussion]
@@ -84,6 +88,7 @@ struct MoodleSection: Decodable {
         var name: String
         var modname: String
         var url: String?
+        var description: String?
         var contents: [Content]?
     }
 
@@ -99,5 +104,131 @@ struct MoodleSection: Decodable {
 
     var id: Int
     var name: String
+    var summary: String?
+    var section: Int?
     var modules: [Module]
+}
+
+/// A file attached to a forum post or an assignment. Moodle calls the link `fileurl` or `url`.
+struct MoodleAttachment: Decodable {
+    var filename: String
+    var fileurl: String?
+    var url: String?
+    var filesize: Int?
+    var mimetype: String?
+    var timemodified: Int?
+
+    var link: String? { fileurl ?? url }
+}
+
+struct MoodleCalendarEvents: Decodable {
+    struct Event: Decodable {
+        var id: Int
+        var name: String
+        var modulename: String?
+        var courseid: Int?
+        var timestart: Int
+        var eventtype: String
+    }
+
+    var events: [Event]
+}
+
+struct MoodlePosts: Decodable {
+    struct Post: Decodable {
+        struct Author: Decodable { var fullname: String? }
+        var id: Int
+        var message: String
+        var timecreated: Int
+        var author: Author?
+        var attachments: [MoodleAttachment]?
+    }
+
+    var posts: [Post]
+}
+
+struct MoodleGradeItems: Decodable {
+    struct User: Decodable { var gradeitems: [Item] }
+    struct Item: Decodable {
+        var id: Int
+        var itemname: String?
+        var itemtype: String
+        var itemmodule: String?
+        var cmid: Int?
+        var graderaw: Double?
+        var gradeformatted: String?
+        var rangeformatted: String?
+        var percentageformatted: String?
+        var weightformatted: String?
+        var feedback: String?
+        var gradedategraded: Int?
+    }
+
+    var usergrades: [User]
+}
+
+struct MoodlePages: Decodable {
+    struct Page: Decodable {
+        var coursemodule: Int
+        var course: Int
+        var name: String
+        var content: String?
+    }
+
+    var pages: [Page]
+}
+
+struct MoodleCourseSummaries: Decodable {
+    struct Course: Decodable {
+        var id: Int
+        var summary: String?
+    }
+
+    var courses: [Course]
+}
+
+struct MoodleAssignmentIntros: Decodable {
+    struct Course: Decodable {
+        var id: Int
+        var assignments: [Assignment]
+    }
+
+    struct Assignment: Decodable {
+        var cmid: Int
+        var name: String
+        var intro: String?
+        var introattachments: [MoodleAttachment]?
+    }
+
+    var courses: [Course]
+}
+
+struct MoodleConversations: Decodable {
+    struct Member: Decodable {
+        var id: Int
+        var fullname: String
+    }
+
+    struct Message: Decodable {
+        var id: Int
+        var useridfrom: Int
+        var text: String
+        var timecreated: Int
+    }
+
+    struct Conversation: Decodable {
+        var id: Int
+        var name: String?
+        var type: Int?
+        var unreadcount: Int?
+        var members: [Member]?
+        var messages: [Message]?
+    }
+
+    var conversations: [Conversation]
+}
+
+struct MoodleConversationMessages: Decodable {
+    var members: [MoodleConversations.Member]?
+    var messages: [MoodleConversations.Message]
 }

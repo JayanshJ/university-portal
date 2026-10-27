@@ -2,7 +2,7 @@ import GRDB
 
 extension UniDatabase {
     static let tableNames = [
-        "uni_source", "uni_course", "uni_item", "uni_file", "uni_sync_run", "uni_state",
+        "uni_source", "uni_course", "uni_item", "uni_file", "uni_sync_run", "uni_state", "uni_conversation",
     ]
 
     /// Append new migrations at the end; never edit one that has shipped.
@@ -157,6 +157,67 @@ extension UniDatabase {
                 t.column("chunks", .integer).notNull()
                 t.column("indexed_at", .datetime).notNull()
                 t.column("error", .text)
+            }
+        }
+
+        // Everything else a Moodle course shows: course page text, forum discussions and grades as
+        // items (SQLite can't change a CHECK, so the table is rebuilt), an order for course page
+        // text, details per kind as JSON, and direct messages in their own table.
+        migrator.registerMigration("v7_more_moodle") { db in
+            try db.create(table: "uni_item_v7") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("course_id", .integer).notNull()
+                    .references("uni_course", onDelete: .cascade)
+                t.column("kind", .text).notNull()
+                    .check(sql: "kind IN ('deadline', 'announcement', 'event', 'material', 'note', 'discussion', 'grade')")
+                t.column("external_id", .text).notNull()
+                t.column("title", .text).notNull()
+                t.column("body_html", .text)
+                t.column("starts_at", .datetime)
+                t.column("due_at", .datetime)
+                t.column("url", .text)
+                t.column("category", .text)
+                t.column("is_exam", .boolean).notNull().defaults(to: false)
+                t.column("content_hash", .text).notNull()
+                t.column("first_seen_at", .datetime).notNull()
+                t.column("updated_at", .datetime).notNull()
+                t.column("read_at", .datetime)
+                t.column("done_at", .datetime)
+                t.column("done_source", .text).check(sql: "done_source IN ('user', 'moodle')")
+                t.column("missing_count", .integer).notNull().defaults(to: 0)
+                t.column("deleted_at", .datetime)
+                t.column("ends_at", .datetime)
+                t.column("location", .text)
+                t.column("all_day", .boolean).notNull().defaults(to: false)
+                t.column("due_changed_at", .datetime)
+                t.column("position", .integer)
+                t.column("details", .jsonText)
+                t.uniqueKey(["course_id", "kind", "external_id"])
+            }
+            let columns = """
+                id, course_id, kind, external_id, title, body_html, starts_at, due_at, url, category, is_exam,
+                content_hash, first_seen_at, updated_at, read_at, done_at, done_source, missing_count, deleted_at,
+                ends_at, location, all_day, due_changed_at
+                """
+            try db.execute(sql: "INSERT INTO uni_item_v7 (\(columns)) SELECT \(columns) FROM uni_item")
+            try db.drop(table: "uni_item")
+            try db.rename(table: "uni_item_v7", to: "uni_item")
+            try db.create(index: "uni_item_on_course_id", on: "uni_item", columns: ["course_id"])
+            try db.create(index: "uni_item_on_due_at", on: "uni_item", columns: ["due_at"])
+            try db.create(index: "uni_item_on_first_seen_at", on: "uni_item", columns: ["first_seen_at"])
+            try db.create(index: "uni_item_on_starts_at", on: "uni_item", columns: ["starts_at"])
+
+            try db.create(table: "uni_conversation") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("source_id", .integer).notNull().indexed()
+                    .references("uni_source", onDelete: .cascade)
+                t.column("external_id", .text).notNull()
+                t.column("name", .text).notNull()
+                t.column("unread_count", .integer).notNull().defaults(to: 0)
+                t.column("last_message_at", .datetime)
+                t.column("messages", .jsonText).notNull()
+                t.column("url", .text)
+                t.uniqueKey(["source_id", "external_id"])
             }
         }
 

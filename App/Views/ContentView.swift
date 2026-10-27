@@ -3,10 +3,10 @@ import UniversityKit
 
 /// Where the main window is: one of the sections, or a course's page.
 enum Route: Hashable {
-    case today, ask, deadlines, announcements, materials, schedule
+    case today, ask, deadlines, announcements, forums, messages, grades, materials, schedule
     case course(Int64)
 
-    static let sections: [Route] = [.today, .ask, .deadlines, .announcements, .materials, .schedule]
+    static let sections: [Route] = [.today, .ask, .deadlines, .announcements, .forums, .messages, .grades, .materials, .schedule]
 
     var title: String {
         switch self {
@@ -14,6 +14,9 @@ enum Route: Hashable {
         case .ask: "Ask"
         case .deadlines: "Deadlines"
         case .announcements: "Announcements"
+        case .forums: "Forums"
+        case .messages: "Messages"
+        case .grades: "Grades"
         case .materials: "Materials"
         case .schedule: "Schedule"
         case .course: "Course"
@@ -26,6 +29,9 @@ enum Route: Hashable {
         case .ask: "sparkles"
         case .deadlines: "checklist"
         case .announcements: "megaphone"
+        case .forums: "bubble.left.and.bubble.right"
+        case .messages: "message"
+        case .grades: "rosette"
         case .materials: "folder"
         case .schedule: "calendar"
         case .course: "book.closed"
@@ -50,7 +56,10 @@ struct ContentView: View {
                     case .today: TodayView()
                     case .ask: AskView()
                     case .deadlines: DeadlinesView()
-                    case .announcements: AnnouncementsView()
+                    case .announcements: AnnouncementsView(kind: .announcement)
+                    case .forums: AnnouncementsView(kind: .discussion)
+                    case .messages: MessagesView()
+                    case .grades: GradesView()
                     case .materials: MaterialsView()
                     case .schedule: ScheduleView()
                     case .course(let id): CourseView(courseId: id)
@@ -120,6 +129,9 @@ private struct Sidebar: View {
         case .deadlines:
             overview.openDeadlines.filter { ($0.date ?? .distantFuture) < Date.now.addingTimeInterval(7 * 86_400) }.count
         case .announcements: overview.announcements.filter(\.isNew).count
+        case .forums: overview.discussions.filter(\.isNew).count
+        case .messages: overview.conversations.map(\.unreadCount).reduce(0, +)
+        case .grades: overview.grades.filter(\.isNew).count
         case .materials: overview.materials.filter(\.isNew).count
         default: 0
         }

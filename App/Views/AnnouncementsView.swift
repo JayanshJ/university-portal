@@ -1,31 +1,46 @@
 import SwiftUI
 import UniversityKit
 
-/// One feed across Moodle and CMS, unread first, with the message on the right (like Mail).
+/// Announcements (each course's news forum) or Forums (every other forum), unread first, with the
+/// whole thread on the right (like Mail).
 struct AnnouncementsView: View {
     @Environment(AppModel.self) private var model
+    /// `.announcement` or `.discussion`.
+    let kind: ItemKind
     @State private var selection: Int64?
     @State private var courseFilter: Int64?
 
+    private var all: [PortalOverview.ItemRow] {
+        kind == .announcement ? model.overview.announcements : model.overview.discussions
+    }
+
     private var feed: [PortalOverview.ItemRow] {
-        let all = model.overview.announcements.filter { courseFilter == nil || $0.courseId == courseFilter }
-        return all.filter(\.isNew) + all.filter { !$0.isNew }
+        let shown = all.filter { courseFilter == nil || $0.courseId == courseFilter }
+        let pinned = shown.filter { $0.details["pinned"] == "1" }
+        let rest = shown.filter { $0.details["pinned"] != "1" }
+        return pinned + rest.filter(\.isNew) + rest.filter { !$0.isNew }
     }
 
     private var selected: PortalOverview.ItemRow? {
-        model.overview.announcements.first { $0.id == selection }
+        all.first { $0.id == selection }
     }
+
+    private var title: String { kind == .announcement ? "Announcements" : "Forums" }
 
     var body: some View {
         Group {
-            if model.overview.announcements.isEmpty {
-                EmptyState(title: "No Announcements", systemImage: "megaphone",
-                           message: "News from Moodle and CMS courses appears here.")
+            if all.isEmpty {
+                EmptyState(title: kind == .announcement ? "No Announcements" : "No Forum Posts",
+                           systemImage: kind == .announcement ? "megaphone" : "bubble.left.and.bubble.right",
+                           message: kind == .announcement
+                               ? "News from Moodle and CMS courses appears here."
+                               : "Questions and discussions from your courses' Moodle forums appear here, with every reply.",
+                           showsSettings: false)
             } else {
                 HSplitView {
                     List(selection: $selection) {
                         ForEach(feed) { item in
-                            AnnouncementLine(item: item).tag(item.id)
+                            ThreadLine(item: item, showsForum: kind == .discussion).tag(item.id)
                         }
                     }
                     .listStyle(.inset)
@@ -33,9 +48,9 @@ struct AnnouncementsView: View {
 
                     Group {
                         if let selected {
-                            AnnouncementReader(item: selected)
+                            ThreadReader(item: selected)
                         } else {
-                            ContentUnavailableView("No Announcement Selected", systemImage: "megaphone")
+                            ContentUnavailableView("Nothing Selected", systemImage: kind == .announcement ? "megaphone" : "bubble.left.and.bubble.right")
                         }
                     }
                     .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
@@ -47,16 +62,16 @@ struct AnnouncementsView: View {
                 }
             }
         }
-        .navigationTitle("Announcements")
+        .navigationTitle(title)
         .navigationSubtitle(subtitle)
         .toolbar {
             ToolbarItem { CoursePicker(courseIds: courseIds, selection: $courseFilter) }
             ToolbarItemGroup {
-                Button { model.markAllRead(.announcement) } label: {
+                Button { model.markAllRead(kind) } label: {
                     Label("Mark All as Read", systemImage: "envelope.open")
                 }
                 .help("Mark All as Read")
-                .disabled(!model.overview.announcements.contains(where: \.isNew))
+                .disabled(!all.contains(where: \.isNew))
                 Button { if let selected { model.setRead(selected, read: false) } } label: {
                     Label("Mark as Unread", systemImage: "envelope.badge")
                 }
@@ -72,37 +87,48 @@ struct AnnouncementsView: View {
     }
 
     private var subtitle: String {
-        let unread = model.overview.announcements.filter(\.isNew).count
-        return unread == 0 ? "\(model.overview.announcements.count) announcements" : "\(unread) unread"
+        let unread = all.filter(\.isNew).count
+        let noun = kind == .announcement ? "announcement" : "thread"
+        return unread == 0 ? "\(all.count) \(noun)\(all.count == 1 ? "" : "s")" : "\(unread) unread"
     }
 
     private var courseIds: [Int64] {
         var seen = Set<Int64>()
-        return model.overview.announcements.compactMap { seen.insert($0.courseId).inserted ? $0.courseId : nil }
+        return all.compactMap { seen.insert($0.courseId).inserted ? $0.courseId : nil }
     }
 }
 
-/// Mail's message row: unread dot, course and date, title, two lines of preview.
-private struct AnnouncementLine: View {
+/// Mail's message row: unread dot, course (and forum) and date, title, two lines of preview, replies.
+private struct ThreadLine: View {
     @Environment(AppModel.self) private var model
     let item: PortalOverview.ItemRow
+    let showsForum: Bool
 
     var body: some View {
         let style = model.overview.style(for: item.courseId)
+        let replies = Int(item.details["replies"] ?? "") ?? 0
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             UnreadDot(visible: item.isNew)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(style.name).fontWeight(.semibold).lineLimit(1)
                     Spacer(minLength: 6)
-                    if let date = item.date {
+                    if let date = item.posts.last?.date ?? item.date {
                         Text(shortDate(date)).font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
-                Text(item.title).lineLimit(1)
-                if let body = item.body, !body.isEmpty {
-                    Text(body.replacingOccurrences(of: "\n", with: " "))
+                HStack(spacing: 4) {
+                    if item.details["pinned"] == "1" { Image(systemName: "pin.fill").font(.caption).foregroundStyle(.orange) }
+                    Text(item.title).lineLimit(1)
+                }
+                if let preview = item.posts.first?.text, !preview.isEmpty {
+                    Text(preview.replacingOccurrences(of: "\n", with: " "))
                         .font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                }
+                let meta = [showsForum ? item.details["forum"] : nil,
+                            replies > 0 ? (replies == 1 ? "1 reply" : "\(replies) replies") : nil].compactMap { $0 }
+                if !meta.isEmpty {
+                    Text(meta.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
@@ -125,7 +151,8 @@ private struct AnnouncementLine: View {
     }
 }
 
-private struct AnnouncementReader: View {
+/// The thread: title, then each post with its author and date, replies set off below the first.
+private struct ThreadReader: View {
     @Environment(AppModel.self) private var model
     let item: PortalOverview.ItemRow
 
@@ -136,22 +163,51 @@ private struct AnnouncementReader: View {
                 Text(item.title).font(.title2.weight(.semibold)).textSelection(.enabled)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Circle().fill(style.color).frame(width: 8, height: 8)
-                    Text([style.name, item.section].compactMap { $0 }.joined(separator: " · ")).lineLimit(1)
-                    Spacer(minLength: 12)
-                    if let date = item.date { Text(date.formatted(date: .abbreviated, time: .shortened)).fixedSize() }
+                    Text([style.name, item.details["forum"]].compactMap { $0 }.joined(separator: " · ")).lineLimit(1)
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                Divider().padding(.vertical, 6)
-                Text(item.body ?? "")
-                    .font(.body)
-                    .lineSpacing(4)
-                    .textSelection(.enabled)
+
+                ForEach(Array(item.posts.enumerated()), id: \.offset) { index, post in
+                    if index == 1 {
+                        Text(item.posts.count == 2 ? "1 Reply" : "\(item.posts.count - 1) Replies")
+                            .font(.headline).padding(.top, 14)
+                    }
+                    PostView(post: post, isReply: index > 0)
+                }
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 24)
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+private struct PostView: View {
+    let post: PortalOverview.ItemRow.Post
+    let isReply: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(post.author ?? "Unknown").fontWeight(.semibold)
+                Spacer()
+                if let date = post.date {
+                    Text(date.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(.secondary)
+                }
+            }
+            .font(.subheadline)
+            Text(post.text)
+                .font(.body)
+                .lineSpacing(4)
+                .textSelection(.enabled)
+        }
+        .padding(isReply ? 14 : 0)
+        .padding(.top, isReply ? 0 : 6)
+        .background {
+            if isReply { RoundedRectangle(cornerRadius: 10).fill(Color.secondary.opacity(0.08)) }
+        }
+        .overlay(alignment: .top) { if !isReply { Divider().offset(y: -4) } }
     }
 }

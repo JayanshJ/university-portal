@@ -1,0 +1,25 @@
+{
+ "discussions": [
+  {
+   "id": 920,
+   "name": "How is task 2 graded?",
+   "discussion": 320,
+   "subject": "How is task 2 graded?",
+   "message": "<p>Is it all or nothing?</p>",
+   "created": 1792400000,
+   "timemodified": 1792500000,
+   "userfullname": "Student Example",
+   "numreplies": 1,
+   "pinned": false,
+   "attachments": [
+    {
+     "filename": "notes.pdf",
+     "fileurl": "https://moodle.uni-saarland.de/webservice/pluginfile.php/9/mod_forum/attachment/920/notes.pdf",
+     "filesize": 2048,
+     "mimetype": "application/pdf"
+    }
+   ]
+  }
+ ],
+ "warnings": []
+}

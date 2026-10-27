@@ -54,18 +54,34 @@ public struct MoodleSync: Sendable {
         }
         let activeMoodleIds = activeCourses.compactMap { Int($0.externalId) }
 
-        // 3. Deadlines
-        let deadlines = try await fetchDeadlines(courseIds: courseIds, activeMoodleIds: activeMoodleIds, now: now)
+        // 3. Deadlines: assignments and anything else actionable, then other activities' closing dates
+        var deadlines = try await fetchDeadlines(courseIds: courseIds, activeMoodleIds: activeMoodleIds, now: now)
+        deadlines += try await fetchActivityDeadlines(
+            courseIds: courseIds, activeMoodleIds: activeMoodleIds,
+            from: Int(now.timeIntervalSince1970) - 7 * 86_400, to: Int(now.timeIntervalSince1970) + 120 * 86_400,
+            known: Set(deadlines.map(\.externalId)))
 
-        // 4. Announcements
-        let announcements = try await fetchAnnouncements(courseIds: courseIds, activeMoodleIds: activeMoodleIds)
+        let allDeadlines = deadlines
 
-        return try await database.writer.write { db in
+        // 4. Every forum thread with its replies: announcements and discussions
+        let threads = try await fetchThreads(courseIds: courseIds, activeMoodleIds: activeMoodleIds)
+        let (announcements, discussions) = threadItems(threads)
+
+        // 5. Grades
+        let grades = try await fetchGrades(courses: activeCourses, userId: info.userid)
+
+        let outcome = try await database.writer.write { db in
             let deadlineScope = Set(courseIds.values)
             let activeScope = Set(activeCourses.compactMap(\.id))
-            return try Upserter.apply(db, kind: .deadline, courseIds: deadlineScope, items: deadlines, now: now)
+            return try Upserter.apply(db, kind: .deadline, courseIds: deadlineScope, items: allDeadlines, now: now)
                 + Upserter.apply(db, kind: .announcement, courseIds: activeScope, items: announcements, now: now)
+                + Upserter.apply(db, kind: .discussion, courseIds: activeScope, items: discussions, now: now)
+                + Upserter.apply(db, kind: .grade, courseIds: activeScope, items: grades, now: now)
         }
+
+        // 6. Direct messages
+        _ = try await syncConversations(userId: info.userid, sourceId: sourceId)
+        return outcome
     }
 
     public func runMaterials() async throws -> SyncOutcome {
@@ -77,17 +93,28 @@ public struct MoodleSync: Sendable {
         }
 
         var items: [ItemInput] = []
+        var sectionsByCourse: [Int64: [MoodleSection]] = [:]
         for course in activeCourses {
             guard let moodleId = Int(course.externalId), let courseId = course.id else { continue }
             let sections: [MoodleSection] = try await client.call(
                 "core_course_get_contents", [.int("courseid", moodleId)])
+            sectionsByCourse[courseId] = sections
             items += Self.materials(from: sections, courseId: courseId)
         }
+        // Files attached to assignments and forum posts, and the text on each course page.
+        let page = try await coursePage(courses: activeCourses, sectionsByCourse: sectionsByCourse)
+        let courseIds = Dictionary(uniqueKeysWithValues: activeCourses.compactMap { course in course.id.map { (course.externalId, $0) } })
+        let threads = try await fetchThreads(courseIds: courseIds, activeMoodleIds: activeCourses.compactMap { Int($0.externalId) })
+        // A course whose page came back empty keeps the zero-results guard: no other files for it either.
+        let emptyPages = Set(sectionsByCourse.filter { $0.value.isEmpty }.keys)
+        items += (page.files + threadMaterials(threads)).filter { !emptyPages.contains($0.courseId) }
         let found = items
+        let notes = page.notes
 
         return try await database.writer.write { db in
-            try Upserter.apply(db, kind: .material, courseIds: Set(activeCourses.compactMap(\.id)),
-                               items: found, now: now)
+            let scope = Set(activeCourses.compactMap(\.id))
+            return try Upserter.apply(db, kind: .material, courseIds: scope, items: found, now: now)
+                + Upserter.apply(db, kind: .note, courseIds: scope, items: notes, now: now)
         }
     }
 
@@ -132,31 +159,6 @@ public struct MoodleSync: Sendable {
         }
     }
 
-    private func fetchAnnouncements(courseIds: [String: Int64], activeMoodleIds: [Int]) async throws -> [ItemInput] {
-        guard !activeMoodleIds.isEmpty else { return [] }
-        let forums: [MoodleForum] = try await client.call(
-            "mod_forum_get_forums_by_courses", [.ints("courseids", activeMoodleIds)])
-
-        var items: [ItemInput] = []
-        for forum in forums where forum.type == "news" {
-            guard let courseId = courseIds[String(forum.course)] else { continue }
-            let response: MoodleDiscussions = try await client.call(
-                "mod_forum_get_forum_discussions",
-                [.int("forumid", forum.id), .int("page", 0), .int("perpage", 10)])
-            items += response.discussions.map { discussion in
-                ItemInput(
-                    courseId: courseId, kind: .announcement, externalId: String(discussion.discussion),
-                    title: HTMLText.decodeEntities(discussion.subject), bodyHtml: discussion.message,
-                    startsAt: Date(timeIntervalSince1970: TimeInterval(discussion.created)),
-                    url: client.siteURL.appending(path: "mod/forum/discuss.php")
-                        .appending(queryItems: [URLQueryItem(name: "d", value: String(discussion.discussion))])
-                        .absoluteString,
-                    category: discussion.userfullname)
-            }
-        }
-        return items
-    }
-
     private func recordDeadlinesMode(_ mode: MoodleDiagnostics.DeadlinesMode, reason: String?) throws {
         try database.updateState(.moodleDiagnostics, default: MoodleDiagnostics()) {
             $0.deadlinesMode = mode
@@ -180,7 +182,7 @@ public struct MoodleSync: Sendable {
     /// "Blatt 3 ist fällig." → "Blatt 3"
     static func deadlineTitle(_ name: String) -> String {
         HTMLText.decodeEntities(name)
-            .replacingOccurrences(of: #"\s+(ist fällig|is due)\.?$"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+(ist fällig|is due|closes|schließt|endet|opens|öffnet)\.?$"#, with: "", options: .regularExpression)
     }
 
     /// Files of resource and folder modules, plus URL modules as link materials.

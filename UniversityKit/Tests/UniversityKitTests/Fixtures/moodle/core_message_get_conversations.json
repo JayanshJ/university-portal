@@ -1,0 +1,17 @@
+{
+ "conversations": [
+  {
+   "id": 77,
+   "name": "",
+   "type": 1,
+   "unreadcount": 1,
+   "members": [
+    {
+     "id": 5,
+     "fullname": "Tutor Example"
+    }
+   ],
+   "messages": []
+  }
+ ]
+}

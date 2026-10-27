@@ -1,0 +1,38 @@
+{
+ "posts": [
+  {
+   "id": 920,
+   "subject": "How is task 2 graded?",
+   "message": "<p>Is it all or nothing?</p>",
+   "timecreated": 1792400000,
+   "author": {
+    "fullname": "Student Example"
+   },
+   "attachments": [
+    {
+     "filename": "notes.pdf",
+     "url": "https://moodle.uni-saarland.de/webservice/pluginfile.php/9/mod_forum/attachment/920/notes.pdf",
+     "filesize": 2048
+    }
+   ]
+  },
+  {
+   "id": 921,
+   "subject": "Re: How is task 2 graded?",
+   "message": "<p>Partial points per subtask.</p>",
+   "timecreated": 1792500000,
+   "author": {
+    "fullname": "Tutor Example"
+   },
+   "attachments": [
+    {
+     "filename": "rubric.pdf",
+     "url": "https://moodle.uni-saarland.de/webservice/pluginfile.php/9/mod_forum/attachment/921/rubric.pdf",
+     "filesize": 1024,
+     "mimetype": "application/pdf"
+    }
+   ]
+  }
+ ],
+ "warnings": []
+}

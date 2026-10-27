@@ -1,0 +1,27 @@
+{
+ "id": 77,
+ "members": [
+  {
+   "id": 5,
+   "fullname": "Tutor Example"
+  },
+  {
+   "id": 1234,
+   "fullname": "Test Student"
+  }
+ ],
+ "messages": [
+  {
+   "id": 2,
+   "useridfrom": 5,
+   "text": "<p>Your registration is confirmed.</p>",
+   "timecreated": 1792600000
+  },
+  {
+   "id": 1,
+   "useridfrom": 1234,
+   "text": "<p>Hi, am I registered?</p>",
+   "timecreated": 1792590000
+  }
+ ]
+}

@@ -1,0 +1,13 @@
+{
+ "courses": [
+  {
+   "id": 101,
+   "summary": "<p>Lectures on Mondays, 10:15, in E2 2.</p>"
+  },
+  {
+   "id": 103,
+   "summary": ""
+  }
+ ],
+ "warnings": []
+}

@@ -1,0 +1,51 @@
+{
+ "usergrades": [
+  {
+   "courseid": 101,
+   "userid": 1234,
+   "gradeitems": [
+    {
+     "id": 1,
+     "itemname": "Blatt 1",
+     "itemtype": "mod",
+     "itemmodule": "assign",
+     "cmid": 900,
+     "graderaw": 8,
+     "gradeformatted": "8,00",
+     "rangeformatted": "0&ndash;10",
+     "percentageformatted": "80,00 %",
+     "weightformatted": "50,00 %",
+     "feedback": "<p>Good work</p>",
+     "gradedategraded": 1792500000
+    },
+    {
+     "id": 2,
+     "itemname": "Blatt 2",
+     "itemtype": "mod",
+     "itemmodule": "assign",
+     "cmid": 901,
+     "graderaw": null,
+     "gradeformatted": "-",
+     "rangeformatted": "0&ndash;10",
+     "percentageformatted": "-",
+     "feedback": "",
+     "gradedategraded": null
+    },
+    {
+     "id": 3,
+     "itemname": "Exercises",
+     "itemtype": "category"
+    },
+    {
+     "id": 4,
+     "itemname": null,
+     "itemtype": "course",
+     "graderaw": null,
+     "gradeformatted": "-",
+     "rangeformatted": "0&ndash;20"
+    }
+   ]
+  }
+ ],
+ "warnings": []
+}

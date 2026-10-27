@@ -203,8 +203,8 @@ func indexedDatabase() throws -> (UniDatabase, process: Int64, demis: Int64, she
 
         let first = await indexer.run()
 
-        #expect(first.total == 3)  // the three PDFs; data.zip and the link are not PDFs
-        #expect(first.failed == 1)  // script.pdf is not a real PDF
+        #expect(first.total == 6)  // six PDFs; data.zip and the link are not PDFs
+        #expect(first.failed == 4)  // script.pdf and the fake assignment and forum files aren't real PDFs
         let status = try indexer.status()
         #expect(status.indexed == 2)
         #expect(try harness.items(.material).allSatisfy { $0.readAt != nil })  // first import; indexing didn't change it
@@ -214,7 +214,7 @@ func indexedDatabase() throws -> (UniDatabase, process: Int64, demis: Int64, she
 
         // Nothing new: only the failed file is retried.
         let second = await indexer.run()
-        #expect(second.total == 1)
+        #expect(second.total == 4)
     }
 }
 

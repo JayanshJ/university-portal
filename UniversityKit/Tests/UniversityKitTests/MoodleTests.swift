@@ -128,17 +128,20 @@ import Testing
         #expect(courses.map(\.active) == [true, false, true])  // SoSe26 ended
 
         let deadlines = try harness.items(.deadline)
-        #expect(deadlines.map(\.title) == ["Blatt 2", "Quiz 1", "Blatt 1"])  // personal event skipped
+        // Personal event skipped; the feedback form's closing date comes from the course calendar.
+        #expect(deadlines.map(\.title) == ["Blatt 2", "Quiz 1", "Blatt 1", "Registration for the Course"])
         #expect(deadlines.first?.dueAt == Date(timeIntervalSince1970: 1_793_404_740))
-        #expect(deadlines.map(\.category) == ["assign", "quiz", "assign"])
+        #expect(deadlines.map(\.category) == ["assign", "quiz", "assign", "feedback"])
 
         let announcements = try harness.items(.announcement)
         #expect(Set(announcements.map(\.title)) == ["Lecture mode", "Welcome & organisation", "Sheet 1 is out"])
-        // Only the two news forums are read; the general Q&A forum is skipped.
-        #expect(harness.moodle.calls.filter { $0 == "mod_forum_get_forum_discussions" }.count == 2)
+        // Every forum is read: the two news forums and the general Q&A forum.
+        #expect(harness.moodle.calls.filter { $0 == "mod_forum_get_forum_discussions" }.count == 3)
+        #expect(try harness.items(.discussion).map(\.title) == ["How is task 2 graded?"])
 
-        #expect(outcome.counts.new == 6)
-        #expect(outcome.events.count == 6)
+        // 4 deadlines, 3 announcements, 1 discussion, 3 grade items in each of the 2 active courses
+        #expect(outcome.counts.new == 14)
+        #expect(outcome.events.count == 14)
         #expect(try harness.database.state(.moodleDiagnostics, as: MoodleDiagnostics.self)?.deadlinesMode == .actionEvents)
     }
 
@@ -150,7 +153,7 @@ import Testing
 
         #expect(second.counts.new == 0)
         #expect(second.counts.updated == 0)
-        #expect(second.counts.unchanged == 6)
+        #expect(second.counts.unchanged == 14)
         #expect(second.events.isEmpty)
     }
 
@@ -198,7 +201,8 @@ import Testing
         _ = try await harness.sync().runFast()
 
         let deadlines = try harness.items(.deadline)
-        #expect(deadlines.map(\.title) == ["Blatt 2"])  // Blatt 0 out of range, Bonus has no due date
+        // Blatt 0 out of range, Bonus has no due date; the feedback form comes from the calendar.
+        #expect(deadlines.map(\.title) == ["Blatt 2", "Registration for the Course"])
         #expect(deadlines.first?.externalId == "assign:901")
         let diagnostics = try harness.database.state(.moodleDiagnostics, as: MoodleDiagnostics.self)
         #expect(diagnostics?.deadlinesMode == .assignFallback)
@@ -212,15 +216,16 @@ import Testing
         let outcome = try await harness.sync().runMaterials()
 
         let materials = try harness.items(.material)
-        #expect(Set(materials.map(\.title)) == ["01-intro.pdf", "sheet1.pdf", "data.zip", "ProM download", "script.pdf"])
+        #expect(Set(materials.map(\.title)) == ["01-intro.pdf", "sheet1.pdf", "data.zip", "ProM download", "script.pdf",
+                                               "blatt2.pdf", "notes.pdf", "rubric.pdf"])  // + assignment and forum files
         // 101 and 103 only: SoSe26 (102) is inactive.
         #expect(harness.moodle.calls.filter { $0 == "core_course_get_contents" }.count == 2)
         #expect(materials.first { $0.title == "sheet1.pdf" }?.category == "Week 1 & 2")
         #expect(materials.first { $0.title == "ProM download" }?.url == "https://promtools.org/")
-        #expect(outcome.counts.new == 5)
+        #expect(outcome.counts.new == 8 + 5)  // 8 materials, 5 course page texts
 
         let files = try await harness.database.writer.read { db in try UniFile.fetchAll(db) }
-        #expect(files.count == 4)  // the URL module has no file
+        #expect(files.count == 7)  // the URL module has no file
         #expect(files.allSatisfy { $0.localPath == nil })
     }
 
@@ -297,7 +302,7 @@ import Testing
         let runs = try await harness.database.writer.read { db in try UniSyncRun.order(sql: "id").fetchAll(db) }
         #expect(runs.map(\.job) == ["moodle.fast", "moodle.materials"])
         #expect(runs.allSatisfy { $0.ok == true })
-        #expect(runs.first?.counts?["new"] == 6)
+        #expect(runs.first?.counts?["new"] == 14)
         #expect(try harness.database.source(.moodle).status == .ok)
     }
 

@@ -1,0 +1,32 @@
+{
+ "events": [
+  {
+   "id": 6001,
+   "name": "Registration for the Course closes",
+   "modulename": "feedback",
+   "courseid": 101,
+   "timestart": 1793188800,
+   "eventtype": "close",
+   "instance": 3
+  },
+  {
+   "id": 6002,
+   "name": "Blatt 2 is due",
+   "modulename": "assign",
+   "courseid": 101,
+   "timestart": 1793404740,
+   "eventtype": "due",
+   "instance": 71
+  },
+  {
+   "id": 6003,
+   "name": "Registration for the Course opens",
+   "modulename": "feedback",
+   "courseid": 101,
+   "timestart": 1792000000,
+   "eventtype": "open",
+   "instance": 3
+  }
+ ],
+ "warnings": []
+}

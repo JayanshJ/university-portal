@@ -14,6 +14,12 @@ public enum SourceStatus: String, Codable, Sendable {
 
 public enum ItemKind: String, Codable, Sendable {
     case deadline, announcement, event, material
+    /// Text on a course page: the course summary, section summaries, labels, activity descriptions, pages.
+    case note
+    /// A thread in a course's discussion forum (not the announcements forum).
+    case discussion
+    /// A grade item from the course's gradebook.
+    case grade
 }
 
 public enum DoneSource: String, Codable, Sendable {
@@ -116,6 +122,10 @@ public struct UniItem: Codable, Sendable, Identifiable, FetchableRecord, Mutable
     public var missingCount: Int
     public var deletedAt: Date?
     public var dueChangedAt: Date?
+    /// Order on the course page (notes) or in the gradebook (grades).
+    public var position: Int?
+    /// Per-kind details: forum and reply count (threads), range and percentage (grades).
+    public var details: [String: String]?
 
     public init(id: Int64? = nil, courseId: Int64, kind: ItemKind, externalId: String,
                 title: String, bodyHtml: String? = nil, startsAt: Date? = nil, dueAt: Date? = nil,
@@ -123,7 +133,8 @@ public struct UniItem: Codable, Sendable, Identifiable, FetchableRecord, Mutable
                 url: String? = nil, category: String? = nil, isExam: Bool = false,
                 contentHash: String, firstSeenAt: Date = .now, updatedAt: Date = .now,
                 readAt: Date? = nil, doneAt: Date? = nil, doneSource: DoneSource? = nil,
-                missingCount: Int = 0, deletedAt: Date? = nil, dueChangedAt: Date? = nil) {
+                missingCount: Int = 0, deletedAt: Date? = nil, dueChangedAt: Date? = nil,
+                position: Int? = nil, details: [String: String]? = nil) {
         self.id = id
         self.courseId = courseId
         self.kind = kind
@@ -147,6 +158,8 @@ public struct UniItem: Codable, Sendable, Identifiable, FetchableRecord, Mutable
         self.missingCount = missingCount
         self.deletedAt = deletedAt
         self.dueChangedAt = dueChangedAt
+        self.position = position
+        self.details = details
     }
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {
@@ -209,6 +222,54 @@ public struct UniSyncRun: Codable, Sendable, Identifiable, FetchableRecord, Muta
         self.ok = ok
         self.counts = counts
         self.error = error
+    }
+
+    public mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
+}
+
+/// A direct-message conversation (Moodle messaging), with its recent messages.
+public struct UniConversation: Codable, Sendable, Equatable, Identifiable, FetchableRecord, MutablePersistableRecord {
+    public static let databaseTableName = "uni_conversation"
+    public static let databaseColumnDecodingStrategy = DatabaseColumnDecodingStrategy.convertFromSnakeCase
+    public static let databaseColumnEncodingStrategy = DatabaseColumnEncodingStrategy.convertToSnakeCase
+
+    public struct Message: Codable, Sendable, Equatable, Hashable, Identifiable {
+        public var id: Int
+        public var author: String
+        public var mine: Bool
+        public var text: String
+        public var sentAt: Date
+
+        public init(id: Int, author: String, mine: Bool, text: String, sentAt: Date) {
+            self.id = id
+            self.author = author
+            self.mine = mine
+            self.text = text
+            self.sentAt = sentAt
+        }
+    }
+
+    public var id: Int64?
+    public var sourceId: Int64
+    public var externalId: String
+    public var name: String
+    public var unreadCount: Int
+    public var lastMessageAt: Date?
+    public var messages: [Message]
+    public var url: String?
+
+    public init(id: Int64? = nil, sourceId: Int64, externalId: String, name: String, unreadCount: Int = 0,
+                lastMessageAt: Date? = nil, messages: [Message] = [], url: String? = nil) {
+        self.id = id
+        self.sourceId = sourceId
+        self.externalId = externalId
+        self.name = name
+        self.unreadCount = unreadCount
+        self.lastMessageAt = lastMessageAt
+        self.messages = messages
+        self.url = url
     }
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {

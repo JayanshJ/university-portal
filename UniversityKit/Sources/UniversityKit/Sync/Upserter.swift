@@ -57,11 +57,14 @@ public struct ItemInput: Sendable, Equatable {
     public var category: String?
     public var isExam: Bool
     public var file: FileInput?
+    public var position: Int?
+    public var details: [String: String]?
 
     public init(courseId: Int64, kind: ItemKind, externalId: String, title: String,
                 bodyHtml: String? = nil, startsAt: Date? = nil, dueAt: Date? = nil,
                 endsAt: Date? = nil, location: String? = nil, allDay: Bool = false, url: String? = nil,
-                category: String? = nil, isExam: Bool = false, file: FileInput? = nil) {
+                category: String? = nil, isExam: Bool = false, file: FileInput? = nil,
+                position: Int? = nil, details: [String: String]? = nil) {
         self.courseId = courseId
         self.kind = kind
         self.externalId = externalId
@@ -76,6 +79,8 @@ public struct ItemInput: Sendable, Equatable {
         self.category = category
         self.isExam = isExam
         self.file = file
+        self.position = position
+        self.details = details
     }
 
     /// SHA-256 of the fields shown in the UI. A different hash means "updated".
@@ -88,7 +93,7 @@ public struct ItemInput: Sendable, Equatable {
             file?.remoteModifiedAt.map { String(Int($0.timeIntervalSince1970)) } ?? "",
         ] + (endsAt == nil && location == nil && !allDay ? [] : [
             endsAt.map { String(Int($0.timeIntervalSince1970)) } ?? "", location ?? "", allDay ? "1" : "0",
-        ])
+        ]) + (details ?? [:]).sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
         let digest = SHA256.hash(data: Data(fields.joined(separator: "\u{1F}").utf8))
         return digest.map { String(format: "%02x", $0) }.joined()
     }
@@ -188,6 +193,9 @@ enum Upserter {
                 let changed = item.contentHash != hash
                 let dueChanged = item.dueAt.map(Int.init) != input.dueAt.map(Int.init)
                 let wasGone = item.deletedAt != nil
+                // News again: more replies in a thread, or a grade given or changed.
+                let renewed = Int(input.details?["replies"] ?? "") ?? 0 > Int(item.details?["replies"] ?? "") ?? 0
+                    || (kind == .grade && input.category != nil && input.category != item.category)
                 fill(&item, from: input, hash: hash)
                 item.missingCount = 0
                 item.deletedAt = nil
@@ -198,6 +206,7 @@ enum Upserter {
                 }
                 if changed || wasGone {
                     item.updatedAt = now
+                    if renewed { item.readAt = nil }
                     if kind == .deadline, dueChanged { item.dueChangedAt = now }
                     outcome.counts.updated += 1
                     outcome.events.append(.itemUpdated(itemId: item.id!, dueDateChanged: dueChanged))
@@ -261,6 +270,8 @@ enum Upserter {
         item.url = input.url
         item.category = input.category
         item.isExam = input.isExam
+        item.position = input.position
+        item.details = input.details
         item.contentHash = hash
     }
 
