@@ -96,6 +96,17 @@ final class AppModel {
         }
         guard let database else { return }
         // Screenshot runs show stored data only: no Keychain (no password prompts), no syncing.
+        // Read-only Moodle audit (see MoodleAudit): report, then quit.
+        if CommandLine.arguments.contains("--audit") {
+            let secrets = secrets, transport = transport
+            Task {
+                var iterator = database.overviewUpdates().makeAsyncIterator()
+                guard let overview = try? await iterator.next(),
+                      let token = (try? secrets.readString(.moodleToken)) ?? nil else { NSApp.terminate(nil); return }
+                await MoodleAudit.run(overview: overview, token: token, transport: transport)
+            }
+            return
+        }
         if CommandLine.arguments.contains("--snapshot") {
             isMoodleConnected = true
             Task { [weak self] in
