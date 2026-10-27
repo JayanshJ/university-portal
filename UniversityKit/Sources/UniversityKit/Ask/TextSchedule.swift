@@ -69,7 +69,7 @@ public struct TextSchedule: Sendable {
             let items = sourcesByCourse[courseId] ?? []
             // Relative dates ("next week") depend on the day, so the week is part of the signature.
             let week = Calendar(identifier: .iso8601).component(.weekOfYear, from: today)
-            let signature = Self.hash(([String(week), model] + items.map { "\($0.id ?? 0):\($0.contentHash)" }).joined(separator: "|"))
+            let signature = Self.hash(([String(week), model, Self.version] + items.map { "\($0.id ?? 0):\($0.contentHash)" }).joined(separator: "|"))
             guard seen[String(courseId)] != signature else { continue }
 
             let sources = items.map { Source(item: $0, label: Self.label($0)) }
@@ -186,6 +186,9 @@ public struct TextSchedule: Sendable {
         SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
+    /// Part of each course's signature, so changed instructions read every course again.
+    static let version = "2"
+
     static let instructions = """
         You find the dates a university student must know in their course's texts: recurring sessions \
         (lectures, tutorials, interactive or capstone sessions), exams, presentations or pitch sessions, \
@@ -207,8 +210,14 @@ public struct TextSchedule: Sendable {
          "quote": the words from that text that state it (max 200 characters)}
 
         Only include what a text actually states or clearly implies; never guess times or rooms. \
-        A presentation that happens during a regular session gets its own element on that date with \
-        the session's time and room. Don't include assignment due dates (they are already known). \
-        If nothing is found, reply [].
+        Every announcement or post that mentions an upcoming presentation, pitch, exam, session or meeting \
+        whose date can be worked out MUST yield its own element, even when it takes place during a regular \
+        session: give it that session's date, time and room from the course page, and mark it mandatory if \
+        presenting or attending is required. Example: posted Monday 26 Oct, "prepare for next week's pitch \
+        session", and the capstone session is on Wednesdays 14:15-15:45 → a "Pitch session" element on \
+        Wednesday 4 Nov, 14:15-15:45. \
+        When a course lists several alternative groups for the same tutorial, return one element per group \
+        and put the group in the title. Don't repeat the same session twice. Don't include assignment due \
+        dates (they are already known). If nothing is found, reply [].
         """
 }
