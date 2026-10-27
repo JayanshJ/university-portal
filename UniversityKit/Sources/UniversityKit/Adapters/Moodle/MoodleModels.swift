@@ -3,9 +3,21 @@ import Foundation
 // Only the fields the adapter reads. Moodle sends more; unknown keys are ignored.
 
 public struct MoodleSiteInfo: Decodable, Sendable, Equatable {
+    public struct Function: Decodable, Sendable, Equatable { public var name: String }
+
     public var userid: Int
     public var release: String?
     public var sitename: String?
+    /// 1 when the token may upload files (`webservice/upload.php`).
+    public var uploadfiles: Int?
+    /// The web service functions the token may call.
+    public var functions: [Function]?
+
+    /// Whether assignments can be submitted from the app with this token.
+    public var canSubmitAssignments: Bool {
+        let names = Set((functions ?? []).map(\.name))
+        return uploadfiles == 1 && MoodleSubmissions.requiredFunctions.isSubset(of: names)
+    }
 }
 
 struct MoodleCourse: Decodable {

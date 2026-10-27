@@ -1,6 +1,7 @@
 import AppKit
 import CoreImage
 import PDFKit
+import Quartz
 import SwiftUI
 import UniversityKit
 
@@ -98,6 +99,27 @@ struct PDFKitView: NSViewRepresentable {
     }
 }
 
+/// Quick Look for everything that isn't a PDF: Word, Excel, PowerPoint, Keynote, Pages, Numbers,
+/// images, video, audio, text and code, the same previews Finder shows.
+struct QuickLookView: NSViewRepresentable {
+    let url: URL
+
+    func makeNSView(context: Context) -> QLPreviewView {
+        let view = QLPreviewView(frame: .zero, style: .normal)!
+        view.autostarts = true
+        view.previewItem = url as NSURL
+        return view
+    }
+
+    func updateNSView(_ view: QLPreviewView, context: Context) {
+        if (view.previewItem as? NSURL) as URL? != url { view.previewItem = url as NSURL }
+    }
+
+    static func dismantleNSView(_ view: QLPreviewView, coordinator: ()) {
+        view.close()
+    }
+}
+
 /// A file viewer with the minimal toolbar from the plan: page, zoom, dark pages, Preview, Finder, original.
 struct FileViewer: View {
     @Environment(AppModel.self) private var model
@@ -140,7 +162,7 @@ struct FileViewer: View {
                 }
                 Menu {
                     if let fileURL {
-                        Button("Open in Preview") { model.openInDefaultApp(fileURL) }
+                        Button(isPDF ? "Open in Preview" : "Open with Default App") { model.openInDefaultApp(fileURL) }
                         Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([fileURL]) }
                     }
                     Button("Open Original Page") { model.openLink(item) }
@@ -161,14 +183,7 @@ struct FileViewer: View {
                 } else if let fileURL, isPDF {
                     PDFKitView(url: fileURL, darkPages: model.overview.pdfDarkPages, controller: controller, page: page)
                 } else if let fileURL {
-                    ContentUnavailableView {
-                        Label(item.filename ?? item.title, systemImage: "doc")
-                    } description: {
-                        Text("This file type opens in its own app.")
-                    } actions: {
-                        Button("Open") { model.openInDefaultApp(fileURL) }
-                        Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([fileURL]) }
-                    }
+                    QuickLookView(url: fileURL)
                 } else {
                     ProgressView(item.isCached ? "Opening…" : "Downloading…")
                 }

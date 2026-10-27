@@ -40,6 +40,12 @@ struct DeadlineLine: View {
                 }
             }
             Spacer(minLength: 12)
+            if let target = model.submitTarget(item) {
+                Button(isDone ? "View" : "Submit…") { model.submitting = target }
+                    .controlSize(.small)
+                    .help(isDone ? "See your submission" : "Hand in on Moodle")
+                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+            }
             VStack(alignment: .trailing, spacing: 2) {
                 Text(DueText.relative(due))
                     .foregroundStyle(isDone ? .secondary : DueText.color(due))
@@ -47,16 +53,23 @@ struct DeadlineLine: View {
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
+            .frame(minWidth: 150, alignment: .trailing)
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
         .contextMenu {
+            if let target = model.submitTarget(item) {
+                Button(isDone ? "View Submission…" : "Submit…") { model.submitting = target }
+                Divider()
+            }
             Button(isDone ? "Mark as Not Done" : "Mark as Done") { model.setDone(item, done: !isDone) }
             Button("Open in \(item.source == .moodle ? "Moodle" : "CMS")") { model.openLink(item) }
             Divider()
             Button("Go to \(style.name)") { model.selection = .course(item.courseId) }
         }
-        .onTapGesture(count: 2) { model.openLink(item) }
+        .onTapGesture(count: 2) {
+            if let target = model.submitTarget(item) { model.submitting = target } else { model.openLink(item) }
+        }
     }
 }
 

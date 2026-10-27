@@ -38,6 +38,8 @@ public struct MoodleDiagnostics: Codable, Sendable, Equatable {
     public var deadlinesFallbackReason: String?
     /// Set when the token dies, to learn its real lifetime.
     public var tokenAgeAtFailureHours: Double?
+    /// Whether the token allows uploading and submitting assignments (from site info, each sync).
+    public var canSubmitAssignments: Bool?
 
     public init() {}
 }

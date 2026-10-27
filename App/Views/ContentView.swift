@@ -60,6 +60,22 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 960, minHeight: 600)
+        .sheet(item: Binding(get: { model.submitting }, set: { model.submitting = $0 })) { target in
+            if let service = model.submissions() {
+                SubmissionView(model: SubmissionModel(cmid: target.cmid, service: service),
+                               item: model.overview.openDeadlines.first { $0.id == target.itemId }
+                                   ?? model.overview.doneDeadlines.first { $0.id == target.itemId })
+            } else {
+                ContentUnavailableView {
+                    Label("Moodle Isn't Connected", systemImage: "link")
+                } description: {
+                    Text("Connect Moodle in Settings to hand in assignments from here.")
+                } actions: {
+                    Button("Close") { model.submitting = nil }
+                }
+                .frame(width: 420, height: 260)
+            }
+        }
         .onChange(of: route) { old, _ in
             // Leaving Today: what it showed as new has now been seen.
             if old == .today { model.markTodayVisited() }

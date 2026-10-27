@@ -62,6 +62,9 @@ final class AppModel {
     var selection: Route = .today
     /// The course shown in Materials (nil = the first one).
     var materialsCourse: Int64?
+    /// The assignment whose hand-in sheet is open.
+    var submitting: SubmitTarget?
+
     /// "Ask your materials" (nil only when the database could not be opened).
     private(set) var ask: AskModel?
     /// Updates from GitHub Releases (not started in screenshot runs).
@@ -385,6 +388,19 @@ final class AppModel {
 
     func openInDefaultApp(_ url: URL) {
         NSWorkspace.shared.open(url)
+    }
+
+    // MARK: - Submissions
+
+    /// The hand-in target for a Moodle assignment deadline; nil for quizzes, CMS items and the rest.
+    func submitTarget(_ item: PortalOverview.ItemRow) -> SubmitTarget? {
+        guard item.kind == .deadline, item.source == .moodle, let cmid = MoodleSubmissions.cmid(fromURL: item.url) else { return nil }
+        return SubmitTarget(itemId: item.id, cmid: cmid)
+    }
+
+    func submissions() -> MoodleSubmissions? {
+        guard let token = (try? secrets.readString(.moodleToken)) ?? nil else { return nil }
+        return MoodleSubmissions(client: MoodleClient(token: token, transport: transport))
     }
 
     func openLink(_ item: PortalOverview.ItemRow) {
