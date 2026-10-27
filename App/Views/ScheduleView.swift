@@ -119,6 +119,9 @@ private struct EventBlock: View {
         let color = event.isExam ? Theme.overdue : style.color
         VStack(alignment: .leading, spacing: 1) {
             Text(event.title).font(.caption.weight(.semibold)).lineLimit(2)
+            if event.details["mandatory"] == "1" {
+                Text("Mandatory").font(.caption2.weight(.semibold)).foregroundStyle(Theme.overdue)
+            }
             Group {
                 Text(timeText).monospacedDigit()
                 Text(style.name).lineLimit(1)
@@ -134,7 +137,9 @@ private struct EventBlock: View {
         .background(color.opacity(0.18))
         .overlay(alignment: .leading) { Rectangle().fill(color).frame(width: 3) }
         .clipShape(RoundedRectangle(cornerRadius: 4))
-        .help([event.title, style.name, event.section, event.location].compactMap { $0 }.joined(separator: "\n"))
+        .help([event.title, style.name, event.section, event.location,
+               event.details["from"].map { "From \($0)" }, event.details["quote"].map { "“\($0)”" }]
+            .compactMap { $0 }.joined(separator: "\n"))
         .contextMenu {
             if let category = event.section {
                 Button("Hide “\(category)” for \(style.name)") {

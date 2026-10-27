@@ -88,11 +88,17 @@ struct EventLine: View {
                 HStack(spacing: 6) {
                     Text(event.title).lineLimit(1)
                     if event.isExam { Tag("Exam", color: Theme.overdue) }
+                    if event.details["mandatory"] == "1" { Tag("Mandatory", color: Theme.overdue) }
                     if event.kind == .deadline { Tag("Deadline") }
                 }
                 let detail = [showsCourse ? style.name : nil, event.location, category].compactMap { $0 }
                 if !detail.isEmpty {
                     Text(detail.joined(separator: " · ")).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                }
+                if let from = event.details["from"] {
+                    Label("From \(from)", systemImage: "text.quote")
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        .help(event.details["quote"].map { "“\($0)”" } ?? from)
                 }
             }
             Spacer(minLength: 12)
@@ -109,14 +115,14 @@ struct EventLine: View {
                     model.setCategory(category, hidden: true, courseId: event.courseId)
                 }
             }
-            Button("Open in \(event.source == .moodle ? "Moodle" : "CMS")") { model.openLink(event) }
+            Button(event.details["from"] != nil ? "Show Where It's Mentioned" : "Open in \(event.source == .moodle ? "Moodle" : "CMS")") { model.openLink(event) }
             Divider()
             Button("Go to \(style.name)") { model.selection = .course(event.courseId) }
         }
     }
 
     private var category: String? {
-        guard event.kind == .event, let section = event.section, section != "Other" else { return nil }
+        guard event.kind == .event, event.details["from"] == nil, let section = event.section, section != "Other" else { return nil }
         return section
     }
 

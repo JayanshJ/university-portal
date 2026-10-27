@@ -14,6 +14,8 @@ public enum StateKey: String, Sendable {
     case chatgptModel = "chatgpt_model"
     /// Whether the one-time "You're using your ChatGPT plan" notice was shown.
     case chatgptWelcomeShown = "chatgpt_welcome_shown"
+    /// Per course: the signature of the texts last read for dates (`TextSchedule`).
+    case textScheduleInputs = "text_schedule_inputs"
 }
 
 /// What the Moodle side has learned about itself. No secrets: safe to show in Settings and to inspect.

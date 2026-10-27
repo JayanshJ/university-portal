@@ -366,6 +366,7 @@ final class AppModel {
 
     /// Groups events that arrive close together (one sync) into one "new / changed" summary.
     private func record(_ event: UniEvent) {
+        ask?.readCourseDates()
         var summary = recentChanges.flatMap { Date.now.timeIntervalSince($0.at) < 120 ? $0 : nil } ?? (0, 0, .now)
         switch event {
         case .itemCreated: summary.new += 1

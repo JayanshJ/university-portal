@@ -49,6 +49,8 @@ final class AskModel {
     @ObservationIgnored private let indexer: MaterialIndexer
     @ObservationIgnored private var answering: Task<Void, Never>?
     @ObservationIgnored private var indexing: Task<Void, Never>?
+    @ObservationIgnored private let textSchedule: TextSchedule
+    @ObservationIgnored private var readingDates: Task<Void, Never>?
 
     private static let log = Log(category: "ask")
     static let manageUsageURL = URL(string: "https://chatgpt.com/settings/usage")!
@@ -61,10 +63,14 @@ final class AskModel {
         client = ResponsesClient(auth: auth, transport: transport, streaming: URLSessionStreamingTransport())
         service = AskService(retriever: Retriever(database: database), client: client)
         indexer = MaterialIndexer(database: database, files: files)
+        textSchedule = TextSchedule(database: database, client: client)
         model = try? database.state(.chatgptModel, as: String.self)
         Task {
             await refreshAccount()
-            if account?.canUsePlan == true { await loadModels() }
+            if account?.canUsePlan == true {
+                await loadModels()
+                readCourseDates()
+            }
         }
         refreshIndexStatus()
     }
@@ -120,6 +126,26 @@ final class AskModel {
     func setModel(_ slug: String?) {
         model = slug
         if let slug { try? database.setState(.chatgptModel, to: slug) }
+    }
+
+    // MARK: - Dates in course texts
+
+    /// Reads sessions, exams and presentations that Moodle courses only state in words (course
+    /// page text, announcements) into the calendar. Courses whose text didn't change are skipped.
+    /// A few seconds' delay lets a sync's changes settle first.
+    func readCourseDates(after delay: Duration = .seconds(5)) {
+        guard account?.canUsePlan == true, let model else { return }
+        readingDates?.cancel()
+        readingDates = Task {
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            do {
+                let read = try await textSchedule.run(model: model)
+                if read > 0 { Self.log.info("Read dates from \(read) courses") }
+            } catch {
+                Self.log.warning("Reading course dates failed: \(Redactor.redact(String(describing: error)))")
+            }
+        }
     }
 
     // MARK: - Index
