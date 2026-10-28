@@ -115,8 +115,10 @@ struct QuickLookView: NSViewRepresentable {
         if (view.previewItem as? NSURL) as URL? != url { view.previewItem = url as NSURL }
     }
 
+    // No close(): it deactivates the preview, and Quick Look aborts the app when that preview
+    // never finished activating (switching files while one loads). Dropping the item releases it.
     static func dismantleNSView(_ view: QLPreviewView, coordinator: ()) {
-        view.close()
+        view.previewItem = nil
     }
 }
 
