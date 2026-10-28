@@ -209,15 +209,22 @@ struct CoursePicker: View {
     @Binding var selection: Int64?
 
     var body: some View {
-        Picker("Course", selection: $selection) {
-            Text("All Courses").tag(Int64?.none)
-            Divider()
-            ForEach(courseIds, id: \.self) { id in
-                Text(model.overview.style(for: id).name).tag(Int64?.some(id))
+        // A menu, not a menu-style picker: the toolbar stretches pickers over the neighbouring column,
+        // while a menu is as wide as its label.
+        Menu {
+            Picker("Course", selection: $selection) {
+                Text("All Courses").tag(Int64?.none)
+                Divider()
+                ForEach(courseIds, id: \.self) { id in
+                    Text(model.overview.style(for: id).name).tag(Int64?.some(id))
+                }
             }
+            .pickerStyle(.inline)
+            .labelsHidden()
+        } label: {
+            Text(selection.map { model.overview.style(for: $0).name } ?? "All Courses")
         }
-        .pickerStyle(.menu)
-        .frame(maxWidth: 200)
+        .fixedSize()
         .help("Show one course")
     }
 }
