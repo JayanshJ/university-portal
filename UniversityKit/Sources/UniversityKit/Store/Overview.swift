@@ -214,7 +214,7 @@ public struct PortalOverview: Sendable, Equatable {
 
         overview.openDeadlines = try rows(.deadline, UniItem.filter(Column("done_at") == nil).order(Column("due_at")))
         overview.doneDeadlines = try rows(.deadline, UniItem
-            .filter(Column("done_at") != nil && Column("done_at") > Date.now.addingTimeInterval(-30 * 86_400))
+            .filter(Column("done_at") != nil)
             .order(Column("done_at").desc))
         overview.announcements = try rows(.announcement, UniItem.order(Column("starts_at").desc))
         overview.materials = try rows(.material, UniItem.order(Column("course_id"), Column("id")))

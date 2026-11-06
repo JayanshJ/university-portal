@@ -221,6 +221,19 @@ extension UniDatabase {
             }
         }
 
+        // Undo earlier completion guesses. Preserve explicit user decisions,
+        // including completed items that were hidden after missing syncs.
+        migrator.registerMigration("v8_restore_uncertain_deadlines") { db in
+            try db.execute(sql: """
+                UPDATE uni_item SET done_at = NULL, done_source = NULL,
+                    deleted_at = NULL, missing_count = 0
+                WHERE kind = 'deadline' AND done_source = 'moodle'
+                """)
+            try db.execute(sql: """
+                UPDATE uni_item SET deleted_at = NULL, missing_count = 0
+                WHERE kind = 'deadline' AND done_source = 'user' AND deleted_at IS NOT NULL
+                """)
+        }
         return migrator
     }
 }

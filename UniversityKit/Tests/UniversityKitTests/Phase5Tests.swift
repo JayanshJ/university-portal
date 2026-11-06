@@ -56,6 +56,54 @@ import Testing
         #expect(overview.openDeadlines.contains { $0.id == deadline.id })
     }
 
+    @Test func completingOneDeadlineKeepsOtherWeeksOpenAndCanBeUndone() async throws {
+        let harness = try MoodleHarness()
+        _ = try await harness.sync().runFast()
+        let before = try await harness.database.writer.read(PortalOverview.fetch)
+        let chosen = try #require(before.openDeadlines.first)
+        let remaining = Set(before.openDeadlines.dropFirst().map(\.id))
+        #expect(!remaining.isEmpty)
+        try harness.database.setDone(itemId: chosen.id, done: true)
+        let completed = try await harness.database.writer.read(PortalOverview.fetch)
+        #expect(Set(completed.openDeadlines.map(\.id)) == remaining)
+        #expect(completed.doneDeadlines.contains { $0.id == chosen.id })
+        try harness.database.setDone(itemId: chosen.id, done: false)
+        let undone = try await harness.database.writer.read(PortalOverview.fetch)
+        #expect(Set(undone.openDeadlines.map(\.id)) == Set(before.openDeadlines.map(\.id)))
+    }
+
+    @Test func migrationRestoresGuessedCompletionsAndKeepsUserChoices() async throws {
+        let harness = try MoodleHarness()
+        _ = try await harness.sync().runFast()
+        let items = try harness.items(.deadline)
+        let guessed = try #require(items.first?.id)
+        let chosen = try #require(items.dropFirst().first?.id)
+        try await harness.database.writer.write { db in
+            try db.execute(sql: "UPDATE uni_item SET done_at = ?, done_source = 'moodle', deleted_at = ? WHERE id = ?", arguments: [Date.now, Date.now, guessed])
+            try db.execute(sql: "UPDATE uni_item SET done_at = ?, done_source = 'user', deleted_at = ? WHERE id = ?", arguments: [Date.now, Date.now, chosen])
+            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v8_restore_uncertain_deadlines'")
+        }
+        try UniDatabase.migrator.migrate(harness.database.writer)
+        let restored = try harness.items(.deadline)
+        #expect(restored.first(where: { $0.id == guessed })?.doneAt == nil)
+        #expect(restored.first(where: { $0.id == guessed })?.deletedAt == nil)
+        #expect(restored.first(where: { $0.id == chosen })?.doneSource == .user)
+        #expect(restored.first(where: { $0.id == chosen })?.deletedAt == nil)
+    }
+
+    @Test func olderCompletedDeadlinesRemainUndoable() async throws {
+        let harness = try MoodleHarness()
+        _ = try await harness.sync().runFast()
+        let item = try #require(try harness.items(.deadline).first)
+        try harness.database.setDone(itemId: item.id!, done: true)
+        try await harness.database.writer.write { db in
+            try db.execute(sql: "UPDATE uni_item SET done_at = ? WHERE id = ?",
+                           arguments: [Date.now.addingTimeInterval(-60 * 86400), item.id])
+        }
+        let overview = try await harness.database.writer.read(PortalOverview.fetch)
+        #expect(overview.doneDeadlines.contains { $0.id == item.id })
+    }
+
     @Test func movedDeadlineIsMarkedAsChanged() async throws {
         let harness = try MoodleHarness()
         _ = try await harness.sync().runFast()

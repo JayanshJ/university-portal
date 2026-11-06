@@ -230,7 +230,7 @@ enum Upserter {
         }
 
         // Zero-results guard: a course that had items and suddenly has none is a suspected parser
-        // failure, so its rows are kept. Deadlines are exempt: an empty list is normal there.
+        // failure, so its rows are kept. Deadlines are kept on any miss below.
         let returnedCourses = Set(items.map(\.courseId))
         let liveByCourse = Dictionary(grouping: existing.filter { $0.deletedAt == nil }, by: \.courseId)
         let suspect = kind == .deadline ? [] : Set(liveByCourse.keys).subtracting(returnedCourses)
@@ -239,20 +239,15 @@ enum Upserter {
         for var item in existing where item.deletedAt == nil {
             let key = "\(item.courseId)/\(item.externalId)"
             guard !seen.contains(key), !suspect.contains(item.courseId) else { continue }
-            if item.doneSource == .moodle { continue }  // already resolved as submitted
-
+            // Action-event responses are paginated and time-bounded. Absence
+            // cannot establish submission or deletion; keep every deadline
+            // until the user explicitly marks it done.
+            if kind == .deadline { continue }
             item.missingCount += 1
             outcome.counts.missing += 1
             if item.missingCount >= 2 {
-                if kind == .deadline, item.doneAt == nil, let due = item.dueAt, due > now {
-                    // Moodle drops submitted assignments from the open list before they are due.
-                    item.doneAt = now
-                    item.doneSource = .moodle
-                    outcome.counts.doneByMoodle += 1
-                } else {
-                    item.deletedAt = now
-                    outcome.counts.deleted += 1
-                }
+                item.deletedAt = now
+                outcome.counts.deleted += 1
             }
             try item.update(db)
         }

@@ -8,7 +8,7 @@ A native macOS app that brings Saarland University's **Moodle** and **CMS** (cms
 
 - **Ask your materials**: questions answered from your lecture PDFs, with citations that open the PDF at the cited page. Answers render like [StudyGPT](https://github.com/JayanshJ/studygpt): Markdown, KaTeX math, code, tables, flashcard decks and sandboxed visualizations. Runs on your ChatGPT Plus/Pro plan via "Continue with ChatGPT" (no API key); the PDFs are indexed on your Mac and only the question and matching excerpts are sent to OpenAI.
 - **Today**: what's due soon, today's and tomorrow's lectures, upcoming exams, and what's new since your last visit.
-- **Deadlines** from Moodle, grouped by week and month, with mark-as-done. Submitted assignments are marked done automatically.
+- **Deadlines** from Moodle, grouped by week and month, with mark-as-done. Mark assignments done individually and reopen them at any time.
 - **Announcements** from Moodle news forums and CMS course news in one feed, with a reader.
 - **Materials** from Moodle and CMS by course and section; PDFs open in the app (with a dark-pages mode), other files in their default app.
 - **Schedule**: a week grid of CMS calendar events and Moodle deadlines; hide categories you don't need (e.g. other people's tutorials).

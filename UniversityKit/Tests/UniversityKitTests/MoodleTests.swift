@@ -170,7 +170,7 @@ import Testing
         #expect(outcome.events.contains { if case .itemUpdated(_, true) = $0 { true } else { false } })
     }
 
-    @Test func submittedDeadlineIsMarkedDoneAfterTwoMisses() async throws {
+    @Test func missingDeadlinesAreNeverAssumedSubmittedOrDeleted() async throws {
         let harness = try MoodleHarness()
         _ = try await harness.sync().runFast()
         // Blatt 2 (5001) submitted: gone from the open list. Blatt 1 (5003) was already overdue.
@@ -179,19 +179,19 @@ import Testing
             """)
 
         let first = try await harness.sync().runFast()
-        #expect(first.counts.missing == 2)
+        #expect(first.counts.missing == 0)
         #expect(try harness.items(.deadline).allSatisfy { $0.doneAt == nil && $0.deletedAt == nil })
 
         harness.clock.advance(hours: 0.5)
         let second = try await harness.sync().runFast()
 
         let byTitle = Dictionary(uniqueKeysWithValues: try harness.items(.deadline).map { ($0.title, $0) })
-        #expect(byTitle["Blatt 2"]?.doneSource == .moodle)
+        #expect(byTitle["Blatt 2"]?.doneSource == nil)
         #expect(byTitle["Blatt 2"]?.deletedAt == nil)
-        #expect(byTitle["Blatt 1"]?.deletedAt != nil)  // past due: soft-deleted, not "done"
+        #expect(byTitle["Blatt 1"]?.deletedAt == nil)
         #expect(byTitle["Quiz 1"]?.doneAt == nil)
-        #expect(second.counts.doneByMoodle == 1)
-        #expect(second.counts.deleted == 1)
+        #expect(second.counts.doneByMoodle == 0)
+        #expect(second.counts.deleted == 0)
     }
 
     @Test func refusedActionEventsFallBackToAssignments() async throws {

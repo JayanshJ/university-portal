@@ -2,11 +2,11 @@ import SwiftUI
 import UniversityKit
 
 /// Open deadlines by when they're due (Overdue, This Week, Next Week, then by month), a course
-/// filter in the toolbar, and the last 30 days' done ones.
+/// filter in the toolbar, and an expandable list of all completed items.
 struct DeadlinesView: View {
     @Environment(AppModel.self) private var model
     @State private var courseFilter: Int64?
-    @State private var showDone = false
+    @State private var showDone = true
 
     private func filtered(_ items: [PortalOverview.ItemRow]) -> [PortalOverview.ItemRow] {
         courseFilter.map { id in items.filter { $0.courseId == id } } ?? items
@@ -54,7 +54,7 @@ struct DeadlinesView: View {
                     }
                     let done = filtered(model.overview.doneDeadlines)
                     if !done.isEmpty {
-                        Section("Done in the Last 30 Days", isExpanded: $showDone) {
+                        Section("Done — click the checkmark to undo", isExpanded: $showDone) {
                             ForEach(done) { DeadlineLine(item: $0, showsCourse: courseFilter == nil) }
                         }
                     }
