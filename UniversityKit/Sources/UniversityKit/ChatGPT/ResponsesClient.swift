@@ -45,10 +45,13 @@ public struct ChatMessage: Sendable, Equatable {
     public enum Role: String, Sendable { case user, assistant }
     public var role: Role
     public var content: String
+    /// JPEG or PNG images sent with a user message (e.g. the pages of an exercise sheet).
+    public var images: [Data]
 
-    public init(role: Role, content: String) {
+    public init(role: Role, content: String, images: [Data] = []) {
         self.role = role
         self.content = content
+        self.images = images
     }
 }
 
@@ -153,7 +156,16 @@ public struct ResponsesClient: Sendable {
         [
             "model": model,
             "instructions": instructions,
-            "input": input.map { ["role": $0.role.rawValue, "content": $0.content] },
+            "input": input.map { message -> [String: Any] in
+                guard !message.images.isEmpty, message.role == .user else {
+                    return ["role": message.role.rawValue, "content": message.content]
+                }
+                let images: [[String: Any]] = message.images.map { data in
+                    let type = data.starts(with: [0x89, 0x50, 0x4E, 0x47]) ? "image/png" : "image/jpeg"
+                    return ["type": "input_image", "image_url": "data:\(type);base64,\(data.base64EncodedString())"]
+                }
+                return ["role": "user", "content": [["type": "input_text", "text": message.content]] + images]
+            },
             "store": false,
             "stream": true,
         ]

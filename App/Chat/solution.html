@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- The Solve panel's typed solution: the Ask renderer (chat.js: Markdown + KaTeX) on one page.
+     Also rendered off screen, in print mode, to make the typed PDF. -->
+<link rel="stylesheet" href="katex.min.css">
+<link rel="stylesheet" href="chat.css">
+<style>
+  #doc { max-width: 760px; margin: 0 auto; padding: 18px 22px 40px; }
+  #doc:empty::before { content: attr(data-empty); color: var(--ink-3); font-size: 13px; }
+  .caret { display: inline-block; }
+  /* Print: black on white, no padding (the PDF adds margins), nothing that scrolls sideways. */
+  body.print { background: #fff; color: #000; font-size: 12px; }
+  body.print #doc { max-width: none; padding: 0; }
+  body.print .prose-chat, body.print .prose-chat strong, body.print .prose-chat h1, body.print .prose-chat h2,
+  body.print .prose-chat h3, body.print .prose-chat .katex { color: #000; }
+  body.print .prose-chat .katex-display { overflow: visible; }
+  body.print .prose-chat .katex-display > .katex { white-space: normal; }
+  body.print .prose-chat pre, body.print .prose-chat th { background: #f2f2f2; }
+  body.print .prose-chat table, body.print .prose-chat th, body.print .prose-chat td { border-color: #bbb; }
+  body.print pre .copy { display: none; }
+</style>
+<script src="katex.min.js"></script>
+<script src="marked.umd.js"></script>
+</head>
+<body>
+<main id="doc" class="prose-chat" data-empty="The solution appears here."></main>
+<script src="chat.js"></script>
+<script>
+  "use strict";
+  window.SOL = {
+    /** Shows Markdown; returns the page height in CSS pixels. */
+    show(md, print, streaming) {
+      document.body.classList.toggle("print", !!print);
+      const doc = document.getElementById("doc");
+      const stick = window.innerHeight + window.scrollY >= document.body.scrollHeight - 80;
+      doc.innerHTML = md ? UP.markdown(md) + (streaming ? '<span class="caret"></span>' : "") : "";
+      if (streaming && stick) window.scrollTo({ top: document.body.scrollHeight });
+      return Math.ceil(document.documentElement.scrollHeight);
+    },
+    /** Where to cut pages of `height` px: before the first top-level block that wouldn't fit. */
+    breaks(height) {
+      const cuts = [0];
+      const total = Math.ceil(document.documentElement.scrollHeight);
+      const blocks = [...document.getElementById("doc").children].map((el) => {
+        const r = el.getBoundingClientRect();
+        return { top: r.top + window.scrollY, bottom: r.bottom + window.scrollY, heading: /^H[1-6]$/.test(el.tagName) };
+      });
+      let start = 0;
+      while (total - start > height) {
+        let cut = start + height;
+        for (let i = 0; i < blocks.length; i++) {
+          const b = blocks[i];
+          if (b.top > start && b.top < start + height && b.bottom > start + height) {
+            // Keep a heading with what follows it.
+            const prev = blocks[i - 1];
+            cut = (prev && prev.heading && prev.top > start + 40 ? prev.top : b.top) - 2;
+            break;
+          }
+        }
+        if (cut <= start + 40) cut = start + height;  // a block taller than a page: cut through it
+        cuts.push(Math.floor(cut));
+        start = Math.floor(cut);
+      }
+      cuts.push(total);
+      return cuts;
+    },
+  };
+</script>
+</body>
+</html>

@@ -22,6 +22,7 @@ struct SettingsView: View {
             }
             cmsSection
             if let ask = model.ask { ChatGPTSection(ask: ask) }
+            HandwritingSection()
             Section("General") {
                 Toggle("Open at login", isOn: Binding(
                     get: { model.opensAtLogin },

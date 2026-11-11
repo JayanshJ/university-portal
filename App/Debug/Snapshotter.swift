@@ -60,7 +60,7 @@ enum Snapshotter {
     }
 
     /// Sample answers for the hand-in sheet: a PDF-only assignment with drafts, a statement and one file on Moodle.
-    private struct DemoMoodle: HTTPTransport {
+    struct DemoMoodle: HTTPTransport {
         let cmid: Int
 
         func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
@@ -76,7 +76,7 @@ enum Snapshotter {
         }
     }
 
-    private static func capture(_ window: NSWindow) async throws -> Data {
+    static func capture(_ window: NSWindow) async throws -> Data {
         let content = try await SCShareableContent.currentProcess
         guard let target = content.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
             throw CocoaError(.fileNoSuchFile)

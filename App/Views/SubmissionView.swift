@@ -92,6 +92,14 @@ final class SubmissionModel {
         phase = unreadable.isEmpty ? .ready : .failed("Couldn't read \(unreadable.joined(separator: ", ")).")
     }
 
+    /// Adds a file made in the app (the Solve panel's PDF); one with the same name is replaced.
+    func add(filename: String, data: Data) {
+        files.removeAll { $0.filename == filename }
+        files.append(Entry(filename: filename, size: Int64(data.count), source: .local(data)))
+        confirmation = nil
+        phase = .ready
+    }
+
     func remove(_ entry: Entry) {
         files.removeAll { $0.id == entry.id }
     }
@@ -212,16 +220,30 @@ struct SubmissionView: View {
     let item: PortalOverview.ItemRow?
     @State private var importing = false
     @State private var confirmingFinal = false
+    /// The Solve side panel, while it's open.
+    @State private var solving: SolveModel?
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
-            content
-            Divider()
-            footer
+        HStack(spacing: 0) {
+            VStack(spacing: 0) {
+                header
+                Divider()
+                content
+                Divider()
+                footer
+            }
+            .frame(width: 600)
+            if let solving, let ask = app.ask, let rules = model.rules {
+                Divider()
+                SolvePanel(model: solving, ask: ask, acceptsFiles: rules.acceptsFiles, acceptsText: rules.acceptsText,
+                           attach: { model.add(filename: $0, data: $1) },
+                           useAsText: { model.text = $0 },
+                           close: { withAnimation { self.solving = nil } })
+                    .frame(width: 520)
+                    .transition(.move(edge: .trailing))
+            }
         }
-        .frame(width: 600, height: 640)
+        .frame(height: solving == nil ? 640 : 720)
         .task { await model.load() }
         .fileImporter(isPresented: $importing, allowedContentTypes: allowedTypes, allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { model.add(urls) }
@@ -405,9 +427,23 @@ struct SubmissionView: View {
             }
             Spacer()
             status
-            Button(model.canEdit ? "Cancel" : "Done") { dismiss() }
+            Button(model.canEdit ? "Cancel" : "Done") { solving?.stop(); dismiss() }
                 .keyboardShortcut(.cancelAction)
             if model.canEdit, let rules = model.rules {
+                if solving == nil, let ask = app.ask {
+                    Button {
+                        guard let service = app.submissions() else { return }
+                        let candidates = SheetFinder.candidates(assignment: rules.name, deadline: item, overview: app.overview)
+                        withAnimation {
+                            solving = SolveModel(rules: rules, service: service, ask: ask, deadline: item,
+                                                 candidates: candidates, openMaterial: { try await app.localFile($0) })
+                        }
+                    } label: {
+                        Label("Solve", systemImage: "sparkles")
+                    }
+                    .help("Solve this assignment with ChatGPT, review it, and add it handwritten or typed")
+                    .disabled(isWorking)
+                }
                 if rules.usesDrafts {
                     Button("Save Draft") { Task { await finish(final: false) } }
                         .disabled(isWorking || !model.problems.isEmpty)

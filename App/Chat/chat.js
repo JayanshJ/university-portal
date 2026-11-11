@@ -368,6 +368,8 @@
   const nearBottom = () => window.innerHeight + window.scrollY >= document.body.scrollHeight - 80;
 
   window.UP = {
+    // Markdown + math to HTML, for the Solve panel's solution page (solution.html).
+    markdown,
     setState(state) {
       if (state.accent) document.documentElement.style.setProperty("--rule", state.accent);
       const stick = nearBottom();
@@ -396,5 +398,5 @@
     },
   };
 
-  post({ type: "ready" });
+  if (root()) post({ type: "ready" });
 })();

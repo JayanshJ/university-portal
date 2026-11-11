@@ -44,7 +44,8 @@ final class AskModel {
 
     @ObservationIgnored private let database: UniDatabase
     @ObservationIgnored private let auth: ChatGPTAuth
-    @ObservationIgnored private let client: ResponsesClient
+    /// Also used by the Solve panel.
+    @ObservationIgnored let client: ResponsesClient
     @ObservationIgnored private let service: AskService
     @ObservationIgnored private let indexer: MaterialIndexer
     @ObservationIgnored private var answering: Task<Void, Never>?

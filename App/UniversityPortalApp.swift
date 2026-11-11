@@ -107,6 +107,19 @@ final class AppModel {
             }
             return
         }
+        if CommandLine.arguments.contains("--template-check") {
+            Task { await TemplateCheck.run() }
+            return
+        }
+        if CommandLine.arguments.contains("--solve-check") {
+            let ask = AskModel(database: database, secrets: NoSecrets(), transport: transport, files: files(database))
+            Task {
+                var updates = database.overviewUpdates().makeAsyncIterator()
+                if let overview = try? await updates.next() { SolveCheck.matches(overview) }
+                await SolveCheck.run(ask: ask)
+            }
+            return
+        }
         if CommandLine.arguments.contains("--snapshot") {
             isMoodleConnected = true
             Task { [weak self] in
