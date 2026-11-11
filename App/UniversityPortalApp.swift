@@ -187,7 +187,7 @@ final class AppModel {
         }
     }
 
-    /// Secondary: the system sign-in sheet catches the redirect without leaving the app.
+    /// Secondary: the sign-in window catches the redirect without leaving the app.
     func connectMoodleWithSheet() async {
         guard let connector, let database, !isConnecting else { return }
         isConnecting = true
@@ -200,11 +200,11 @@ final class AppModel {
             isMoodleConnected = true
             message = "Moodle connected."
             await syncNow()
-        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+        } catch MoodleSignIn.SignInError.cancelled {
             try? database.updateState(.moodleDiagnostics, default: MoodleDiagnostics()) {
-                $0.sheetFailure = "Sheet closed before Moodle returned a token"
+                $0.sheetFailure = "Sign-in window closed before Moodle returned a token"
             }
-            message = "Sign-in cancelled. If the sheet never finished, use the paste box instead."
+            message = "Sign-in cancelled. You can also connect in your browser."
         } catch {
             try? database.updateState(.moodleDiagnostics, default: MoodleDiagnostics()) {
                 $0.sheetFailure = Redactor.redact(String(describing: error))
