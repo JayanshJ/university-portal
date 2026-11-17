@@ -169,9 +169,12 @@ final class AskModel {
 
     /// Indexes just these courses' PDFs (used before solving); reports progress like `indexNow`.
     func indexCourses(_ ids: [Int64]) async -> MaterialIndexer.Progress {
+        // Never interleave with a full run: wait for it, then index what is still pending.
+        while let running = indexing { await running.value }
         let result = await indexer.run(courseIds: ids) { progress in
             Task { @MainActor in self.indexProgress = progress }
         }
+        indexProgress = result  // final state (not running), regardless of callback ordering
         refreshIndexStatus()
         return result
     }
