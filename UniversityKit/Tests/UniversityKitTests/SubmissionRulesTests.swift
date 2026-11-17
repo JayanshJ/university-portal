@@ -47,17 +47,17 @@ import Testing
 
     @Test func emptyPlaceholderIsMissing() {
         let rules = SubmissionRules(header: [], filename: "{group}.pdf")
-        #expect(rules.missing(student: ada, course: CourseDetails()) == [.group])
-        #expect(rules.missing(student: ada, course: CourseDetails(group: "3")) == [])
+        #expect(rules.missing(student: ada, course: CourseDetails(), sheet: 1) == [.group])
+        #expect(rules.missing(student: ada, course: CourseDetails(group: "3"), sheet: 1) == [])
     }
 
     @Test func partnerMatrikelnrIsMissingWhenAPartnerLacksIt() {
         let rules = SubmissionRules(header: [.partnerNames, .partnerMatrikelnr])
-        #expect(rules.missing(student: ada, course: CourseDetails()) == [.partnerNames, .partnerMatrikelnr])
+        #expect(rules.missing(student: ada, course: CourseDetails(), sheet: 1) == [.partnerNames, .partnerMatrikelnr])
         let partial = CourseDetails(partners: [Partner(name: "Bob", matrikelnr: "1"), Partner(name: "Cy")])
-        #expect(rules.missing(student: ada, course: partial) == [.partnerMatrikelnr])
+        #expect(rules.missing(student: ada, course: partial, sheet: 1) == [.partnerMatrikelnr])
         let full = CourseDetails(partners: [Partner(name: "Bob", matrikelnr: "1"), Partner(name: "Cy", matrikelnr: "2")])
-        #expect(rules.missing(student: ada, course: full) == [])
+        #expect(rules.missing(student: ada, course: full, sheet: 1) == [])
         let header = rules.header(student: ada, course: full, courseName: "C", sheetTitle: "S")
         #expect(header[0].value == "Bob, Cy")
         #expect(header[1].value == "1, 2")
@@ -70,7 +70,7 @@ import Testing
         let labels = rules.header(student: ada, course: CourseDetails(), courseName: "C", sheetTitle: "S").map(\.label)
         #expect(labels == ["Name", "Matrikelnummer", "Gruppe", "Übungsgruppe", "Partner", "Kurs", "Blatt"])
         let english = SubmissionRules(header: [.matrikelnr], quote: "Put your student ID on top.")
-        #expect(english.header(student: ada, course: CourseDetails(), courseName: "C", sheetTitle: "S")[0].label != "Matrikelnummer")
+        #expect(english.header(student: ada, course: CourseDetails(), courseName: "C", sheetTitle: "S")[0].label == "Student ID")
     }
 
     @Test func siteInfoDecodesFullname() throws {
@@ -93,5 +93,33 @@ import Testing
         #expect(StudentDetails.load(database).name == "Ada Lovelace")
         try StudentDetails(name: "Grace").save(database)
         #expect(StudentDetails.load(database).name == "Grace")
+    }
+
+    @Test func emptyHeaderMeansNameAndFallbackNeedsName() {
+        #expect(SubmissionRules.parse(#"{"header": []}"#).header == [.name])
+        #expect(SubmissionRules.parse(#"{"header": ["sheet", "zzz"]}"#).header == [.name])
+        #expect(SubmissionRules.none.missing(student: StudentDetails(), course: CourseDetails(), sheet: 1).contains(.name))
+    }
+
+    @Test func placeholdersAreCaseInsensitiveAndCleaned() {
+        let course = CourseDetails(tutorial: "T2")
+        let r = SubmissionRules(header: [.name], filename: "Blatt{sheet}_{Name}_{student_id}_{TUTORIAL}.pdf")
+        #expect(r.filename(student: ada, course: course, assignment: "x", sheet: 3, courseShort: "c") == "Blatt3_Ada Lovelace_T2.pdf")
+        #expect(r.missing(student: ada, course: CourseDetails(), sheet: 3) == [.tutorial])
+        let e = SubmissionRules(header: [.name], filename: "{email}--{group}.pdf")
+        #expect(e.filename(student: ada, course: CourseDetails(), assignment: "x", sheet: 1, courseShort: "c") == "ada@uni.de.pdf")
+    }
+
+    @Test func sheetNumberMissingWhenPatternNeedsIt() {
+        let r = SubmissionRules(header: [.name], filename: "Blatt{sheet}.pdf")
+        #expect(r.missing(student: ada, course: CourseDetails(), sheet: nil).contains(.sheet))
+        #expect(r.missing(student: ada, course: CourseDetails(), sheet: 2).isEmpty)
+    }
+
+    @Test func oneWordNameAndBlankPartnerNameAreMissing() {
+        let r = SubmissionRules(header: [.partnerNames], filename: "{firstname}.pdf")
+        let mono = StudentDetails(name: "Plato")
+        let blank = CourseDetails(partners: [Partner(name: " ")])
+        #expect(r.missing(student: mono, course: blank, sheet: 1) == [.partnerNames, .name])
     }
 }
