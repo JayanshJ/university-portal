@@ -344,8 +344,13 @@ struct SolvePanel: View {
     private var rulesFailedRow: some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.dueSoon)
-            Text("Couldn't read the submission rules.")
-                .help(model.rulesError ?? "")
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Couldn't read the submission rules.")
+                if let reason = model.rulesError, !reason.isEmpty {
+                    Text(reason).font(.caption).foregroundStyle(.secondary)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                }
+            }
             Spacer(minLength: 4)
             Button("Continue Without Rules") { model.continueWithoutRules() }
                 .controlSize(.small)
