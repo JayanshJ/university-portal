@@ -116,6 +116,7 @@ final class AppModel {
             Task {
                 var updates = database.overviewUpdates().makeAsyncIterator()
                 if let overview = try? await updates.next() { SolveCheck.matches(overview) }
+                await SolveCheck.indexStats(database)
                 await SolveCheck.run(ask: ask)
             }
             return

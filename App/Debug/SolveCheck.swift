@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import GRDB
 import SwiftUI
 import UniversityKit
 
@@ -16,6 +17,28 @@ enum SolveCheck {
             print("MATCH \(deadline.course) | \(deadline.title) → \(best?.name ?? "(ask)")")
             for candidate in candidates.prefix(3) { print("      \(candidate.score)  \(candidate.name)  [\(candidate.item.course)]") }
         }
+    }
+
+    /// Per course: material files, how many are indexed, indexed pages and characters, other text items.
+    static func indexStats(_ database: UniDatabase) async {
+        let lines = (try? await database.writer.read { db -> [String] in
+            try Row.fetchAll(db, sql: """
+                SELECT c.short_name AS course, c.active AS active,
+                  (SELECT COUNT(*) FROM uni_item i JOIN uni_file f ON f.item_id = i.id WHERE i.course_id = c.id AND i.kind = 'material' AND i.deleted_at IS NULL) AS files,
+                  (SELECT COUNT(*) FROM uni_item i JOIN uni_file f ON f.item_id = i.id WHERE i.course_id = c.id AND i.kind = 'material' AND i.deleted_at IS NULL AND lower(f.filename) LIKE '%.pdf') AS pdfs,
+                  (SELECT COUNT(*) FROM uni_index x JOIN uni_item i ON i.id = x.item_id WHERE i.course_id = c.id AND x.error IS NULL) AS indexed,
+                  (SELECT COALESCE(SUM(x.pages), 0) FROM uni_index x JOIN uni_item i ON i.id = x.item_id WHERE i.course_id = c.id AND x.error IS NULL) AS pages,
+                  (SELECT COALESCE(SUM(length(p.text)), 0) FROM uni_page p JOIN uni_item i ON i.id = p.item_id WHERE i.course_id = c.id) AS chars,
+                  (SELECT COUNT(*) FROM uni_item i WHERE i.course_id = c.id AND i.kind IN ('announcement', 'discussion', 'note') AND i.deleted_at IS NULL) AS texts
+                FROM uni_course c ORDER BY c.active DESC, c.short_name
+                """).map { row in
+            let course: String = row["course"], active: Bool = row["active"]
+            let files: Int = row["files"], pdfs: Int = row["pdfs"], indexed: Int = row["indexed"], pages: Int = row["pages"]
+            let chars: Int = row["chars"], texts: Int = row["texts"]
+            return "STATS \(active ? "active" : "      ") \(course) | files \(files), pdf \(pdfs), indexed \(indexed), pages \(pages), chars \(chars), notes/posts \(texts)"
+            }
+        }) ?? []
+        lines.forEach { print($0) }
     }
 
     static func run(ask: AskModel) async {
