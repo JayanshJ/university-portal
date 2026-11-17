@@ -20,14 +20,14 @@ enum SheetFinder {
     static func candidates(assignment: String, deadline: PortalOverview.ItemRow?, overview: PortalOverview) -> [Candidate] {
         let courseIds = relatedCourses(deadline, overview: overview)
         let numbers = Self.sheetNumbers(in: assignment)
-        let keywords = Self.words(assignment).subtracting(Self.words((deadline?.course ?? "") + " " + (deadline?.courseFullName ?? "")))
+        let keywords = CourseLinks.words(assignment).subtracting(CourseLinks.words((deadline?.course ?? "") + " " + (deadline?.courseFullName ?? "")))
         let due = deadline?.date
         return overview.materials
             .filter { courseIds.contains($0.courseId) && $0.hasFile && isPDF($0) }
             .map { item in
                 var score = score(item, numbers: numbers, sameCourse: item.courseId == deadline?.courseId, due: due)
                 // Shares a distinctive word with the assignment ("Capstone").
-                if !keywords.isDisjoint(with: Self.words(item.title + " " + (item.filename ?? ""))) { score += 15 }
+                if !keywords.isDisjoint(with: CourseLinks.words(item.title + " " + (item.filename ?? ""))) { score += 15 }
                 return Candidate(item: item, score: score)
             }
             .sorted { $0.score != $1.score ? $0.score > $1.score : ($0.item.date ?? .distantPast) > ($1.item.date ?? .distantPast) }
@@ -45,19 +45,8 @@ enum SheetFinder {
     /// page of the same lecture).
     private static func relatedCourses(_ deadline: PortalOverview.ItemRow?, overview: PortalOverview) -> Set<Int64> {
         guard let deadline else { return Set(overview.courses.filter(\.active).map(\.id)) }
-        let words = Self.words(deadline.course + " " + deadline.courseFullName)
-        var ids: Set<Int64> = [deadline.courseId]
-        for course in overview.courses where course.active {
-            if !words.isDisjoint(with: Self.words(course.shortName + " " + course.fullName)) { ids.insert(course.id) }
-        }
-        return ids
-    }
-
-    private static let filler: Set<String> = ["and", "und", "the", "der", "die", "das", "for", "fur", "für", "in", "of", "von",
-                                              "sose", "wise", "winter", "summer", "semester", "course", "kurs", "vorlesung", "lecture"]
-
-    private static func words(_ text: String) -> Set<String> {
-        Set(text.lowercased().split { !$0.isLetter }.map(String.init).filter { $0.count >= 4 && !filler.contains($0) })
+        let courses = overview.courses.map { (id: $0.id, name: $0.shortName + " " + $0.fullName, active: $0.active) }
+        return Set(CourseLinks.related(courseId: deadline.courseId, courseName: deadline.course + " " + deadline.courseFullName, courses: courses))
     }
 
     /// Whole numbers in a name, without leading zeros ("Blatt_04" → 4), ignoring years and terms

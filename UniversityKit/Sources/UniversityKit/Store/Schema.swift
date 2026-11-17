@@ -3,6 +3,7 @@ import GRDB
 extension UniDatabase {
     static let tableNames = [
         "uni_source", "uni_course", "uni_item", "uni_file", "uni_sync_run", "uni_state", "uni_conversation",
+        "uni_memory_file", "uni_memory",
     ]
 
     /// Append new migrations at the end; never edit one that has shipped.
@@ -233,6 +234,27 @@ extension UniDatabase {
                 UPDATE uni_item SET deleted_at = NULL, missing_count = 0
                 WHERE kind = 'deadline' AND done_source = 'user' AND deleted_at IS NOT NULL
                 """)
+        }
+        migrator.registerMigration("v9_course_memory") { db in
+            try db.create(table: "uni_memory_file") { t in
+                t.primaryKey("item_id", .integer).references("uni_item", onDelete: .cascade)
+                t.column("course_id", .integer).notNull().indexed()
+                t.column("sha256", .text)
+                t.column("prompt_version", .integer).notNull()
+                t.column("model", .text)
+                t.column("digest", .text).notNull().defaults(to: "")
+                t.column("edited", .boolean).notNull().defaults(to: false)
+                t.column("updated_at", .datetime).notNull()
+                t.column("error", .text)
+            }
+            try db.create(table: "uni_memory") { t in
+                t.primaryKey("course_id", .integer)
+                t.column("overview", .text).notNull().defaults(to: "")
+                t.column("overview_edited", .boolean).notNull().defaults(to: false)
+                t.column("notes", .text).notNull().defaults(to: "")
+                t.column("overview_signature", .text)
+                t.column("updated_at", .datetime).notNull()
+            }
         }
         return migrator
     }
