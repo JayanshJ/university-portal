@@ -86,9 +86,11 @@ enum Handwriter {
     }
 
     /// Whether a header line can be written by hand as it is: every character has a glyph, and
-    /// nothing in it reads as Math Writer markup.
+    /// nothing in it reads as Math Writer markup (tags, headings, arrows).
     nonisolated static func canWrite(_ line: String, known: Set<Character>) -> Bool {
-        guard !line.contains("~~"), !line.contains(where: { "[]|\\^_".contains($0) }) else { return false }
+        // "->", "=>" and "⇒" would be drawn as an arrow.
+        guard !line.contains("~~"), !line.contains("->"), !line.contains("=>"),
+              !line.contains(where: { "[]|\\^_⇒".contains($0) }) else { return false }
         return line.allSatisfy { $0 == " " || known.contains($0) }
     }
 

@@ -14,7 +14,11 @@ struct SolvePanel: View {
     let attach: (String, Data) -> Void
     /// Puts the typed solution into the submission's online text.
     let useAsText: (String) -> Void
+    /// Opens the course memory at a heading (nil: the memory as a whole).
+    let openMemory: (String?) -> Void
     let close: () -> Void
+    /// The submission rules row is expanded (internal so the debug screenshots can open it).
+    @State var showsRules = false
 
     @State private var draft = ""
     @State private var exporting = false
@@ -22,7 +26,10 @@ struct SolvePanel: View {
     @State private var added: String?
     @State private var pickingFile = false
     @State private var settingUpHandwriting = false
+    /// The not-read list is expanded (internal for the debug screenshots too).
+    @State var showsUnread = false
     @FocusState private var chatFocused: Bool
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,10 +38,21 @@ struct SolvePanel: View {
             if model.signedIn {
                 sheetBar
                 Divider()
+                if model.rules != nil && !model.needsSheet {
+                    rulesRow
+                    Divider()
+                }
+                if !model.unread.isEmpty {
+                    unreadBanner
+                    Divider()
+                }
                 preview.frame(maxHeight: .infinity)
                 Divider()
-                chat
-                Divider()
+                // The details form gets the room; nothing can be sent until it's saved.
+                if !waitsForDetails {
+                    chat
+                    Divider()
+                }
                 actions
             } else {
                 signIn
@@ -161,17 +179,11 @@ struct SolvePanel: View {
         if model.needsSheet {
             chooseSheet
         } else if case .memory(let memory) = model.phase {
-            VStack(spacing: 10) {
-                progress(memory.total == 0 ? "Reading the course materials…"
-                         : "Reading the course materials (\(memory.done) of \(memory.total))…\(memory.current.map { "\n\($0)" } ?? "")")
-                Button("Skip for Now") { model.skipMemory() }
-            }
+            memoryProgress(memory)
         } else if model.phase == .rules {
             progress("Reading the submission rules…")
         } else if case .needsDetails(let fields) = model.phase {
-            failure("Details Needed", "The sheet asks for: \(fields.map(\.rawValue).joined(separator: ", ")).") {
-                Button("Continue") { model.saveDetails(student: model.student, course: model.courseDetails) }
-            }
+            DetailsForm(model: model, fields: fields).id(fields)
         } else if case .reading(let message) = model.phase {
             progress(message)
         } else if !model.hasSolution && model.solution.isEmpty {
@@ -260,6 +272,30 @@ struct SolvePanel: View {
         }
     }
 
+    /// Reading the course PDFs into the memory, file by file.
+    private func memoryProgress(_ memory: CourseMemory.Progress) -> some View {
+        VStack(spacing: 10) {
+            if memory.total == 0 {
+                ProgressView()
+                Text("Reading the course…").font(.callout).foregroundStyle(.secondary)
+            } else {
+                ProgressView(value: Double(memory.done), total: Double(memory.total))
+                    .frame(maxWidth: 260)
+                Text("Reading the course: \(memory.done) of \(memory.total) \(memory.total == 1 ? "file" : "files")")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+            if let current = memory.current {
+                Text(current).font(.caption).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle).frame(maxWidth: 360)
+            }
+            Button("Skip for Now") { model.skipMemory() }
+                .help("Solve with what the course memory has so far")
+                .padding(.top, 4)
+        }
+        .padding(30)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private func progress(_ message: String) -> some View {
         VStack(spacing: 10) {
             ProgressView()
@@ -280,6 +316,175 @@ struct SolvePanel: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: Submission rules
+
+    /// "Submission rules": the header fields and the file name; expanded, the values (editable for
+    /// this PDF), the other rules and the sheet's own words.
+    private var rulesRow: some View {
+        let rules = model.rules ?? .none
+        let fields = rules.header.filter { $0 != .sheet }
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeOut(duration: 0.15)) { showsRules.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Text("Submission rules").foregroundStyle(.secondary)
+                    Text(fields.map(rules.shortLabel).joined(separator: " · ") + " → " + model.suggestedFilename)
+                        .lineLimit(1).truncationMode(.head)
+                    Spacer(minLength: 4)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(showsRules ? 90 : 0))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(showsRules ? "Hide the submission rules" : "Show the submission rules and the header values")
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+
+            if showsRules {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                            ForEach(fields, id: \.self) { field in
+                                GridRow {
+                                    Text(rules.shortLabel(field)).foregroundStyle(.secondary)
+                                        .gridColumnAlignment(.trailing)
+                                    HeaderValueField(model: model, field: field, label: rules.shortLabel(field))
+                                }
+                            }
+                            GridRow {
+                                Text(rules.isGerman ? "Dateiname" : "File name").foregroundStyle(.secondary)
+                                Text(model.suggestedFilename).textSelection(.enabled)
+                            }
+                        }
+                        Text("Changes here apply to this PDF only. Your saved details are in Settings.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        if !rules.other.isEmpty {
+                            VStack(alignment: .leading, spacing: 3) {
+                                ForEach(Array(rules.other.enumerated()), id: \.offset) { _, rule in
+                                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                        Text("•").foregroundStyle(.secondary)
+                                        Text(rule)
+                                    }
+                                }
+                            }
+                        }
+                        if let quote = rules.quote, !quote.isEmpty {
+                            Text("“\(quote)”").italic().foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 10)
+                }
+                .frame(maxHeight: 220)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .font(.callout)
+    }
+
+    // MARK: Not read
+
+    /// Course PDFs Solve couldn't read, with Retry.
+    private var unreadBanner: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Button {
+                    withAnimation(.easeOut(duration: 0.15)) { showsUnread.toggle() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.dueSoon)
+                        Text("\(model.unread.count) \(model.unread.count == 1 ? "file" : "files") not read")
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(showsUnread ? 90 : 0))
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(showsUnread ? "Hide the files" : "Show which files and why")
+                Spacer()
+                Button("Retry") { model.retryMemory() }
+                    .controlSize(.small)
+                    .disabled(model.isBusy)
+                    .help("Read these files again")
+            }
+            if showsUnread {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(model.unread.enumerated()), id: \.offset) { _, file in
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(file.title).lineLimit(1).truncationMode(.middle)
+                                Text(file.reason).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 120)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .font(.callout)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+    }
+
+    // MARK: Sources
+
+    private struct SourceChip: Identifiable {
+        let id: String
+        let title: String
+        let systemImage: String
+        let help: String
+        let open: () -> Void
+    }
+
+    private var lastAssistant: UUID? { model.messages.last { $0.role == .assistant }?.id }
+
+    /// What the solution drew on: excerpts open the PDF at the page, memory sections the course memory.
+    private var sourceChips: [SourceChip] {
+        var seen = Set<String>()
+        return model.sources.compactMap { source in
+            switch source {
+            case .excerpt(let number):
+                guard let excerpt = model.excerpts.first(where: { $0.number == number }) else { return nil }
+                let id = "x\(excerpt.itemId):\(excerpt.page)"
+                guard seen.insert(id).inserted else { return nil }
+                return SourceChip(id: id, title: "\(excerpt.title) p. \(excerpt.page)", systemImage: "doc.text",
+                                  help: "Open \(excerpt.title) at page \(excerpt.page)") {
+                    openWindow(id: "viewer", value: ViewerTarget(itemId: excerpt.itemId, page: excerpt.page))
+                }
+            case .memory(let section):
+                let id = "m" + section.lowercased()
+                guard seen.insert(id).inserted else { return nil }
+                return SourceChip(id: id, title: "Memory: \(section)", systemImage: "brain",
+                                  help: "Show this part of the course memory") {
+                    openMemory(model.memoryHeading(for: section))
+                }
+            }
+        }
+    }
+
+    private var sourcesRow: some View {
+        ChipFlow(spacing: 6) {
+            ForEach(sourceChips) { chip in
+                Button(action: chip.open) {
+                    Label(chip.title, systemImage: chip.systemImage)
+                        .lineLimit(1).truncationMode(.middle)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help(chip.help)
+            }
+        }
+        .padding(.trailing, 40)
+    }
+
     // MARK: Chat
 
     private var chat: some View {
@@ -288,12 +493,19 @@ struct SolvePanel: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
                         ForEach(model.messages) { message in
-                            bubble(message).id(message.id)
+                            VStack(alignment: .leading, spacing: 6) {
+                                bubble(message)
+                                if message.id == lastAssistant, !sourceChips.isEmpty { sourcesRow }
+                            }
+                            .id(message.id)
                         }
                     }
                     .padding(12)
                 }
                 .onChange(of: model.messages.last?.text) {
+                    if let last = model.messages.last { proxy.scrollTo(last.id, anchor: .bottom) }
+                }
+                .onChange(of: model.sources) {
                     if let last = model.messages.last { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }
@@ -305,6 +517,7 @@ struct SolvePanel: View {
                     .lineLimit(1...4)
                     .focused($chatFocused)
                     .onSubmit(send)
+                    .disabled(waitsForDetails)
                     .padding(.vertical, 7)
                     .padding(.horizontal, 10)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
@@ -316,7 +529,7 @@ struct SolvePanel: View {
                 } else {
                     Button(action: send) { Image(systemName: "arrow.up.circle.fill").font(.title2) }
                         .buttonStyle(.borderless)
-                        .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty || waitsForDetails)
                         .help("Send")
                 }
             }
@@ -344,8 +557,13 @@ struct SolvePanel: View {
         }
     }
 
+    /// Waiting for the details form: nothing can be sent until it's saved.
+    private var waitsForDetails: Bool {
+        if case .needsDetails = model.phase { true } else { false }
+    }
+
     private func send() {
-        guard !model.isBusy else { return }
+        guard !model.isBusy, !waitsForDetails else { return }
         model.send(draft)
         draft = ""
     }
@@ -419,5 +637,82 @@ struct SolvePanel: View {
             if let error = ask.signInError { Text(error).font(.caption).foregroundStyle(Theme.overdue) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// A header value in the rules row: edits are kept for this PDF only, committed on Return or when
+/// the field loses focus (each commit makes the PDFs again). Cleared, it shows the saved value again.
+private struct HeaderValueField: View {
+    let model: SolveModel
+    let field: SubmissionRules.Field
+    let label: String
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(label, text: $text)
+            .labelsHidden()
+            .textFieldStyle(.roundedBorder)
+            .controlSize(.small)
+            .focused($focused)
+            .onSubmit(commit)
+            .onChange(of: focused) { _, focused in if !focused { commit() } }
+            .onChange(of: model.headerValue(field)) { _, value in if !focused { text = value } }
+            .onAppear { text = model.headerValue(field) }
+    }
+
+    private func commit() {
+        if text.trimmingCharacters(in: .whitespacesAndNewlines) != model.headerValue(field) {
+            model.overrideHeader(field, value: text)
+        }
+        text = model.headerValue(field)
+    }
+}
+
+/// Lays out chips left to right, wrapping onto new lines.
+private struct ChipFlow: Layout {
+    var spacing: CGFloat = 6
+    /// Longer chips are truncated.
+    var maxItemWidth: CGFloat = 230
+
+    private func size(_ subview: LayoutSubview, in width: CGFloat) -> CGSize {
+        let ideal = subview.sizeThatFits(.unspecified)
+        guard ideal.width > min(maxItemWidth, width) else { return ideal }
+        return subview.sizeThatFits(ProposedViewSize(width: min(maxItemWidth, width), height: nil))
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(subviews, width: proposal.width ?? .infinity)
+        let width = rows.map { $0.width }.max() ?? 0
+        let height = rows.reduce(0) { $0 + $1.height } + spacing * CGFloat(max(rows.count - 1, 0))
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in arrange(subviews, width: bounds.width) {
+            var x = bounds.minX
+            for index in row.indices {
+                let size = size(subviews[index], in: bounds.width)
+                subviews[index].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private func arrange(_ subviews: Subviews, width: CGFloat) -> [(indices: [Int], width: CGFloat, height: CGFloat)] {
+        var rows: [(indices: [Int], width: CGFloat, height: CGFloat)] = []
+        for (index, subview) in subviews.enumerated() {
+            let size = size(subview, in: width)
+            if let last = rows.last, last.width + spacing + size.width <= width {
+                rows[rows.count - 1].indices.append(index)
+                rows[rows.count - 1].width += spacing + size.width
+                rows[rows.count - 1].height = max(last.height, size.height)
+            } else {
+                rows.append(([index], size.width, size.height))
+            }
+        }
+        return rows
     }
 }

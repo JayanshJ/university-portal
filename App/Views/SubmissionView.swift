@@ -238,6 +238,8 @@ struct SubmissionView: View {
                 SolvePanel(model: solving, ask: ask, acceptsFiles: rules.acceptsFiles, acceptsText: rules.acceptsText,
                            attach: { model.add(filename: $0, data: $1) },
                            useAsText: { model.text = $0 },
+                           // For now the course page, behind this sheet; the memory view doesn't exist yet.
+                           openMemory: { _ in if let course = solving.courseIds.first { app.selection = .course(course) } },
                            close: { solving.stop(); withAnimation { self.solving = nil } })
                     .frame(width: 520)
                     .transition(.move(edge: .trailing))

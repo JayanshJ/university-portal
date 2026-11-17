@@ -107,7 +107,8 @@ public struct SubmissionRules: Codable, Sendable, Equatable {
 
     // MARK: Header
 
-    var isGerman: Bool {
+    /// Whether the sheet's quote is German, so labels follow the sheet's language.
+    public var isGerman: Bool {
         guard let quote else { return false }
         let words = Set(
             quote.lowercased().components(separatedBy: CharacterSet.letters.inverted).filter { !$0.isEmpty })
@@ -116,6 +117,21 @@ public struct SubmissionRules: Codable, Sendable, Equatable {
             "gruppe", "übungsgruppe", "ihre", "blatt", "namen",
         ]
         return !words.isDisjoint(with: german)
+    }
+
+    /// A field's short name, for a one-line summary ("Name · Matrikelnr. · Gruppe").
+    public func shortLabel(_ field: Field) -> String {
+        let de = isGerman
+        switch field {
+        case .name: return "Name"
+        case .matrikelnr: return de ? "Matrikelnr." : "Student ID"
+        case .email: return de ? "E-Mail" : "Email"
+        case .group: return de ? "Gruppe" : "Group"
+        case .tutorial: return de ? "Übungsgruppe" : "Tutorial"
+        case .sheet: return de ? "Blatt" : "Sheet"
+        case .partnerNames: return "Partner"
+        case .partnerMatrikelnr: return de ? "Partner-Matrikelnr." : "Partner IDs"
+        }
     }
 
     public func header(

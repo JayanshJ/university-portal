@@ -55,6 +55,8 @@ final class SolveModel {
     var format: Format {
         didSet {
             UserDefaults.standard.set(format.rawValue, forKey: "solveFormat")
+            // The error was the other format's: this one gets its own try.
+            outputError = nil
             if format == .handwritten { renderHandwritingIfNeeded() }
             makePreview()
         }
@@ -231,7 +233,8 @@ final class SolveModel {
         sources = []
         excerpts = []
         memoryText = nil
-        if rules == nil || !memoryReady {
+        // Details still missing: ask for them again instead of solving without them.
+        if rules == nil || !memoryReady || !missingDetails().isEmpty {
             prepare()
         } else {
             phase = .idle
@@ -395,6 +398,33 @@ final class SolveModel {
     }
 
     // MARK: - Header and filename
+
+    /// A header field's value for this PDF: the override when one is typed, else the stored details.
+    func headerValue(_ field: SubmissionRules.Field) -> String {
+        if let value = headerOverrides[field]?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty { return value }
+        switch field {
+        case .name: return student.name
+        case .matrikelnr: return student.matrikelnr
+        case .email: return student.email
+        case .group: return courseDetails.group
+        case .tutorial: return courseDetails.tutorial
+        case .sheet: return sheetNumber.map(String.init) ?? ""
+        case .partnerNames: return courseDetails.partners.map(\.name).joined(separator: ", ")
+        case .partnerMatrikelnr: return courseDetails.partners.map(\.matrikelnr).joined(separator: ", ")
+        }
+    }
+
+    /// The memory heading a "memory: <section>" source means. The model doesn't always copy the
+    /// heading exactly, so it matches case-insensitively by containment; nil when none matches.
+    func memoryHeading(for section: String) -> String? {
+        let wanted = section.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !wanted.isEmpty, let document = memoryDocument() else { return nil }
+        let headings = ["Your notes", "Course overview"] + document.files.map { file in
+            file.section.map { $0.isEmpty ? file.title : "\(file.title) (\($0))" } ?? file.title
+        }
+        return headings.first { $0.lowercased() == wanted }
+            ?? headings.first { $0.lowercased().contains(wanted) || wanted.contains($0.lowercased()) }
+    }
 
     /// The student's and course's details with this PDF's overrides applied. Header values come
     /// only from these, never from anything ChatGPT wrote.
@@ -777,6 +807,18 @@ final class SolveModel {
         if let markup { self.markup = (revision, markup) }
         if format == .handwritten { renderHandwritingIfNeeded() }
         makePreview()
+    }
+
+    /// Debug screenshots (--solve-check): puts the panel into a state without running it.
+    func showDemoState(phase: Phase, unread: [(title: String, reason: String)] = [],
+                       sources: [SolveReply.Source] = [], excerpts: [Excerpt] = [],
+                       student: StudentDetails? = nil, course: CourseDetails? = nil) {
+        self.phase = phase
+        self.unread = unread
+        self.sources = sources
+        self.excerpts = excerpts
+        if let student { self.student = student }
+        if let course { courseDetails = course }
     }
 
     // MARK: - Output

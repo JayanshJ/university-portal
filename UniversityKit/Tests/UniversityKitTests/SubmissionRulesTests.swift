@@ -122,4 +122,11 @@ import Testing
         let blank = CourseDetails(partners: [Partner(name: " ")])
         #expect(r.missing(student: mono, course: blank, sheet: 1) == [.partnerNames, .name])
     }
+
+    @Test func shortLabelsFollowTheSheetsLanguage() {
+        let german = SubmissionRules(header: [.name, .matrikelnr, .group], quote: "Bitte Name, Matrikelnummer und Gruppe angeben.")
+        #expect(german.header.map(german.shortLabel) == ["Name", "Matrikelnr.", "Gruppe"])
+        let english = SubmissionRules(header: [.name, .matrikelnr, .group], quote: "Write your name and student ID on top.")
+        #expect(english.header.map(english.shortLabel) == ["Name", "Student ID", "Group"])
+    }
 }

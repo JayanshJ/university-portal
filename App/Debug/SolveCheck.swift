@@ -154,7 +154,8 @@ enum SolveCheck {
         var attached: (name: String, data: Data)?
         let window = NSWindow(contentViewController: NSHostingController(rootView:
             SolvePanel(model: model, ask: ask, acceptsFiles: true, acceptsText: false,
-                       attach: { attached = ($0, $1) }, useAsText: { _ in }, close: {}).frame(width: 520, height: 720)))
+                       attach: { attached = ($0, $1) }, useAsText: { _ in }, openMemory: { _ in }, close: {})
+                .frame(width: 520, height: 720)))
         window.makeKeyAndOrderFront(nil)
         print("FILENAME \(model.suggestedFilename)")
         print("HEADER " + model.headerRows.map { "\($0.label): \($0.value)" }.joined(separator: " | "))
@@ -193,6 +194,50 @@ enum SolveCheck {
         let typedAgain = await check(.typed, shot: "typed-override")
         print("TYPED CHANGED \(typed != nil && typedAgain != nil && typed != typedAgain)")
         print("FILENAME after override \(model.suggestedFilename)")
+
+        await stateShots(model: model, ask: ask, window: window)
+    }
+
+    /// The states before and around a solution: memory progress, the details form, the rules row
+    /// expanded, the source chips and the not-read banner. Made-up values; nothing is saved.
+    private static func stateShots(model: SolveModel, ask: AskModel, window: NSWindow) async {
+        model.format = .typed
+        model.showDemoState(phase: .memory(CourseMemory.Progress(done: 7, total: 22, current: "Vorlesung 05 – Substitution und partielle Integration.pdf")))
+        await panelShot(window, "memory")
+
+        // Rules that need partners; the student has only a name so far.
+        let partnerRules = SubmissionRules(header: [.name, .matrikelnr, .group, .partnerNames, .partnerMatrikelnr],
+                                           filename: demoRules.filename, quote: demoRules.quote)
+        let incomplete = StudentDetails(name: "Ada Lovelace")
+        model.showDemo(request: "Show the substitution step in 1(b) in more detail",
+                       note: "I expanded the substitution in 1(b) into two steps.",
+                       solution: demoSolution, markup: demoMarkup, rules: partnerRules, student: incomplete, course: CourseDetails())
+        let missing = partnerRules.missing(student: incomplete, course: CourseDetails(), sheet: model.sheetNumber)
+        print("DETAILS missing \(missing.map(\.rawValue))")
+        model.showDemoState(phase: .needsDetails(missing))
+        await panelShot(window, "needs-details")
+
+        // Back to complete details, with sources and files that couldn't be read.
+        model.showDemo(request: "Show the substitution step in 1(b) in more detail",
+                       note: "I expanded the substitution in 1(b) into two steps.",
+                       solution: demoSolution, markup: demoMarkup, rules: demoRules, student: demoStudent, course: demoCourse)
+        let excerpt = Excerpt(number: 1, itemId: -1, courseId: 0, title: "Vorlesung 05 – Substitution.pdf", course: "Analysis I", page: 14,
+                              text: "Substitutionsregel: ∫ f(g(x)) g'(x) dx = ∫ f(u) du.")
+        model.showDemoState(phase: .idle,
+                            unread: [(title: "Blatt 2 Lösungen (Scan).pdf", reason: "No text in the PDF (a scan)."),
+                                     (title: "Formelsammlung.pdf", reason: "Couldn't download it.")],
+                            sources: [.excerpt(1), .memory("Course overview"), .excerpt(9)], excerpts: [excerpt])
+        let expanded = NSWindow(contentViewController: NSHostingController(rootView:
+            SolvePanel(model: model, ask: ask, acceptsFiles: true, acceptsText: false,
+                       attach: { _, _ in }, useAsText: { _ in }, openMemory: { _ in }, close: {}, showsRules: true, showsUnread: true)
+                .frame(width: 520, height: 720)))
+        expanded.makeKeyAndOrderFront(nil)
+        for _ in 0..<300 where model.output[.typed]?.revision != model.revision {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        await panelShot(expanded, "rules-sources")
+        await panelShot(window, "sources-collapsed")
+        print("FILENAME demo \(model.suggestedFilename)")
     }
 
     private static func panelShot(_ window: NSWindow, _ name: String) async {
