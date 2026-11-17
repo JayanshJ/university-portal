@@ -238,7 +238,7 @@ struct SubmissionView: View {
                 SolvePanel(model: solving, ask: ask, acceptsFiles: rules.acceptsFiles, acceptsText: rules.acceptsText,
                            attach: { model.add(filename: $0, data: $1) },
                            useAsText: { model.text = $0 },
-                           close: { withAnimation { self.solving = nil } })
+                           close: { solving.stop(); withAnimation { self.solving = nil } })
                     .frame(width: 520)
                     .transition(.move(edge: .trailing))
             }

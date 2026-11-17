@@ -42,6 +42,8 @@ struct SolvePanel: View {
         }
         .background(Theme.paper)
         .task { model.start() }
+        // However the panel goes away (closed, sheet dismissed), nothing keeps calling ChatGPT.
+        .onDisappear { model.stop() }
         .onChange(of: model.signedIn) { _, signedIn in if signedIn { model.start() } }
         .sheet(isPresented: $settingUpHandwriting, onDismiss: { model.handwritingChanged() }) { HandwritingSetupView() }
         .fileImporter(isPresented: $pickingFile, allowedContentTypes: [.pdf]) { result in

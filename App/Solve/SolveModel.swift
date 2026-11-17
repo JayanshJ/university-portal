@@ -179,6 +179,7 @@ final class SolveModel {
         sheetText = ""
         sheetItemId = nil
         rules = nil
+        headerOverrides = [:]
         if case .needsDetails = phase { phase = .idle }
         Task {
             await replying?.value
@@ -195,9 +196,14 @@ final class SolveModel {
         reply(to: text)
     }
 
+    /// Stops everything in flight: the memory build, the rules, the reply and the handwriting
+    /// conversion. Also called when the panel closes. (Indexing itself can't be cancelled; it
+    /// finishes in the background.)
     func stop() {
         replying?.cancel()
         preparing?.cancel()
+        memoryBuild?.cancel()
+        converting?.cancel()
     }
 
     /// Starts over: a fresh solution from the task.
@@ -230,7 +236,9 @@ final class SolveModel {
                 try Task.checkCancellation()
                 if rules == nil {
                     let task = try await readTask()
-                    rules = try await readRules(task)
+                    let read = try await readRules(task)
+                    try Task.checkCancellation()  // another sheet was chosen meanwhile
+                    rules = read
                 }
                 try Task.checkCancellation()
                 let missing = missingDetails()
@@ -354,6 +362,12 @@ final class SolveModel {
         self.student = student
         courseDetails = course
         guard case .needsDetails = phase else { return }
+        // Never put a blank identity field into the PDF without asking: stay until all are given.
+        let missing = missingDetails()
+        if !missing.isEmpty {
+            phase = .needsDetails(missing)
+            return
+        }
         phase = .idle
         reply(to: nil)
     }
@@ -458,10 +472,10 @@ final class SolveModel {
             }
         }
 
+        var sheetText = ""
+        var sheetItemId: Int64?
         switch sheet {
-        case .none:
-            sheetText = ""
-            sheetItemId = nil
+        case .none: break
         case .material(let candidate):
             phase = .reading("Reading \(candidate.name)…")
             let url = try await openMaterial(candidate.item)
@@ -469,7 +483,6 @@ final class SolveModel {
             sheetItemId = candidate.item.id
         case .file(let name, let data):
             sheetText = add(name, data)
-            sheetItemId = nil
         }
         for (number, file) in assignment.attachments.enumerated() {
             phase = .reading("Reading \(file.filename) (\(number + 1) of \(assignment.attachments.count))…")
@@ -477,7 +490,11 @@ final class SolveModel {
         }
         if !images.isEmpty { parts.append("The pages of the files above are attached as images; where the extracted text is garbled, the images are right.") }
         let task = (parts.joined(separator: "\n\n"), images)
+        // Cancelled (another sheet was chosen): don't cache this sheet's text.
+        try Task.checkCancellation()
         self.task = task
+        self.sheetText = sheetText
+        self.sheetItemId = sheetItemId
         return task
     }
 
@@ -593,7 +610,12 @@ final class SolveModel {
                     handwriting = .rendering
                     rendering = try await Handwriter.render(markup, strict: false)
                 }
+                try Task.checkCancellation()
                 handwriting = .ready(rendering, revision: target)
+            } catch is CancellationError {
+                handwriting = .none  // stopped; rendered again when the handwritten view shows
+            } catch _ where Task.isCancelled {
+                handwriting = .none
             } catch Handwriter.Failure.notSetUp {
                 handwriting = .notSetUp
             } catch let failure as Handwriter.Failure {
@@ -603,7 +625,7 @@ final class SolveModel {
             }
             converting = nil
             // The solution changed while this one rendered: render the new one.
-            if target != revision { renderHandwritingIfNeeded() }
+            if !Task.isCancelled, target != revision { renderHandwritingIfNeeded() }
         }
     }
 
