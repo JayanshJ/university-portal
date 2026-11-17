@@ -1,6 +1,6 @@
 # Solve: real PDFs, sheet rules and course memory
 
-Date: 2026-11-17 · Branch: `solve-and-handwriting` · Status: draft for approval
+Date: 2026-11-17 · Branch: `solve-and-handwriting` · Status: draft for approval (builder check done; three answers from the student folded in)
 
 ## Why
 
@@ -17,10 +17,10 @@ What success looks like: the student clicks Solve, sees real A4 pages that alrea
 - **Sheet rules.** The app reads each sheet's submission rules and applies them to the header and the filename, for both formats. The rules are shown in the panel.
 - **Student details.**
   - Name, Matrikelnr. and email are entered once in Settings.
-  - Group and partner names are remembered per course.
+  - Group, tutorial and partners are remembered per course. Each partner has a name and Matrikelnr. (email optional).
   - When a sheet needs a detail that is missing, the panel asks for it before the PDF is made.
   - The AI never writes these values. App code fills them in.
-- **Course memory.** One memory per course, built from the course's PDFs (lectures and sheets).
+- **Course memory.** One memory per course, built from the PDFs (lectures and sheets) of that course and its related courses — the same related courses `SheetFinder` already links, such as the CMS twin of a Moodle course.
   - It is built the first time Solve is clicked in that course.
   - After that, it is updated only for new or changed files.
   - The student can view and edit it on the course page, and their edits survive later updates.
@@ -70,13 +70,15 @@ Each digest starts with the file's title and its Moodle section.
 
 **Long files.** A file too long for one request is read in parts of about 60k characters. Each part gets its own digest. A final call condenses the part digests into the file's digest.
 
-**Fingerprint.** A file is re-digested only when its `uni_index.sha256`, the digest prompt version or the model changes. A file that disappears from Moodle has its digest removed from the memory.
+**Fingerprint.** A file is re-digested only when its `uni_index.sha256` or the digest prompt version changes. The model is recorded but a model change does not trigger re-reading (builder's call: switching models must not force a full rebuild). A file that disappears from Moodle has its digest removed from the memory.
 
 **The memory document.** Assembled by app code, not by the model, in this order:
 
 1. **Your notes:** free text owned by the student. It is never touched by updates.
 2. **Course overview:** a short model-written synthesis across all digests: main topics in lecture order, notation that recurs, and how the sheets relate to the lectures. It is regenerated only when a digest changed.
 3. **One section per file:** its digest.
+
+**Which courses.** The memory is keyed by the assignment's own course but reads the PDFs of that course plus its related courses (`SheetFinder`'s matching, moved somewhere both can use). `Retriever.excerpts` is run for each of those course ids. The indexer runs for all of them before building.
 
 **Storage.** A new migration `v9_course_memory` in `UniversityKit/Store/Schema.swift` adds two tables:
 
@@ -98,8 +100,8 @@ The builder is a new `CourseMemory` type in `UniversityKit/Ask/`, shaped like `T
 **Building on the first Solve.**
 
 - If the course has no memory yet, the panel shows "Reading the course: 7 of 22 files" with the current file name before solving. The student can cancel; files already digested are kept.
-- If the memory exists, any new or changed files are read first, with the same progress line, and the student cannot skip this.
-- In both cases the solve itself only starts once the memory is up to date.
+- If the memory exists, any new or changed files are read first, with the same progress line.
+- Solve never waits on a complete memory (student's decision). If the student cancels, a file fails, or the ChatGPT usage limit is hit, Solve goes on with the digests it has. The panel lists the files not read yet, with a "Retry" button; failed files are retried on the next Solve.
 
 **Viewing and editing.** A "Course Memory" section on the course page (`App/Views/CourseView.swift`) shows the document. Any of the three parts can be edited:
 
@@ -118,7 +120,7 @@ For each Solve, the model receives:
 - **Excerpts:** `Retriever.excerpts(for:courseId:)` called with each task of the sheet as its own query, each excerpt with its file, page and number. `AskService.answer` is not used: its rules refuse full solutions to graded tasks.
 - **The sheet:** as today (text plus page images), plus the assignment description and deadline.
 
-Follow-up edit requests in the chat reuse the same memory and excerpts. They don't search again unless the student's message names a new topic, which is detected by `Retriever.detect`.
+Follow-up edit requests in the chat reuse the same memory. Each follow-up message is also run through `Retriever.excerpts` (it is a cheap local search), and excerpts not already sent are added (builder's call, replacing a topic-detection step that doesn't exist).
 
 ### 3. Sheet rules
 
@@ -126,7 +128,7 @@ Follow-up edit requests in the chat reuse the same memory and excerpts. They don
 
 ```json
 {
-  "header": ["name", "matrikelnr", "group", "partners", "email", "tutorial"],
+  "header": ["name", "matrikelnr", "email", "group", "tutorial", "partner_names", "partner_matrikelnr"],
   "filename": "Blatt{sheet}_{lastname}_{matrikelnr}.pdf",
   "other": ["max 2 students per group", "hand in as one PDF"],
   "quote": "Bitte geben Sie Name und Matrikelnummer an …"
@@ -142,7 +144,7 @@ If the sheet states no rules, the PDF gets a plain header (student name, course,
 **Filling in the details.** App code fills each field from:
 
 - Settings: name, Matrikelnr., email;
-- the per-course details: group, partners, tutorial;
+- the per-course details: group, tutorial, and partners (each with name and Matrikelnr., email optional);
 - the assignment: sheet number, course.
 
 Nothing comes from the model.
@@ -182,7 +184,7 @@ The model ends its reply with a `<sources>` block after `</solution>`, listing t
 - Name can be pre-filled from Moodle's `fullname` if the site info provides it.
 - Stored with the app's other settings, on this Mac.
 
-**Per-course details** (group, partners, tutorial) are edited from the panel prompt or from the course page.
+**Per-course details** (group, tutorial, partners with name and Matrikelnr.) are edited from the panel prompt or from the course page. When a sheet asks for partner details the app doesn't have, the missing-details form asks per partner and remembers the answers for the course.
 
 **Privacy text.** The current Settings and README privacy text says only the question and matching excerpts are sent. It is updated to say that Solve and the course memory send the course's PDF text to the student's own ChatGPT plan, file by file.
 
