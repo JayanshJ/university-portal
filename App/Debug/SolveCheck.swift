@@ -23,7 +23,7 @@ enum SolveCheck {
     static func indexStats(_ database: UniDatabase) async {
         let lines = (try? await database.writer.read { db -> [String] in
             try Row.fetchAll(db, sql: """
-                SELECT c.short_name AS course, c.active AS active,
+                SELECT c.id AS id, c.short_name AS course, c.active AS active,
                   (SELECT COUNT(*) FROM uni_item i JOIN uni_file f ON f.item_id = i.id WHERE i.course_id = c.id AND i.kind = 'material' AND i.deleted_at IS NULL) AS files,
                   (SELECT COUNT(*) FROM uni_item i JOIN uni_file f ON f.item_id = i.id WHERE i.course_id = c.id AND i.kind = 'material' AND i.deleted_at IS NULL AND lower(f.filename) LIKE '%.pdf') AS pdfs,
                   (SELECT COUNT(*) FROM uni_index x JOIN uni_item i ON i.id = x.item_id WHERE i.course_id = c.id AND x.error IS NULL) AS indexed,
@@ -32,13 +32,68 @@ enum SolveCheck {
                   (SELECT COUNT(*) FROM uni_item i WHERE i.course_id = c.id AND i.kind IN ('announcement', 'discussion', 'note') AND i.deleted_at IS NULL) AS texts
                 FROM uni_course c ORDER BY c.active DESC, c.short_name
                 """).map { row in
-            let course: String = row["course"], active: Bool = row["active"]
+            let id: Int64 = row["id"], course: String = row["course"], active: Bool = row["active"]
             let files: Int = row["files"], pdfs: Int = row["pdfs"], indexed: Int = row["indexed"], pages: Int = row["pages"]
             let chars: Int = row["chars"], texts: Int = row["texts"]
-            return "STATS \(active ? "active" : "      ") \(course) | files \(files), pdf \(pdfs), indexed \(indexed), pages \(pages), chars \(chars), notes/posts \(texts)"
+            return "STATS \(active ? "active" : "      ") \(course) [\(id)] | files \(files), pdf \(pdfs), indexed \(indexed), pages \(pages), chars \(chars), notes/posts \(texts)"
             }
         }) ?? []
         lines.forEach { print($0) }
+    }
+
+    /// `--solve-check memory <courseId>`: indexes the course and its related courses, builds their
+    /// memory with the real ChatGPT sign-in, prints a MEMORY line and the start of the memory text, and quits.
+    static func memory(ask: AskModel, courseId: Int64, overview: PortalOverview) async {
+        defer {
+            fflush(stdout)
+            NSApp.terminate(nil)
+        }
+        guard let course = overview.courses.first(where: { $0.id == courseId }) else {
+            print("MEMORY no course \(courseId)")
+            return
+        }
+        let courses = overview.courses.map { (id: $0.id, name: $0.shortName + " " + $0.fullName, active: $0.active) }
+        let ids = CourseLinks.related(courseId: courseId, courseName: course.shortName + " " + course.fullName, courses: courses)
+        let list = ids.map(String.init).joined(separator: ",")
+        let (pdfs, indexed) = (try? await ask.database.writer.read { db -> (Int, Int) in
+            let pdfs = try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM uni_item i JOIN uni_file f ON f.item_id = i.id
+                WHERE i.kind = 'material' AND i.deleted_at IS NULL AND lower(f.filename) LIKE '%.pdf' AND i.course_id IN (\(list))
+                """) ?? 0
+            let indexed = try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM uni_index x JOIN uni_item i ON i.id = x.item_id WHERE x.error IS NULL AND i.course_id IN (\(list))
+                """) ?? 0
+            return (pdfs, indexed)
+        }) ?? (0, 0)
+        print("MEMORY course \(course.shortName) related=\(ids.map { id in overview.courses.first { $0.id == id }?.shortName ?? String(id) }) pdfs=\(pdfs) indexed=\(indexed)")
+        guard pdfs <= 15 || CommandLine.arguments.contains("--force") else {
+            print("MEMORY stopped: more than 15 PDFs (pass --force to run anyway)")
+            return
+        }
+        await ask.refreshAccount()
+        guard ask.account?.canUsePlan == true, let memory = ask.memory() else {
+            print("MEMORY not signed in to ChatGPT (account \(ask.account == nil ? "none" : "without plan"), model \(ask.model ?? "none"))")
+            return
+        }
+        let started = Date()
+        let index = await ask.indexCourses(ids)
+        print("MEMORY indexed done=\(index.done) total=\(index.total) failed=\(index.failed)")
+        let progress = await memory.run(courseIds: ids, memoryCourseId: courseId) { progress in
+            if let current = progress.current { print("  \(progress.done)/\(progress.total) done, reading \(current)") }
+        }
+        let seconds = Int(Date().timeIntervalSince(started))
+        guard let document = try? memory.document(memoryCourseId: courseId, courseIds: ids) else {
+            print("MEMORY document failed")
+            return
+        }
+        let text = CourseMemory.text(document, keeping: [])
+        print("MEMORY files=\(document.files.count + document.unread.count) digested=\(progress.total - progress.failed.count) failed=\(progress.failed.count) chars=\(text.count) seconds=\(seconds)")
+        if !progress.failed.isEmpty { print("MEMORY failed: \(progress.failed)") }
+        for file in document.unread { print("MEMORY unread: \(file.title) — \(file.reason)") }
+        print(String(text.prefix(1500)))
+        for file in [document.files.first { $0.title.hasPrefix("Lecture") }, document.files.first { $0.title.hasPrefix("Exercise") }].compactMap({ $0 }) {
+            print("DIGEST \(file.title)\n" + String(file.digest.prefix(600)))
+        }
     }
 
     static func run(ask: AskModel) async {
@@ -80,7 +135,8 @@ enum SolveCheck {
         ask.showDemo(courseId: nil)
         let service = MoodleSubmissions(client: MoodleClient(token: "demo", transport: Snapshotter.DemoMoodle(cmid: 1)))
         guard let rules = try? await service.rules(cmid: 1) else { print("no demo rules"); return }
-        let model = SolveModel(rules: rules, service: service, ask: ask, deadline: nil, candidates: [],
+        let model = SolveModel(assignment: rules, service: service, ask: ask, database: ask.database, deadline: nil,
+                               courseIds: [], courseName: "", courseShort: "", candidates: [],
                                openMaterial: { _ in throw CocoaError(.fileNoSuchFile) })
         model.showDemo(request: "Show the substitution step in 1(b) in more detail",
                        note: "I expanded the substitution in 1(b) into two steps.",

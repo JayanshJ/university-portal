@@ -44,9 +44,15 @@ enum SheetFinder {
     /// The deadline's course, plus courses whose name shares a distinctive word with it (the CMS
     /// page of the same lecture).
     private static func relatedCourses(_ deadline: PortalOverview.ItemRow?, overview: PortalOverview) -> Set<Int64> {
-        guard let deadline else { return Set(overview.courses.filter(\.active).map(\.id)) }
+        guard deadline != nil else { return Set(overview.courses.filter(\.active).map(\.id)) }
+        return Set(courses(of: deadline, overview: overview))
+    }
+
+    /// The deadline's course first, then the courses related to it; empty without a deadline.
+    static func courses(of deadline: PortalOverview.ItemRow?, overview: PortalOverview) -> [Int64] {
+        guard let deadline else { return [] }
         let courses = overview.courses.map { (id: $0.id, name: $0.shortName + " " + $0.fullName, active: $0.active) }
-        return Set(CourseLinks.related(courseId: deadline.courseId, courseName: deadline.course + " " + deadline.courseFullName, courses: courses))
+        return CourseLinks.related(courseId: deadline.courseId, courseName: deadline.course + " " + deadline.courseFullName, courses: courses)
     }
 
     /// Whole numbers in a name, without leading zeros ("Blatt_04" → 4), ignoring years and terms

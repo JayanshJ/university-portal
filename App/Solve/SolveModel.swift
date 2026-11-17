@@ -26,6 +26,12 @@ final class SolveModel {
     enum Phase: Equatable {
         case idle
         case reading(String)
+        /// Indexing the course PDFs and digesting new ones into the course memory.
+        case memory(CourseMemory.Progress)
+        /// Reading the sheet's submission rules.
+        case rules
+        /// The rules ask for details the student hasn't given yet; waits for `saveDetails`.
+        case needsDetails([SubmissionRules.Field])
         case writing
         case failed(String)
     }
@@ -53,7 +59,12 @@ final class SolveModel {
         }
     }
 
-    var isBusy: Bool { phase == .writing || { if case .reading = phase { true } else { false } }() }
+    var isBusy: Bool {
+        switch phase {
+        case .reading, .memory, .rules, .writing: true
+        case .idle, .needsDetails, .failed: false
+        }
+    }
     var hasSolution: Bool { revision > 0 }
 
     /// The exercise sheet Solve works from, besides the assignment's own description and attachments.
@@ -71,13 +82,32 @@ final class SolveModel {
         }
     }
 
-    let rules: AssignmentRules
+    let assignment: AssignmentRules
+    /// The sheet's submission rules (header fields, file name), once read.
+    private(set) var rules: SubmissionRules?
+    /// Course PDFs Solve cannot read, with the reason.
+    private(set) var unread: [(title: String, reason: String)] = []
+    /// What the current solution drew on, from the finished reply.
+    private(set) var sources: [SolveReply.Source] = []
+    /// Every excerpt sent to the model so far, numbered in order.
+    private(set) var excerpts: [Excerpt] = []
+    private(set) var student: StudentDetails
+    private(set) var courseDetails: CourseDetails
+    /// Header values typed for this PDF only.
+    private(set) var headerOverrides: [SubmissionRules.Field: String] = [:]
+    /// The deadline's course first, then related courses (its CMS page); empty without a deadline.
+    let courseIds: [Int64]
+    let courseName: String
+    let courseShort: String
+    /// The sheet number from the assignment's name, when it names exactly one.
+    let sheetNumber: Int?
     /// Course PDFs that could be the sheet, best match first.
     let candidates: [SheetFinder.Candidate]
     private(set) var sheet: Sheet
     /// The user picked the sheet (or chose none), so Solve doesn't ask again.
     private var sheetChosen = false
     @ObservationIgnored private let service: MoodleSubmissions
+    @ObservationIgnored private let database: UniDatabase
     @ObservationIgnored private let ask: AskModel
     @ObservationIgnored private let deadline: PortalOverview.ItemRow?
     @ObservationIgnored private let openMaterial: (PortalOverview.ItemRow) async throws -> URL
@@ -86,12 +116,36 @@ final class SolveModel {
     @ObservationIgnored private var imagesRefused = false
     @ObservationIgnored private var replying: Task<Void, Never>?
     @ObservationIgnored private var converting: Task<Void, Never>?
+    /// Memory, rules and details before the first reply.
+    @ObservationIgnored private var preparing: Task<Void, Never>?
+    /// The memory build, cancelled on its own by Skip for Now.
+    @ObservationIgnored private var memoryBuild: Task<CourseMemory.Progress, Never>?
+    /// Ends the wait for indexing (indexing finished, or Skip for Now).
+    @ObservationIgnored private var memoryGate: AsyncStream<Void>.Continuation?
+    /// Bumped after each memory build, so late progress updates of a finished build are dropped.
+    @ObservationIgnored private var memoryRun = 0
+    /// The memory was built (or skipped) for this panel; `retryMemory` builds it again.
+    @ObservationIgnored private var memoryReady = false
+    /// The course memory as sent to the model, made once per solve.
+    @ObservationIgnored private var memoryText: String?
+    /// The sheet file's own text, and its material id when it is a course PDF.
+    @ObservationIgnored private var sheetText = ""
+    @ObservationIgnored private var sheetItemId: Int64?
 
-    init(rules: AssignmentRules, service: MoodleSubmissions, ask: AskModel, deadline: PortalOverview.ItemRow?,
+    init(assignment: AssignmentRules, service: MoodleSubmissions, ask: AskModel, database: UniDatabase,
+         deadline: PortalOverview.ItemRow?, courseIds: [Int64], courseName: String, courseShort: String,
          candidates: [SheetFinder.Candidate], openMaterial: @escaping (PortalOverview.ItemRow) async throws -> URL) {
-        self.rules = rules
+        self.assignment = assignment
         self.service = service
         self.ask = ask
+        self.database = database
+        self.courseIds = courseIds
+        self.courseName = courseName
+        self.courseShort = courseShort
+        let numbers = SheetFinder.sheetNumbers(in: assignment.name)
+        sheetNumber = numbers.count == 1 ? numbers.first : nil
+        student = StudentDetails.load(database)
+        courseDetails = courseIds.first.map { CourseDetails.load(database, courseId: $0) } ?? CourseDetails()
         self.deadline = deadline
         self.candidates = candidates
         self.openMaterial = openMaterial
@@ -103,25 +157,32 @@ final class SolveModel {
 
     /// Nothing to solve from yet: no sheet found, no attachment and hardly any description.
     var needsSheet: Bool {
-        !sheetChosen && sheet == .none && rules.attachments.isEmpty
-            && (rules.intro + (deadline?.body ?? "")).trimmingCharacters(in: .whitespacesAndNewlines).count < 300
+        !sheetChosen && sheet == .none && assignment.attachments.isEmpty
+            && (assignment.intro + (deadline?.body ?? "")).trimmingCharacters(in: .whitespacesAndNewlines).count < 300
     }
 
     // MARK: - Solving and editing
 
     func start() {
-        guard messages.isEmpty, signedIn, !needsSheet, !isBusy else { return }
-        reply(to: nil)
+        guard messages.isEmpty, signedIn, !needsSheet, !isBusy, preparing == nil else { return }
+        if case .needsDetails = phase { return }
+        prepare()
     }
 
-    /// Uses another sheet (or none) and solves again.
+    /// Uses another sheet (or none) and solves again; its rules are read again.
     func choose(_ sheet: Sheet) {
         replying?.cancel()
+        preparing?.cancel()
         self.sheet = sheet
         sheetChosen = true
         task = nil
+        sheetText = ""
+        sheetItemId = nil
+        rules = nil
+        if case .needsDetails = phase { phase = .idle }
         Task {
             await replying?.value
+            await preparing?.value
             resolve()
         }
     }
@@ -129,20 +190,177 @@ final class SolveModel {
     func send(_ text: String) {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isBusy, signedIn else { return }
+        if case .needsDetails = phase { return }
         messages.append(Message(role: .user, text: text))
         reply(to: text)
     }
 
-    func stop() { replying?.cancel() }
+    func stop() {
+        replying?.cancel()
+        preparing?.cancel()
+    }
 
     /// Starts over: a fresh solution from the task.
     func resolve() {
-        guard !isBusy else { return }
+        guard !isBusy, preparing == nil else { return }
         messages = []
         solution = ""
         revision = 0
         handwriting = .none
+        sources = []
+        excerpts = []
+        memoryText = nil
+        if rules == nil || !memoryReady {
+            prepare()
+        } else {
+            phase = .idle
+            reply(to: nil)
+        }
+    }
+
+    // MARK: - Memory, rules and details
+
+    /// Before the first reply: the course memory, the files it can't read, the sheet's submission
+    /// rules, and the student's details those rules need.
+    private func prepare() {
+        preparing = Task {
+            defer { preparing = nil }
+            do {
+                if !memoryReady { await buildMemory() }
+                try Task.checkCancellation()
+                if rules == nil {
+                    let task = try await readTask()
+                    rules = try await readRules(task)
+                }
+                try Task.checkCancellation()
+                let missing = missingDetails()
+                if !missing.isEmpty {
+                    phase = .needsDetails(missing)
+                    return
+                }
+                phase = .idle
+                reply(to: nil)
+            } catch {
+                let stopped = error is CancellationError || Task.isCancelled
+                phase = .failed(stopped ? "Stopped." : AskModel.describe(error))
+                if case ChatGPTError.signInExpired = error { await ask.refreshAccount() }
+            }
+        }
+    }
+
+    /// Indexes the courses' PDFs, then digests new ones. Skip for Now stops waiting for indexing
+    /// (it finishes in the background) or cancels the build; either way Solve goes on with what exists.
+    private func buildMemory() async {
+        memoryReady = true
+        memoryText = nil
+        guard let memoryCourseId = courseIds.first, let memory = ask.memory() else { return }
+        let ids = courseIds
+        let run = memoryRun
+        phase = .memory(CourseMemory.Progress())
+
+        let (gate, continuation) = AsyncStream<Void>.makeStream()
+        memoryGate = continuation
+        let ask = ask
+        Task {
+            _ = await ask.indexCourses(ids)
+            continuation.yield()
+        }
+        var skipped = true
+        for await _ in gate {
+            skipped = memoryGate == nil
+            break
+        }
+        memoryGate = nil
+
+        if !skipped, !Task.isCancelled {
+            let report: @Sendable (CourseMemory.Progress) -> Void = { [weak self] progress in
+                Task { @MainActor in
+                    guard let self, self.memoryRun == run, case .memory = self.phase else { return }
+                    self.phase = .memory(progress)
+                }
+            }
+            let build = Task { await memory.run(courseIds: ids, memoryCourseId: memoryCourseId, onProgress: report) }
+            memoryBuild = build
+            _ = await withTaskCancellationHandler { await build.value } onCancel: { build.cancel() }
+            memoryBuild = nil
+        }
+        memoryRun += 1
+        unread = (try? memory.unread(courseIds: ids)) ?? []
+    }
+
+    /// Stops the memory step and solves with what the memory has so far.
+    func skipMemory() {
+        guard case .memory = phase else { return }
+        if let memoryGate {
+            self.memoryGate = nil
+            memoryGate.yield()
+        }
+        memoryBuild?.cancel()
+    }
+
+    /// Builds the memory again (files that failed are read again). Before the first reply this
+    /// continues to the solution; afterwards the next reply uses the new memory.
+    func retryMemory() {
+        guard !isBusy, preparing == nil else { return }
+        memoryReady = false
+        if messages.isEmpty {
+            prepare()
+            return
+        }
+        preparing = Task {
+            defer { preparing = nil }
+            await buildMemory()
+            phase = .idle
+        }
+    }
+
+    /// One call: the sheet's header fields, file name pattern and other submission rules. Falls back
+    /// to `.none` when ChatGPT fails.
+    private func readRules(_ task: (text: String, images: [Data])) async throws -> SubmissionRules {
+        guard let model = ask.model else { return .none }
+        phase = .rules
+        var parts = ["# Assignment: \(assignment.name)"]
+        if !assignment.intro.isEmpty { parts.append(assignment.intro) }
+        parts.append("## Sheet\n\n" + String((sheetText.isEmpty ? task.text : sheetText).prefix(60_000)))
+        if let sheetItemId, let digest = memoryDocument()?.files.first(where: { $0.itemId == sheetItemId })?.digest {
+            parts.append("## Digest of the sheet\n\n" + digest)
+        }
+        do {
+            let reply = try await ask.client.complete(model: model, instructions: SubmissionRules.instructions,
+                                                      input: [ChatMessage(role: .user, content: parts.joined(separator: "\n\n"))])
+            return SubmissionRules.parse(reply)
+        } catch {
+            if error is CancellationError || Task.isCancelled { throw CancellationError() }
+            return .none
+        }
+    }
+
+    private func memoryDocument() -> MemoryDocument? {
+        guard let memoryCourseId = courseIds.first, let memory = ask.memory() else { return nil }
+        return try? memory.document(memoryCourseId: memoryCourseId, courseIds: courseIds)
+    }
+
+    /// Fields the rules need that are still empty and not typed in for this PDF.
+    private func missingDetails() -> [SubmissionRules.Field] {
+        (rules ?? .none).missing(student: student, course: courseDetails, sheet: sheetNumber).filter {
+            (headerOverrides[$0] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
+    /// Saves the student's and the course's details and, when Solve was waiting for them, solves.
+    func saveDetails(student: StudentDetails, course: CourseDetails) {
+        try? student.save(database)
+        if let courseId = courseIds.first { try? course.save(database, courseId: courseId) }
+        self.student = student
+        courseDetails = course
+        guard case .needsDetails = phase else { return }
+        phase = .idle
         reply(to: nil)
+    }
+
+    /// A header value for this PDF only (not saved).
+    func overrideHeader(_ field: SubmissionRules.Field, value: String) {
+        headerOverrides[field] = value
     }
 
     private func reply(to request: String?) {
@@ -155,8 +373,11 @@ final class SolveModel {
         replying = Task {
             do {
                 let task = try await readTask()
+                let context = courseContext(for: request, task: task.text)
+                let instructions = context == nil ? Self.instructions : Self.instructions + "\n\n" + Self.memoryInstructions
                 phase = .writing
-                var input = [ChatMessage(role: .user, content: task.text, images: imagesRefused ? [] : task.images)]
+                let first = context.map { $0 + "\n\n" + task.text } ?? task.text
+                var input = [ChatMessage(role: .user, content: first, images: imagesRefused ? [] : task.images)]
                 if let request {
                     input.append(ChatMessage(role: .assistant, content: "<solution>\n\(previous)\n</solution>"))
                     for message in history where !message.failed && !message.text.isEmpty {
@@ -166,7 +387,7 @@ final class SolveModel {
                 }
                 var raw = ""
                 do {
-                    for try await delta in ask.client.stream(model: model, instructions: Self.instructions, input: input) {
+                    for try await delta in ask.client.stream(model: model, instructions: instructions, input: input) {
                         raw += delta
                         let parsed = SolveReply.parse(raw)
                         messages[index].text = parsed.note
@@ -176,7 +397,7 @@ final class SolveModel {
                     // The model or plan doesn't take images: ask again with the sheet's text only.
                     imagesRefused = true
                     input[0].images = []
-                    for try await delta in ask.client.stream(model: model, instructions: Self.instructions, input: input) {
+                    for try await delta in ask.client.stream(model: model, instructions: instructions, input: input) {
                         raw += delta
                         let parsed = SolveReply.parse(raw)
                         messages[index].text = parsed.note
@@ -184,9 +405,12 @@ final class SolveModel {
                     }
                 }
                 let parsed = SolveReply.parse(raw)
-                if let final = parsed.solution ?? (request == nil ? raw : nil), !final.isEmpty {
+                // Without a <solution> tag a first reply is all solution; the note never holds <sources>.
+                if let final = parsed.solution ?? (request == nil ? parsed.note : nil), !final.isEmpty {
                     solution = final.trimmingCharacters(in: .whitespacesAndNewlines)
+                    sources = parsed.sources
                     revision += 1
+                    if parsed.solution == nil { messages[index].text = "" }
                     if messages[index].text.isEmpty { messages[index].text = request == nil ? "Here's a full solution." : "Updated." }
                 } else {
                     solution = previous
@@ -208,38 +432,47 @@ final class SolveModel {
     /// the PDF pages as images (formulas rarely survive text extraction).
     private func readTask() async throws -> (text: String, images: [Data]) {
         if let task { return task }
-        var parts = ["# Assignment: \(rules.name)"]
+        var parts = ["# Assignment: \(assignment.name)"]
         if let course = deadline?.courseFullName { parts.append("Course: \(course)") }
-        if !rules.intro.isEmpty { parts.append(rules.intro) }
-        if let body = deadline?.body?.trimmingCharacters(in: .whitespacesAndNewlines), !body.isEmpty, !rules.intro.contains(body) {
+        if !assignment.intro.isEmpty { parts.append(assignment.intro) }
+        if let body = deadline?.body?.trimmingCharacters(in: .whitespacesAndNewlines), !body.isEmpty, !assignment.intro.contains(body) {
             parts.append(body)
         }
         var images: [Data] = []
-        func add(_ filename: String, _ data: Data) {
+        /// Adds the file and returns its text.
+        @discardableResult func add(_ filename: String, _ data: Data) -> String {
             if let pdf = PDFDocument(data: data) {
                 let pages = (0..<pdf.pageCount).compactMap { pdf.page(at: $0)?.string }
-                parts.append("## File: \(filename)\n\n" + pages.enumerated().map { "[Page \($0.offset + 1)]\n\($0.element)" }.joined(separator: "\n\n"))
+                let text = pages.enumerated().map { "[Page \($0.offset + 1)]\n\($0.element)" }.joined(separator: "\n\n")
+                parts.append("## File: \(filename)\n\n" + text)
                 for index in 0..<pdf.pageCount where images.count < Self.maxImages {
                     if let page = pdf.page(at: index), let jpeg = Self.jpeg(page) { images.append(jpeg) }
                 }
+                return text
             } else if let text = String(data: data, encoding: .utf8), data.count < 200_000 {
                 parts.append("## File: \(filename)\n\n\(text)")
+                return text
             } else {
                 parts.append("## File: \(filename) (not readable as text)")
+                return ""
             }
         }
 
         switch sheet {
-        case .none: break
+        case .none:
+            sheetText = ""
+            sheetItemId = nil
         case .material(let candidate):
             phase = .reading("Reading \(candidate.name)…")
             let url = try await openMaterial(candidate.item)
-            add(candidate.item.filename ?? candidate.name, try Data(contentsOf: url))
+            sheetText = add(candidate.item.filename ?? candidate.name, try Data(contentsOf: url))
+            sheetItemId = candidate.item.id
         case .file(let name, let data):
-            add(name, data)
+            sheetText = add(name, data)
+            sheetItemId = nil
         }
-        for (number, file) in rules.attachments.enumerated() {
-            phase = .reading("Reading \(file.filename) (\(number + 1) of \(rules.attachments.count))…")
+        for (number, file) in assignment.attachments.enumerated() {
+            phase = .reading("Reading \(file.filename) (\(number + 1) of \(assignment.attachments.count))…")
             add(file.filename, try await service.download(file).data)
         }
         if !images.isEmpty { parts.append("The pages of the files above are attached as images; where the extracted text is garbled, the images are right.") }
@@ -249,6 +482,36 @@ final class SolveModel {
     }
 
     static let maxImages = 10
+
+    /// The course memory and the numbered excerpts, put before the task. The first reply retrieves
+    /// excerpts for each task on the sheet; a follow-up adds excerpts for the request that weren't
+    /// sent yet, numbered after the earlier ones.
+    private func courseContext(for request: String?, task: String) -> String? {
+        guard !courseIds.isEmpty else { return nil }
+        let retriever = Retriever(database: database)
+        if request != nil || excerpts.isEmpty {
+            let queries = request.map { [$0] } ?? SolveContext.tasks(in: sheetText.isEmpty ? task : sheetText)
+            let already = Set(excerpts.map { "\($0.itemId):\($0.page)" })
+            if let new = try? SolveContext.excerpts(retriever: retriever, tasks: queries, courseIds: courseIds, already: already) {
+                excerpts += new
+            }
+        }
+        if memoryText == nil, let document = memoryDocument() {
+            var text = CourseMemory.text(document, keeping: [sheetItemId].compactMap { $0 } + excerpts.map(\.itemId))
+            if !unread.isEmpty {
+                text += "\n\n## Not read\n" + unread.map { "- \($0.title) — \($0.reason)" }.joined(separator: "\n")
+            }
+            memoryText = text
+        }
+        var parts: [String] = []
+        if let memoryText { parts.append("# Course memory\n\n" + memoryText) }
+        if !excerpts.isEmpty {
+            parts.append("# Excerpts from the course materials\n\n" + excerpts.map {
+                "[\($0.number)] \($0.course) — \($0.title), page \($0.page)\n\($0.text)"
+            }.joined(separator: "\n\n"))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: "\n\n")
+    }
 
     /// A PDF page as a JPEG about 1400 pixels wide.
     static func jpeg(_ page: PDFPage) -> Data? {
@@ -279,6 +542,23 @@ final class SolveModel {
         Later messages are the student's review: apply each requested change and return the full, \
         revised solution in the same format, keeping everything they didn't ask to change. If a \
         message is only a question, answer it in a few sentences and omit the <solution> block.
+        """
+
+    static let memoryInstructions = """
+        Before the assignment, the first user message holds the course memory (the student's notes, \
+        a course overview and a digest of each course file, each under a "## " heading) and numbered \
+        excerpts from the course materials ([1], [2], …). Solve \
+        the way this course does: use its notation, definitions, theorems and methods, and name a \
+        result from the lecture the way the lecture does. Never mention the memory, the excerpts or \
+        their numbers inside the solution.
+
+        After </solution>, end the reply with a block listing what you used, one per line: an excerpt \
+        number in square brackets, or "memory: " and the heading of a memory section. For example:
+        <sources>
+        [2]
+        memory: Course overview
+        </sources>
+        Leave it out when you used none of them.
         """
 
     // MARK: - Handwriting (Math Writer)
@@ -373,6 +653,8 @@ final class SolveModel {
                     Message(role: .assistant, text: note)]
         self.solution = solution
         sheetChosen = true
+        rules = SubmissionRules.none
+        memoryReady = true
         revision = 2
         phase = .idle
         if let rendering { handwriting = .ready(rendering, revision: revision) }
@@ -381,7 +663,7 @@ final class SolveModel {
     // MARK: - Output
 
     var suggestedFilename: String {
-        let base = rules.name.replacingOccurrences(of: #"[/\\:*?"<>|]+"#, with: "-", options: .regularExpression)
+        let base = assignment.name.replacingOccurrences(of: #"[/\\:*?"<>|]+"#, with: "-", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces)
         return "\(base.isEmpty ? "Solution" : base) - Solution.pdf"
     }
@@ -390,7 +672,7 @@ final class SolveModel {
     func pdf() async throws -> Data {
         switch format {
         case .typed:
-            return try await SolutionPDF.make(markdown: solution, title: rules.name)
+            return try await SolutionPDF.make(markdown: solution, title: assignment.name)
         case .handwritten:
             guard case .ready(let rendering, let rendered) = handwriting, rendered == revision else {
                 throw Handwriter.Failure.failed("The handwritten version isn't ready yet.")

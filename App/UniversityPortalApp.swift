@@ -111,13 +111,22 @@ final class AppModel {
             Task { await TemplateCheck.run() }
             return
         }
-        if CommandLine.arguments.contains("--solve-check") {
-            let ask = AskModel(database: database, secrets: NoSecrets(), transport: transport, files: files(database))
+        if let flag = CommandLine.arguments.firstIndex(of: "--solve-check") {
+            // `--solve-check memory <courseId>` builds that course's memory with the real ChatGPT sign-in.
+            let rest = CommandLine.arguments.dropFirst(flag + 1)
+            let memoryCourse = rest.first == "memory" ? rest.dropFirst().first.flatMap { Int64($0) } : nil
+            let ask = AskModel(database: database, secrets: memoryCourse == nil ? NoSecrets() : secrets,
+                               transport: transport, files: files(database))
             Task {
                 var updates = database.overviewUpdates().makeAsyncIterator()
-                if let overview = try? await updates.next() { SolveCheck.matches(overview) }
+                let overview = try? await updates.next()
+                if let overview { SolveCheck.matches(overview) }
                 await SolveCheck.indexStats(database)
-                await SolveCheck.run(ask: ask)
+                if let memoryCourse {
+                    await SolveCheck.memory(ask: ask, courseId: memoryCourse, overview: overview ?? PortalOverview())
+                } else {
+                    await SolveCheck.run(ask: ask)
+                }
             }
             return
         }

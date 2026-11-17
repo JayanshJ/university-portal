@@ -435,7 +435,9 @@ struct SubmissionView: View {
                         guard let service = app.submissions() else { return }
                         let candidates = SheetFinder.candidates(assignment: rules.name, deadline: item, overview: app.overview)
                         withAnimation {
-                            solving = SolveModel(rules: rules, service: service, ask: ask, deadline: item,
+                            solving = SolveModel(assignment: rules, service: service, ask: ask, database: ask.database,
+                                                 deadline: item, courseIds: SheetFinder.courses(of: item, overview: app.overview),
+                                                 courseName: item?.courseFullName ?? "", courseShort: item?.course ?? "",
                                                  candidates: candidates, openMaterial: { try await app.localFile($0) })
                         }
                     } label: {

@@ -42,7 +42,8 @@ final class AskModel {
     var courseFilter: Int64?
     var isAnswering: Bool { turns.last.map { $0.phase == .searching || $0.phase == .writing } ?? false }
 
-    @ObservationIgnored private let database: UniDatabase
+    /// Also used by the Solve panel.
+    @ObservationIgnored let database: UniDatabase
     @ObservationIgnored private let auth: ChatGPTAuth
     /// Also used by the Solve panel.
     @ObservationIgnored let client: ResponsesClient
@@ -165,6 +166,15 @@ final class AskModel {
             indexing = nil
             refreshIndexStatus()
         }
+    }
+
+    /// Solve's course memory, digesting with the chosen model (nil until one is chosen).
+    func memory() -> CourseMemory? {
+        guard let model else { return nil }
+        let client = client
+        return CourseMemory(database: database, complete: { instructions, input in
+            try await client.complete(model: model, instructions: instructions, input: [ChatMessage(role: .user, content: input)])
+        }, model: model)
     }
 
     /// Indexes just these courses' PDFs (used before solving); reports progress like `indexNow`.

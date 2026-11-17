@@ -61,7 +61,7 @@ struct SolvePanel: View {
             Menu {
                 sheetChoices
             } label: {
-                Label(model.sheet.name ?? (model.rules.attachments.isEmpty ? "None chosen" : "Assignment attachments"),
+                Label(model.sheet.name ?? (model.assignment.attachments.isEmpty ? "None chosen" : "Assignment attachments"),
                       systemImage: "doc.text")
             }
             .menuStyle(.borderlessButton)
@@ -100,7 +100,7 @@ struct SolvePanel: View {
         VStack(spacing: 14) {
             Image(systemName: "doc.text.magnifyingglass").font(.system(size: 34)).foregroundStyle(.secondary)
             Text("Which sheet should it solve?").font(.headline)
-            Text("This assignment has no sheet attached, and no course material clearly matches “\(model.rules.name)”.")
+            Text("This assignment has no sheet attached, and no course material clearly matches “\(model.assignment.name)”.")
                 .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
             if !model.candidates.isEmpty {
                 ScrollView {
@@ -158,6 +158,18 @@ struct SolvePanel: View {
     private var preview: some View {
         if model.needsSheet {
             chooseSheet
+        } else if case .memory(let memory) = model.phase {
+            VStack(spacing: 10) {
+                progress(memory.total == 0 ? "Reading the course materials…"
+                         : "Reading the course materials (\(memory.done) of \(memory.total))…\(memory.current.map { "\n\($0)" } ?? "")")
+                Button("Skip for Now") { model.skipMemory() }
+            }
+        } else if model.phase == .rules {
+            progress("Reading the submission rules…")
+        } else if case .needsDetails(let fields) = model.phase {
+            failure("Details Needed", "The sheet asks for: \(fields.map(\.rawValue).joined(separator: ", ")).") {
+                Button("Continue") { model.saveDetails(student: model.student, course: model.courseDetails) }
+            }
         } else if case .reading(let message) = model.phase {
             progress(message)
         } else if !model.hasSolution && model.solution.isEmpty {
