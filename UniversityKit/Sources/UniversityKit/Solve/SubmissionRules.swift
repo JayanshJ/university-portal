@@ -14,6 +14,9 @@ public struct SubmissionRules: Codable, Sendable, Equatable {
     public var filename: String?
     public var other: [String]
     public var quote: String?
+    /// Fields the student marked "Not needed for this sheet" (see `dropping`): left out of the
+    /// header, the file name and what is missing. Never saved; not part of the JSON.
+    public private(set) var omitted: Set<Field> = []
 
     public init(header: [Field], filename: String? = nil, other: [String] = [], quote: String? = nil) {
         self.header = header
@@ -32,9 +35,48 @@ public struct SubmissionRules: Codable, Sendable, Equatable {
         quote = try? c.decode(String?.self, forKey: .quote)
     }
 
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: Keys.self)
+        try c.encode(header.map(\.rawValue), forKey: .header)
+        try c.encode(filename, forKey: .filename)
+        try c.encode(other, forKey: .other)
+        try c.encode(quote, forKey: .quote)
+    }
+
     private enum Keys: String, CodingKey { case header, filename, other, quote }
 
     public static let none = SubmissionRules(header: [.name])
+
+    /// Fields that can be marked "Not needed for this sheet". The course and sheet rows always
+    /// stay, and the sheet number a file name pattern needs can't be dropped.
+    public static let droppable: [Field] = [.name, .matrikelnr, .email, .group, .tutorial, .partnerNames, .partnerMatrikelnr]
+
+    /// These rules without the given fields (for one PDF): they leave the header, their
+    /// placeholders leave the file name pattern, and `missing` no longer asks for them. No value
+    /// is ever filled in for them.
+    public func dropping(_ fields: Set<Field>) -> SubmissionRules {
+        let fields = fields.intersection(Self.droppable)
+        guard !fields.isEmpty else { return self }
+        var rules = self
+        rules.header.removeAll { fields.contains($0) }
+        rules.omitted = omitted.union(fields)
+        if let pattern = filename {
+            let placeholders: [String: Field] = [
+                "name": .name, "lastname": .name, "firstname": .name, "matrikelnr": .matrikelnr,
+                "group": .group, "tutorial": .tutorial, "email": .email,
+            ]
+            var result = ""
+            var rest = pattern[...]
+            while let m = rest.firstMatch(of: /\{([^}]*)\}/) {
+                result += rest[..<m.range.lowerBound]
+                let dropped = placeholders[m.1.lowercased()].map(fields.contains) ?? false
+                if !dropped { result += rest[m.range] }
+                rest = rest[m.range.upperBound...]
+            }
+            rules.filename = result + rest
+        }
+        return rules
+    }
 
     public static let instructions = """
         Read the sheet and report only what it asks for on submission. Answer with this JSON and nothing else:
@@ -49,11 +91,14 @@ public struct SubmissionRules: Codable, Sendable, Equatable {
         """
 
     public static func parse(_ reply: String) -> SubmissionRules {
-        guard let open = reply.firstIndex(of: "{"), let close = reply.lastIndex(of: "}"), open < close,
-            let rules = try? JSONDecoder().decode(
-                SubmissionRules.self, from: Data(reply[open...close].utf8))
-        else { return .none }
-        return rules
+        decode(reply) ?? .none
+    }
+
+    /// The rules in a reply, or nil when it holds no rules JSON (so a garbled reply isn't taken
+    /// for a sheet without rules).
+    public static func decode(_ reply: String) -> SubmissionRules? {
+        guard let open = reply.firstIndex(of: "{"), let close = reply.lastIndex(of: "}"), open < close else { return nil }
+        return try? JSONDecoder().decode(SubmissionRules.self, from: Data(reply[open...close].utf8))
     }
 
     // MARK: Missing details
@@ -78,7 +123,7 @@ public struct SubmissionRules: Codable, Sendable, Equatable {
             needed.append(.name)  // the fallback filename uses the name
         }
         var result: [Field] = []
-        for field in needed where !result.contains(field) {
+        for field in needed where !result.contains(field) && !omitted.contains(field) {
             let empty: Bool
             switch field {
             case .name:
@@ -184,7 +229,7 @@ public struct SubmissionRules: Codable, Sendable, Equatable {
             }
             name += rest
         } else {
-            name = "\(assignment) - \(student.name)"
+            name = omitted.contains(.name) ? assignment : "\(assignment) - \(student.name)"
         }
         name = String(name.map { "/\\:*?\"<>|".contains($0) ? "-" : $0 })
         var stem = name.lowercased().hasSuffix(".pdf") ? String(name.dropLast(4)) : name

@@ -40,6 +40,40 @@ public enum ChatGPTError: Error, Equatable {
     case server(String)
 }
 
+extension ChatGPTError: LocalizedError {
+    /// Wording a student can read (shown in Ask, Solve and the course memory's "not read" list).
+    public var errorDescription: String? {
+        switch self {
+        case .usageLimitReached:
+            "You've reached the usage limit for University Portal on your ChatGPT plan. You can check or raise it under Manage usage."
+        case .notEligible:
+            "Your ChatGPT plan can't be used in other apps. Plan usage needs ChatGPT Plus or Pro."
+        case .usageUnavailable:
+            "ChatGPT plan usage is temporarily unavailable. Try again in a moment."
+        case .signInExpired, .notSignedIn:
+            "Your ChatGPT sign-in has expired. Continue with ChatGPT again."
+        case .planUsageNotGranted:
+            "Plan usage wasn't allowed when you signed in. Sign in again and allow it."
+        case .accessDenied:
+            "Sign-in was cancelled."
+        case .stateMismatch, .registrationIncomplete, .clientMismatch:
+            "Signing in to ChatGPT didn't finish. Continue with ChatGPT again."
+        case .incomplete(let reason):
+            "The answer was cut off (\(reason)). Try asking again."
+        case .server(let detail):
+            "ChatGPT returned an error: \(detail)"
+        }
+    }
+
+    /// Errors after which further ChatGPT calls would fail the same way.
+    public var stopsFurtherCalls: Bool {
+        switch self {
+        case .usageLimitReached, .signInExpired, .notSignedIn: true
+        default: false
+        }
+    }
+}
+
 /// "Continue with ChatGPT" for open-source and local apps (developers.openai.com/siwc), so requests
 /// run on the user's ChatGPT plan: dynamic registration, PKCE, a loopback redirect on 127.0.0.1,
 /// ID-token verification, refresh with rotation, and revocation on sign-out.

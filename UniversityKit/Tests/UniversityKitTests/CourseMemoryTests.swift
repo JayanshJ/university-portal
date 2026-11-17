@@ -195,6 +195,77 @@ private func seedMemory(_ database: UniDatabase, pdfs: [(course: Int, title: Str
         #expect(unread.map(\.reason) == ["scanned", "too large"])
     }
 
+    @Test func skippedPartwayTheRestStayNotReadYet() async throws {
+        let (database, ids, _, _) = try setup([(1, "One", ["a"]), (1, "Two", ["b"]), (1, "Three", ["c"])])
+        let calls = Counter()
+        // Skip for Now while the second file is read: the run is cancelled there.
+        let memory = CourseMemory(database: database, complete: { _, input in
+            calls.add()
+            if calls.value == 2 { withUnsafeCurrentTask { $0?.cancel() } }
+            return "digest of " + input.prefix(20)
+        }, model: "m")
+        let run = Task { await memory.run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in }) }
+        _ = await run.value
+        #expect(calls.value == 2)
+        #expect(try await database.writer.read { try MemoryFile.fetchCount($0) } == 1)
+        let unread = try memory.unread(courseIds: [1])
+        #expect(unread.map(\.title) == ["Two", "Three"])
+        #expect(unread.allSatisfy { $0.reason == CourseMemory.notReadYet })
+        #expect(try memory.document(memoryCourseId: 1, courseIds: [1]).unread.count == 2)
+        // Read later, they leave the list.
+        _ = await CourseMemory(database: database, complete: FakeModel().complete, model: "m")
+            .run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in })
+        #expect(try memory.unread(courseIds: [1]).isEmpty)
+        _ = ids
+    }
+
+    @Test func aChangedFileIsNotReadYetUntilReadAgain() async throws {
+        let (database, ids, _, memory) = try setup(two)
+        _ = await memory.run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in })
+        try await database.writer.write { try $0.execute(sql: "UPDATE uni_index SET sha256 = 'new' WHERE item_id IN (?, ?)", arguments: [ids[0], ids[1]]) }
+        try memory.setDigest("mine", itemId: ids[1])  // a hand edit is kept, not "not read"
+        #expect(try memory.unread(courseIds: [1]).map { "\($0.title): \($0.reason)" } == ["Lecture 1: not read yet"])
+        try await database.writer.write { try $0.execute(sql: "UPDATE uni_memory_file SET prompt_version = 0 WHERE item_id = ?", arguments: [ids[0]]) }
+        #expect(try memory.unread(courseIds: [1]).map(\.title) == ["Lecture 1"])
+    }
+
+    @Test func aPDFWithoutTextIsNotSentToTheModel() async throws {
+        let (database, ids, model, memory) = try setup([(1, "Scan", ["", "  \n "]), (1, "Lecture", ["text"])])
+        let progress = await memory.run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in })
+        #expect(progress.failed == ["Scan"])
+        #expect(!model.calls.contains { $0.input.contains("Scan") })
+        #expect(model.calls.count == 2)  // Lecture + overview
+        let row = try await database.writer.read { try MemoryFile.fetchOne($0, key: ids[0]) }
+        #expect(row?.digest == "" && row?.error == CourseMemory.noText)
+        #expect(try memory.unread(courseIds: [1]).map(\.reason) == [CourseMemory.noText])
+        // Still no call on the next run.
+        _ = await memory.run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in })
+        #expect(!model.calls.contains { $0.input.contains("Scan") })
+    }
+
+    @Test func aUsageLimitStopsTheRunAndTheRestStayUnread() async throws {
+        let (database, _, _, _) = try setup([(1, "One", ["a"]), (1, "Two", ["b"]), (1, "Three", ["c"])])
+        let calls = Counter()
+        let memory = CourseMemory(database: database, complete: { _, _ in
+            calls.add()
+            throw ChatGPTError.usageLimitReached
+        }, model: "m")
+        let progress = await memory.run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in })
+        #expect(calls.value == 1)  // no further files, no overview
+        #expect(progress.failed == ["One"])
+        let unread = try memory.unread(courseIds: [1])
+        #expect(unread.map(\.title) == ["One", "Two", "Three"])
+        #expect(unread[0].reason == ChatGPTError.usageLimitReached.errorDescription)
+        #expect(unread[0].reason.hasPrefix("You've reached the usage limit"))
+        #expect(unread[1].reason == CourseMemory.notReadYet && unread[2].reason == CourseMemory.notReadYet)
+    }
+
+    @Test func aServerErrorReadsAsASentence() async throws {
+        let (_, _, _, _) = try setup(two)
+        let error: Error = ChatGPTError.server("HTTP 500")
+        #expect(error.localizedDescription == "ChatGPT returned an error: HTTP 500")
+    }
+
     @Test func anEditDuringARunSurvives() async throws {
         let database = try UniDatabase.inMemory()
         let ids = try seedMemory(database, pdfs: two)
@@ -309,7 +380,8 @@ private func seedMemory(_ database: UniDatabase, pdfs: [(course: Int, title: Str
         let memory = CourseMemory(database: database, complete: FakeModel().complete, model: "m")
         // Solve ran from course 2's assignment: the notes and overview are under course 2.
         _ = await memory.run(courseIds: [2, 1], memoryCourseId: 2, onProgress: { _ in })
-        let before = Date.now
+        // The database keeps milliseconds: a timestamp written in the same millisecond can read back earlier.
+        let before = Date.now.addingTimeInterval(-0.01)
         try memory.setNotes("mine", courseId: 2)
         // Seen from course 1's page, the related course 2 holds the memory.
         let summary = try #require(try memory.summary(courseIds: [1, 2]))
@@ -332,3 +404,10 @@ private func seedMemory(_ database: UniDatabase, pdfs: [(course: Int, title: Str
 }
 
 final class Holder: @unchecked Sendable { var memory: CourseMemory?; var armed = false }
+
+final class Counter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    var value: Int { lock.withLock { count } }
+    func add() { lock.withLock { count += 1 } }
+}

@@ -170,4 +170,38 @@ import Testing
         #expect(details.tutorial == "Di 10")
         #expect(details.alone == false)
     }
+
+    @Test func droppedFieldsLeaveHeaderFilenameAndMissing() {
+        let rules = SubmissionRules(header: [.name, .matrikelnr, .group], filename: "Blatt{sheet}_{lastname}_{matrikelnr}.pdf")
+        let student = StudentDetails(name: "", matrikelnr: "")
+        #expect(rules.missing(student: student, course: CourseDetails(), sheet: 2) == [.name, .matrikelnr, .group])
+        let dropped = rules.dropping([.matrikelnr, .group])
+        #expect(dropped.missing(student: student, course: CourseDetails(), sheet: 2) == [.name])
+        #expect(dropped.header == [.name])
+        let named = StudentDetails(name: "Ada Lovelace", matrikelnr: "123")
+        // No value is filled in for a dropped field, even one the student has.
+        #expect(dropped.filename(student: named, course: CourseDetails(), assignment: "Blatt 2", sheet: 2, courseShort: "ANA") == "Blatt2_Lovelace.pdf")
+        #expect(!dropped.header(student: named, course: CourseDetails(group: "G"), courseName: "Analysis", sheetTitle: "Blatt 2")
+            .contains { $0.label == "Gruppe" || $0.label == "Group" || $0.value == "123" })
+        // Course and sheet rows always stay; the sheet number can't be dropped.
+        let rows = rules.dropping([.name, .matrikelnr, .group, .sheet]).header(student: named, course: CourseDetails(), courseName: "Analysis", sheetTitle: "Blatt 2")
+        #expect(rows.map(\.value) == ["Analysis", "Blatt 2"])
+        #expect(rules.dropping([.sheet]).missing(student: named, course: CourseDetails(group: "G"), sheet: nil) == [.sheet])
+    }
+
+    @Test func droppingTheNameWithoutAPatternNeedsNoName() {
+        let none = SubmissionRules.none
+        #expect(none.missing(student: StudentDetails(), course: CourseDetails(), sheet: nil) == [.name])
+        let dropped = none.dropping([.name])
+        #expect(dropped.missing(student: StudentDetails(), course: CourseDetails(), sheet: nil).isEmpty)
+        #expect(dropped.filename(student: StudentDetails(name: "Ada Lovelace"), course: CourseDetails(), assignment: "Capstone 02",
+                                 sheet: nil, courseShort: "X") == "Capstone 02.pdf")
+        #expect(dropped.header(student: StudentDetails(name: "Ada Lovelace"), course: CourseDetails(), courseName: "C", sheetTitle: "S").count == 2)
+    }
+
+    @Test func aGarbledRulesReplyIsNotNoRules() {
+        #expect(SubmissionRules.decode("Sorry, I can't read the sheet.") == nil)
+        #expect(SubmissionRules.decode(#"{"header": ["name"], "filename": null, "other": [], "quote": null}"#) == SubmissionRules.none)
+        #expect(SubmissionRules.parse("garbage") == .none)
+    }
 }

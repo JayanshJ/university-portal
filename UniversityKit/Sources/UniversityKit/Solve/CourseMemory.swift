@@ -57,29 +57,45 @@ public struct CourseMemory: Sendable {
             SELECT pdf.id, pdf.course_id, pdf.title, x.sha256 FROM (\(pdfQuery(courseIds))) pdf
             JOIN uni_index x ON x.item_id = pdf.id AND x.error IS NULL
             LEFT JOIN uni_memory_file m ON m.item_id = pdf.id
-            WHERE m.item_id IS NULL
-               OR (m.edited = 0 AND (m.sha256 IS NULL OR m.sha256 IS NOT x.sha256
-                                     OR m.prompt_version < ? OR m.error IS NOT NULL))
+            WHERE \(waiting)
             ORDER BY pdf.id
             """, arguments: [promptVersion]).map { ($0["id"], $0["course_id"], $0["title"], $0["sha256"]) }
     }
 
-    /// Files Solve cannot read, with the reason.
+    /// An indexed file (`x`) waits for a digest (`m`): none yet, or not edited and new, changed,
+    /// from an older prompt or failed before. One argument: the prompt version.
+    private static let waiting = """
+        (m.item_id IS NULL
+           OR (m.edited = 0 AND (m.sha256 IS NULL OR m.sha256 IS NOT x.sha256
+                                 OR m.prompt_version < ? OR m.error IS NOT NULL)))
+        """
+
+    /// The reason shown for an indexed file that has no current digest (skipped, cancelled, or
+    /// changed since it was read).
+    public static let notReadYet = "not read yet"
+
+    /// The reason recorded for a PDF without text (a scan): it isn't sent to the model.
+    public static let noText = "No text in the PDF (a scan)."
+
+    /// Files Solve has no current digest of, with the reason: not indexed (or failed to), the
+    /// digest failed, or not read yet (skipped, cancelled, stopped early, or changed since).
     public func unread(courseIds: [Int64]) throws -> [(title: String, reason: String)] {
         try database.writer.read { db in
             try Row.fetchAll(db, sql: """
-                SELECT pdf.title, pdf.size_bytes, x.item_id AS indexed, x.error AS index_error, m.error AS digest_error
+                SELECT pdf.title, pdf.size_bytes, x.item_id AS indexed, x.error AS index_error, m.error AS digest_error,
+                       \(Self.waiting) AS waiting
                 FROM (\(Self.pdfQuery(courseIds))) pdf
                 LEFT JOIN uni_index x ON x.item_id = pdf.id
                 LEFT JOIN uni_memory_file m ON m.item_id = pdf.id
                 ORDER BY pdf.id
-                """).compactMap { row -> (String, String)? in
+                """, arguments: [Self.promptVersion]).compactMap { row -> (String, String)? in
                 let title: String = row["title"]
                 if let error: String = row["index_error"] { return (title, error) }
                 if row["indexed"] as Int64? == nil {
                     return (title, (row["size_bytes"] as Int64? ?? 0) > MaterialIndexer.maxBytes ? "too large" : "not indexed yet")
                 }
                 if let error: String = row["digest_error"] { return (title, error) }
+                if row["waiting"] as Bool? == true { return (title, Self.notReadYet) }
                 return nil
             }
         }
@@ -145,12 +161,20 @@ public struct CourseMemory: Sendable {
             let todo = try await database.writer.read { try Self.pending($0, courseIds: courseIds) }
             progress.total = todo.count
             onProgress(progress)
+            var stopped = false
             for file in todo {
                 if Task.isCancelled { return progress }
                 progress.current = file.title
                 onProgress(progress)
                 do {
-                    let digest = try await digest(itemId: file.id, title: file.title)
+                    guard let digest = try await digest(itemId: file.id, title: file.title) else {
+                        // No text (a scan): noted without asking the model, which would only see the title.
+                        progress.failed.append(file.title)
+                        try await record(Self.noText, file: file)
+                        progress.done += 1
+                        onProgress(progress)
+                        continue
+                    }
                     try await database.writer.write { db in
                         // A hand edit made while the model was working wins.
                         if try MemoryFile.fetchOne(db, key: file.id)?.edited == true { return }
@@ -161,22 +185,25 @@ public struct CourseMemory: Sendable {
                 } catch {
                     if Task.isCancelled { return progress }
                     progress.failed.append(file.title)
-                    let message = error.localizedDescription
-                    try await database.writer.write { db in
-                        if var row = try MemoryFile.fetchOne(db, key: file.id) {
-                            if row.edited { return }
-                            row.error = message
-                            try row.update(db)
-                        } else {
-                            try MemoryFile(itemId: file.id, courseId: file.courseId, promptVersion: Self.promptVersion,
-                                           model: model, error: message).insert(db)
-                        }
+                    // ChatGPTError is a LocalizedError: the reason reads like the rest of the app.
+                    try await record(error.localizedDescription, file: file)
+                    // Out of usage or signed out: every further call would fail the same way. The rest
+                    // stay "not read yet".
+                    if let error = error as? ChatGPTError, error.stopsFurtherCalls {
+                        progress.done += 1
+                        stopped = true
+                        break
                     }
                 }
                 progress.done += 1
                 onProgress(progress)
             }
             if Task.isCancelled { return progress }
+            if stopped {
+                progress.current = nil
+                onProgress(progress)
+                return progress
+            }
             try await updateOverview(courseIds: courseIds, memoryCourseId: memoryCourseId)
         } catch {
             if !Task.isCancelled { progress.failed.append("Overview") }
@@ -211,12 +238,28 @@ public struct CourseMemory: Sendable {
         }
     }
 
+    /// Notes why a file has no digest (kept when it was edited by hand meanwhile).
+    private func record(_ message: String, file: (id: Int64, courseId: Int64, title: String, sha256: String?)) async throws {
+        try await database.writer.write { db in
+            if var row = try MemoryFile.fetchOne(db, key: file.id) {
+                if row.edited { return }
+                row.error = message
+                try row.update(db)
+            } else {
+                try MemoryFile(itemId: file.id, courseId: file.courseId, promptVersion: Self.promptVersion,
+                               model: model, error: message).insert(db)
+            }
+        }
+    }
+
     /// One digest for the whole file: in one call, or in parts at page boundaries and condensed.
-    private func digest(itemId: Int64, title: String) async throws -> String {
+    /// Nil when the file has no text (a scan), without asking the model.
+    private func digest(itemId: Int64, title: String) async throws -> String? {
         let pages = try await database.writer.read { db in
             try Row.fetchAll(db, sql: "SELECT page, text FROM uni_page WHERE item_id = ? ORDER BY page, ordinal", arguments: [itemId])
                 .map { (page: $0["page"] as Int, text: $0["text"] as String) }
         }
+        guard pages.contains(where: { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else { return nil }
         let header = "File: \(title)\n\n"
         let parts = Self.split(pages, limit: Self.partSize - header.count)
         var digests: [String] = []

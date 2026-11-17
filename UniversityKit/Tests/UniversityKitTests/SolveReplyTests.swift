@@ -69,4 +69,20 @@ import Testing
         #expect(partial.map(\.number) == Array(2...(partial.count + 1)))
         #expect(!partial.contains { "\($0.itemId):\($0.page)" == keys[0] })
     }
+
+    @Test func excerptTextIsCappedKeepingEachTasksBest() {
+        func excerpt(_ item: Int64, _ size: Int) -> Excerpt {
+            Excerpt(number: 0, itemId: item, courseId: 1, title: "F\(item)", course: "C", page: 1, text: String(repeating: "x", count: size))
+        }
+        // Two tasks, three ranked excerpts each; room for four.
+        let lists = [[excerpt(1, 100), excerpt(2, 100), excerpt(3, 100)], [excerpt(4, 100), excerpt(5, 100), excerpt(6, 100)]]
+        let picked = SolveContext.pick(lists, already: [], budget: 400)
+        #expect(picked.map(\.itemId) == [1, 2, 4, 5])
+        #expect(picked.map(\.number) == [1, 2, 3, 4])
+        #expect(picked.reduce(0) { $0 + $1.text.count } <= 400)
+        // A follow-up's budget is what is left; numbers continue.
+        let more = SolveContext.pick(lists, already: Set(picked.map { "\($0.itemId):\($0.page)" }), budget: 100)
+        #expect(more.map(\.itemId) == [3] && more.map(\.number) == [5])
+        #expect(SolveContext.excerptBudget == 50_000)
+    }
 }

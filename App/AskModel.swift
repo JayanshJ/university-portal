@@ -297,22 +297,9 @@ final class AskModel {
 
     static func describe(_ error: Error) -> String {
         switch error {
-        case ChatGPTError.usageLimitReached:
-            "You've reached the usage limit for University Portal on your ChatGPT plan. You can check or raise it under Manage usage."
-        case ChatGPTError.notEligible:
-            "Your ChatGPT plan can't be used in other apps. Plan usage needs ChatGPT Plus or Pro."
-        case ChatGPTError.usageUnavailable:
-            "ChatGPT plan usage is temporarily unavailable. Try again in a moment."
-        case ChatGPTError.signInExpired, ChatGPTError.notSignedIn:
-            "Your ChatGPT sign-in has expired. Continue with ChatGPT again."
-        case ChatGPTError.planUsageNotGranted:
-            "Plan usage wasn't allowed when you signed in. Sign in again and allow it."
-        case ChatGPTError.accessDenied:
-            "Sign-in was cancelled."
-        case ChatGPTError.incomplete(let reason):
-            "The answer was cut off (\(reason)). Try asking again."
-        case ChatGPTError.server(let detail):
-            "ChatGPT returned an error: \(detail)"
+        case let error as ChatGPTError:
+            // The wording lives with the error, so the course memory's "not read" list reads the same.
+            error.errorDescription ?? Redactor.redact(String(describing: error))
         case let error as URLError where error.code == .notConnectedToInternet:
             "You're offline."
         default:
