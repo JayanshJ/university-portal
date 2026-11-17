@@ -44,11 +44,24 @@ public struct CourseDetails: Codable, Sendable, Equatable {
     public var group: String
     public var tutorial: String
     public var partners: [Partner]
+    /// The student hands in alone: the sheet's partner fields don't apply.
+    public var alone: Bool
 
-    public init(group: String = "", tutorial: String = "", partners: [Partner] = []) {
+    public init(group: String = "", tutorial: String = "", partners: [Partner] = [], alone: Bool = false) {
         self.group = group
         self.tutorial = tutorial
         self.partners = partners
+        self.alone = alone
+    }
+
+    private enum CodingKeys: String, CodingKey { case group, tutorial, partners, alone }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        group = try c.decodeIfPresent(String.self, forKey: .group) ?? ""
+        tutorial = try c.decodeIfPresent(String.self, forKey: .tutorial) ?? ""
+        partners = try c.decodeIfPresent([Partner].self, forKey: .partners) ?? []
+        alone = try c.decodeIfPresent(Bool.self, forKey: .alone) ?? false  // saved before `alone` existed
     }
 
     public static func load(_ db: UniDatabase, courseId: Int64) -> CourseDetails {

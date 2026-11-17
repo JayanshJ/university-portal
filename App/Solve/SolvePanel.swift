@@ -46,10 +46,11 @@ struct SolvePanel: View {
                     unreadBanner
                     Divider()
                 }
-                preview.frame(maxHeight: .infinity)
+                // The PDF stays readable: an expanded section above takes the chat's room instead.
+                preview.frame(minHeight: 320, maxHeight: .infinity)
                 Divider()
                 // The details form gets the room; nothing can be sent until it's saved.
-                if !waitsForDetails {
+                if !waitsForDetails && !showsRules && !showsUnread {
                     chat
                     Divider()
                 }
@@ -322,10 +323,15 @@ struct SolvePanel: View {
     /// this PDF), the other rules and the sheet's own words.
     private var rulesRow: some View {
         let rules = model.rules ?? .none
-        let fields = rules.header.filter { $0 != .sheet }
+        let partner: Set<SubmissionRules.Field> = [.partnerNames, .partnerMatrikelnr]
+        let fields = rules.header.filter { $0 != .sheet && !(model.courseDetails.alone && partner.contains($0)) }
+        let needsSheet = rules.filename?.lowercased().contains("{sheet}") == true
         return VStack(alignment: .leading, spacing: 0) {
             Button {
-                withAnimation(.easeOut(duration: 0.15)) { showsRules.toggle() }
+                withAnimation(.easeOut(duration: 0.15)) {
+                    showsRules.toggle()
+                    if showsRules { showsUnread = false }
+                }
             } label: {
                 HStack(spacing: 8) {
                     Text("Submission rules").foregroundStyle(.secondary)
@@ -340,6 +346,7 @@ struct SolvePanel: View {
             }
             .buttonStyle(.plain)
             .help(showsRules ? "Hide the submission rules" : "Show the submission rules and the header values")
+            .accessibilityValue(showsRules ? "Expanded" : "Collapsed")
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
 
@@ -352,6 +359,13 @@ struct SolvePanel: View {
                                     Text(rules.shortLabel(field)).foregroundStyle(.secondary)
                                         .gridColumnAlignment(.trailing)
                                     HeaderValueField(model: model, field: field, label: rules.shortLabel(field))
+                                }
+                            }
+                            if needsSheet {
+                                GridRow {
+                                    Text(rules.isGerman ? "Blatt-Nr." : "Sheet no.").foregroundStyle(.secondary)
+                                    HeaderValueField(model: model, field: .sheet, label: rules.isGerman ? "Blatt-Nr." : "Sheet no.")
+                                        .frame(maxWidth: 80, alignment: .leading)
                                 }
                             }
                             GridRow {
@@ -380,7 +394,7 @@ struct SolvePanel: View {
                     .padding(.horizontal, 14)
                     .padding(.bottom, 10)
                 }
-                .frame(maxHeight: 220)
+                .frame(maxHeight: 200)
                 .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -394,7 +408,10 @@ struct SolvePanel: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Button {
-                    withAnimation(.easeOut(duration: 0.15)) { showsUnread.toggle() }
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        showsUnread.toggle()
+                        if showsUnread { showsRules = false }
+                    }
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.dueSoon)
@@ -407,6 +424,7 @@ struct SolvePanel: View {
                 }
                 .buttonStyle(.plain)
                 .help(showsUnread ? "Hide the files" : "Show which files and why")
+                .accessibilityValue(showsUnread ? "Expanded" : "Collapsed")
                 Spacer()
                 Button("Retry") { model.retryMemory() }
                     .controlSize(.small)
@@ -425,7 +443,7 @@ struct SolvePanel: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxHeight: 120)
+                .frame(maxHeight: 150)
                 .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -659,6 +677,12 @@ private struct HeaderValueField: View {
             .onChange(of: focused) { _, focused in if !focused { commit() } }
             .onChange(of: model.headerValue(field)) { _, value in if !focused { text = value } }
             .onAppear { text = model.headerValue(field) }
+            // The file name needs a number.
+            .onChange(of: text) { _, value in
+                if field == .sheet, value.contains(where: { !$0.isASCII || !$0.isNumber }) {
+                    text = value.filter { $0.isASCII && $0.isNumber }
+                }
+            }
     }
 
     private func commit() {

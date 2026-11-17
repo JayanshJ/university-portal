@@ -227,16 +227,38 @@ enum SolveCheck {
                             unread: [(title: "Blatt 2 Lösungen (Scan).pdf", reason: "No text in the PDF (a scan)."),
                                      (title: "Formelsammlung.pdf", reason: "Couldn't download it.")],
                             sources: [.excerpt(1), .memory("Course overview"), .excerpt(9)], excerpts: [excerpt])
-        let expanded = NSWindow(contentViewController: NSHostingController(rootView:
-            SolvePanel(model: model, ask: ask, acceptsFiles: true, acceptsText: false,
-                       attach: { _, _ in }, useAsText: { _ in }, openMemory: { _ in }, close: {}, showsRules: true, showsUnread: true)
-                .frame(width: 520, height: 720)))
-        expanded.makeKeyAndOrderFront(nil)
+        /// The panel in its own window with one section expanded (one at a time, as in the app).
+        func expandedWindow(rules: Bool, unread: Bool) -> NSWindow {
+            let window = NSWindow(contentViewController: NSHostingController(rootView:
+                SolvePanel(model: model, ask: ask, acceptsFiles: true, acceptsText: false,
+                           attach: { _, _ in }, useAsText: { _ in }, openMemory: { _ in }, close: {}, showsRules: rules, showsUnread: unread)
+                    .frame(width: 520, height: 720)))
+            window.makeKeyAndOrderFront(nil)
+            return window
+        }
         for _ in 0..<300 where model.output[.typed]?.revision != model.revision {
             try? await Task.sleep(for: .milliseconds(100))
         }
-        await panelShot(expanded, "rules-sources")
+        let rulesWindow = expandedWindow(rules: true, unread: false)
+        await panelShot(rulesWindow, "rules-expanded")
+        rulesWindow.orderOut(nil)
+        let unreadWindow = expandedWindow(rules: false, unread: true)
+        await panelShot(unreadWindow, "unread-expanded")
+        unreadWindow.orderOut(nil)
+        window.makeKeyAndOrderFront(nil)
         await panelShot(window, "sources-collapsed")
+
+        // Handing in alone: the partner rows leave the header and the details form.
+        let aloneCourse = CourseDetails(group: "Gruppe 3", alone: true)
+        print("ALONE missing \(partnerRules.missing(student: demoStudent, course: aloneCourse, sheet: 1).map(\.rawValue))")
+        print("ALONE header " + partnerRules.header(student: demoStudent, course: aloneCourse, courseName: "Analysis I", sheetTitle: "Blatt 1")
+            .map(\.label).joined(separator: " | "))
+        model.showDemo(request: "Show the substitution step in 1(b) in more detail",
+                       note: "I expanded the substitution in 1(b) into two steps.",
+                       solution: demoSolution, markup: demoMarkup, rules: partnerRules, student: demoStudent,
+                       course: CourseDetails(group: "Gruppe 3", partners: [Partner(name: "Grace Hopper")]))
+        model.showDemoState(phase: .needsDetails([.partnerMatrikelnr]))
+        await panelShot(window, "needs-details-partner")
         print("FILENAME demo \(model.suggestedFilename)")
     }
 

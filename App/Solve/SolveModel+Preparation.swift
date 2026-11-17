@@ -129,9 +129,15 @@ extension SolveModel {
     }
 
     /// Fields the rules need that are still empty and not typed in for this PDF.
-    func missingDetails() -> [SubmissionRules.Field] {
-        (rules ?? .none).missing(student: student, course: courseDetails, sheet: sheetNumber).filter {
-            (headerOverrides[$0] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    /// With `student`, `course` and `sheet`, for values typed in the details form but not saved yet:
+    /// the one rule for what is missing, shared by the model and the form.
+    func missingDetails(student: StudentDetails? = nil, course: CourseDetails? = nil, sheet: String? = nil) -> [SubmissionRules.Field] {
+        var overrides = headerOverrides
+        if let sheet { overrides[.sheet] = sheet }
+        let number = overrides[.sheet].flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } ?? sheetNumber
+        return (rules ?? .none).missing(student: student ?? self.student, course: course ?? courseDetails, sheet: number).filter {
+            // The sheet number counts only as a number (the file name needs one); `missing` checked it.
+            $0 == .sheet || (overrides[$0] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
 

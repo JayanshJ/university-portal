@@ -38,9 +38,10 @@ struct DetailsForm: View {
 
     private var sheetNumber: Int? { Int(sheet.trimmingCharacters(in: .whitespaces)) }
 
-    /// What the rules still miss with the values typed so far.
+    /// What is still missing with the values typed so far: the model's own rule, so the form and
+    /// the model never disagree (values typed in the rules row count too).
     private var stillMissing: [SubmissionRules.Field] {
-        rules.missing(student: student, course: cleanedCourse, sheet: sheetNumber ?? model.sheetNumber)
+        model.missingDetails(student: student, course: cleanedCourse, sheet: fields.contains(.sheet) ? sheet : nil)
     }
 
     var body: some View {
@@ -122,6 +123,16 @@ struct DetailsForm: View {
 
     @ViewBuilder
     private var partners: some View {
+        Section {
+            Toggle("I'm handing in alone", isOn: $course.alone)
+        } footer: {
+            Text("Saved for this course. The partner rows are left out of the header.").foregroundStyle(.secondary)
+        }
+        if !course.alone { partnerRows }
+    }
+
+    @ViewBuilder
+    private var partnerRows: some View {
         ForEach($course.partners) { $partner in
             let number = (course.partners.firstIndex { $0.id == partner.id } ?? 0) + 1
             Section {
@@ -139,6 +150,7 @@ struct DetailsForm: View {
                     .buttonStyle(.borderless)
                     .controlSize(.small)
                     .help("Remove partner \(number)")
+                    .accessibilityLabel("Remove partner \(number)")
                 }
             }
         }

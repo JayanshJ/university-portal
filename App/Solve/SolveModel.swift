@@ -266,7 +266,9 @@ final class SolveModel {
         let (student, course) = effectiveDetails
         var rows = rules.header(student: student, course: course, courseName: courseName, sheetTitle: assignment.name)
         // Partner rows can't come from a copy of the details: override them by position.
-        for (index, field) in rules.header.filter({ $0 != .sheet }).enumerated() where index < rows.count {
+        let partner: Set<SubmissionRules.Field> = [.partnerNames, .partnerMatrikelnr]
+        let shown = rules.header.filter { $0 != .sheet && !(course.alone && partner.contains($0)) }
+        for (index, field) in shown.enumerated() where index < rows.count {
             guard field == .partnerNames || field == .partnerMatrikelnr,
                   let value = headerOverrides[field]?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { continue }
             rows[index].value = value

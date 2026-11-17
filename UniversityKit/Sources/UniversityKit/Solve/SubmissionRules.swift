@@ -89,9 +89,9 @@ public struct SubmissionRules: Codable, Sendable, Equatable {
             case .group: empty = blank(course.group)
             case .tutorial: empty = blank(course.tutorial)
             case .sheet: empty = sheet == nil
-            case .partnerNames: empty = course.partners.isEmpty || course.partners.contains { blank($0.name) }
+            case .partnerNames: empty = !course.alone && (course.partners.isEmpty || course.partners.contains { blank($0.name) })
             case .partnerMatrikelnr:
-                empty = course.partners.isEmpty || course.partners.contains { blank($0.matrikelnr) }
+                empty = !course.alone && (course.partners.isEmpty || course.partners.contains { blank($0.matrikelnr) })
             }
             if empty { result.append(field) }
         }
@@ -140,6 +140,7 @@ public struct SubmissionRules: Codable, Sendable, Equatable {
         let de = isGerman
         var rows: [(label: String, value: String)] = []
         for field in header {
+            if course.alone && (field == .partnerNames || field == .partnerMatrikelnr) { continue }
             switch field {
             case .sheet: continue
             case .name: rows.append(("Name", student.name))

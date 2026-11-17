@@ -129,4 +129,22 @@ import Testing
         let english = SubmissionRules(header: [.name, .matrikelnr, .group], quote: "Write your name and student ID on top.")
         #expect(english.header.map(english.shortLabel) == ["Name", "Student ID", "Group"])
     }
+
+    @Test func aloneSkipsPartnerFields() {
+        let rules = SubmissionRules(header: [.name, .partnerNames, .partnerMatrikelnr])
+        let alone = CourseDetails(alone: true)
+        #expect(rules.missing(student: ada, course: alone, sheet: 1).isEmpty)
+        #expect(rules.missing(student: ada, course: CourseDetails(), sheet: 1) == [.partnerNames, .partnerMatrikelnr])
+        let header = rules.header(student: ada, course: CourseDetails(partners: [Partner(name: "Bo", matrikelnr: "1")], alone: true),
+                                  courseName: "Analysis", sheetTitle: "Blatt 3")
+        #expect(header.map(\.label) == ["Name", "Course", "Sheet"])
+    }
+
+    @Test func courseDetailsWithoutAloneDecode() throws {
+        let json = #"{"group": "Gruppe 3", "tutorial": "Di 10", "partners": []}"#
+        let details = try JSONDecoder().decode(CourseDetails.self, from: Data(json.utf8))
+        #expect(details.group == "Gruppe 3")
+        #expect(details.tutorial == "Di 10")
+        #expect(details.alone == false)
+    }
 }
