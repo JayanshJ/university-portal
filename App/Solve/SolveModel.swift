@@ -168,7 +168,7 @@ final class SolveModel {
                 do {
                     for try await delta in ask.client.stream(model: model, instructions: Self.instructions, input: input) {
                         raw += delta
-                        let parsed = Self.parse(raw)
+                        let parsed = SolveReply.parse(raw)
                         messages[index].text = parsed.note
                         if let draft = parsed.solution { solution = draft }
                     }
@@ -178,12 +178,12 @@ final class SolveModel {
                     input[0].images = []
                     for try await delta in ask.client.stream(model: model, instructions: Self.instructions, input: input) {
                         raw += delta
-                        let parsed = Self.parse(raw)
+                        let parsed = SolveReply.parse(raw)
                         messages[index].text = parsed.note
                         if let draft = parsed.solution { solution = draft }
                     }
                 }
-                let parsed = Self.parse(raw)
+                let parsed = SolveReply.parse(raw)
                 if let final = parsed.solution ?? (request == nil ? raw : nil), !final.isEmpty {
                     solution = final.trimmingCharacters(in: .whitespacesAndNewlines)
                     revision += 1
@@ -280,21 +280,6 @@ final class SolveModel {
         revised solution in the same format, keeping everything they didn't ask to change. If a \
         message is only a question, answer it in a few sentences and omit the <solution> block.
         """
-
-    /// Splits a reply into the note to the student and the solution document (nil when none has started).
-    static func parse(_ raw: String) -> (note: String, solution: String?) {
-        guard let open = raw.range(of: "<solution>") else {
-            // Hide a tag that is still arriving ("<sol").
-            var note = raw
-            if let lt = note.lastIndex(of: "<"), "<solution>".hasPrefix(note[lt...]) { note = String(note[..<lt]) }
-            return (note.trimmingCharacters(in: .whitespacesAndNewlines), nil)
-        }
-        let note = String(raw[..<open.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-        var body = String(raw[open.upperBound...])
-        if let close = body.range(of: "</solution>") { body = String(body[..<close.lowerBound]) }
-        else if let lt = body.lastIndex(of: "<"), "</solution>".hasPrefix(body[lt...]) { body = String(body[..<lt]) }
-        return (note, body.trimmingCharacters(in: .newlines))
-    }
 
     // MARK: - Handwriting (Math Writer)
 
