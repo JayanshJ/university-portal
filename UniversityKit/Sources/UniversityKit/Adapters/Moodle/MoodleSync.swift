@@ -26,6 +26,9 @@ public struct MoodleSync: Sendable {
     public func runFast() async throws -> SyncOutcome {
         let now = now()
         let info = try await siteInfo()
+        if let fullname = info.fullname, !fullname.isEmpty {
+            try database.setState(.moodleFullName, to: fullname)
+        }
         try database.updateState(.moodleDiagnostics, default: MoodleDiagnostics()) {
             $0.canSubmitAssignments = info.canSubmitAssignments
         }

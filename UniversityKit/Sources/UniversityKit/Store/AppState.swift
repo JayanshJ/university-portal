@@ -16,6 +16,12 @@ public enum StateKey: String, Sendable {
     case chatgptWelcomeShown = "chatgpt_welcome_shown"
     /// Per course: the signature of the texts last read for dates (`TextSchedule`).
     case textScheduleInputs = "text_schedule_inputs"
+    /// The student's own name, Matrikelnummer and email for submission headers.
+    case studentDetails = "student_details"
+    /// Per course id: group, tutorial and partners (`CourseDetails`).
+    case courseDetails = "course_details"
+    /// The full name Moodle reports for the signed-in user.
+    case moodleFullName = "moodle_full_name"
 }
 
 /// What the Moodle side has learned about itself. No secrets: safe to show in Settings and to inspect.

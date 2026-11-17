@@ -8,6 +8,7 @@ public struct MoodleSiteInfo: Decodable, Sendable, Equatable {
     public var userid: Int
     public var release: String?
     public var sitename: String?
+    public var fullname: String?
     /// 1 when the token may upload files (`webservice/upload.php`).
     public var uploadfiles: Int?
     /// The web service functions the token may call.
