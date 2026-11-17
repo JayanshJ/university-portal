@@ -107,6 +107,8 @@ final class AppModel {
             }
             return
         }
+        // Debug checks (paid ChatGPT calls among them): never in a Release build.
+        #if DEBUG
         if CommandLine.arguments.contains("--template-check") {
             Task { await TemplateCheck.run() }
             return
@@ -115,7 +117,6 @@ final class AppModel {
             // `--solve-check memory <courseId>` builds that course's memory with the real ChatGPT sign-in;
             // `--solve-check views` photographs the memory view and Settings' details over made-up data.
             let rest = CommandLine.arguments.dropFirst(flag + 1)
-            #if DEBUG
             // `--solve-check live [assignmentId] [--dry]` solves one real open assignment (never hands it in).
             if rest.first == "live" {
                 let assignmentId = rest.dropFirst().first.flatMap { Int64($0) }
@@ -132,7 +133,6 @@ final class AppModel {
                 }
                 return
             }
-            #endif
             let memoryCourse = rest.first == "memory" ? rest.dropFirst().first.flatMap { Int64($0) } : nil
             let ask = AskModel(database: database, secrets: memoryCourse == nil ? NoSecrets() : secrets,
                                transport: transport, files: files(database))
@@ -151,6 +151,7 @@ final class AppModel {
             }
             return
         }
+        #endif
         if CommandLine.arguments.contains("--snapshot") {
             isMoodleConnected = true
             Task { [weak self] in

@@ -1,3 +1,4 @@
+#if DEBUG
 import AppKit
 import Foundation
 import GRDB
@@ -216,6 +217,11 @@ enum SolveCheck {
         print("DETAILS missing \(missing.map(\.rawValue))")
         model.showDemoState(phase: .needsDetails(missing))
         await panelShot(window, "needs-details")
+        // A field the model wrongly asked for: "Not Needed" takes it out of the form, header and file name.
+        model.setNeeded(.partnerMatrikelnr, false)
+        print("DROPPED missing \(model.missingDetails().map(\.rawValue)) | header " + model.headerRows.map(\.label).joined(separator: " | "))
+        await panelShot(window, "needs-details-not-needed")
+        model.setNeeded(.partnerMatrikelnr, true)
 
         // Back to complete details, with sources and files that couldn't be read.
         model.showDemo(request: "Show the substitution step in 1(b) in more detail",
@@ -241,6 +247,11 @@ enum SolveCheck {
         }
         let rulesWindow = expandedWindow(rules: true, unread: false)
         await panelShot(rulesWindow, "rules-expanded")
+        // The group marked "Not needed for this sheet" in the rules row.
+        model.setNeeded(.group, false)
+        print("DROPPED group: header " + model.headerRows.map(\.label).joined(separator: " | ") + " → \(model.suggestedFilename)")
+        await panelShot(rulesWindow, "rules-expanded-not-needed")
+        model.setNeeded(.group, true)
         rulesWindow.orderOut(nil)
         let unreadWindow = expandedWindow(rules: false, unread: true)
         await panelShot(unreadWindow, "unread-expanded")
@@ -260,6 +271,10 @@ enum SolveCheck {
         model.showDemoState(phase: .needsDetails([.partnerMatrikelnr]))
         await panelShot(window, "needs-details-partner")
         print("FILENAME demo \(model.suggestedFilename)")
+
+        // The rules call failed: Solve waits for Retry or Continue Without Rules.
+        model.showDemoRulesFailed("ChatGPT returned an error: HTTP 500")
+        await panelShot(window, "rules-failed")
     }
 
     private static func panelShot(_ window: NSWindow, _ name: String) async {
@@ -307,7 +322,6 @@ enum SolveCheck {
         """
 }
 
-#if DEBUG
 /// `--solve-check live [assignmentId] [--dry]`: one real open assignment, solved typed with the real
 /// ChatGPT sign-in and data, then shown handwritten when a handwriting library is set up. Prints the
 /// phases, the rules, the file name, where each source chip points, PDFSAME and `SHOT:` lines, and
@@ -318,6 +332,14 @@ extension SolveCheck {
     static func live(ask: AskModel, service: MoodleSubmissions?, overview: PortalOverview, assignmentId: Int64?, dry: Bool,
                      openMaterial: @escaping (PortalOverview.ItemRow) async throws -> URL) async {
         let started = Date()
+        // `--synthetic-handwriting`: a made-up handwriting (a font, photographed and read back), so the
+        // handwritten path runs for real without the student's own samples.
+        if CommandLine.arguments.contains("--synthetic-handwriting"),
+           let library = TemplateCheck.syntheticLibrary(named: "solve-check-live-glyphs") {
+            Handwriter.library = library
+        }
+        // `--skip-memory`: Skip for Now as soon as the memory step starts (no digest calls).
+        let skipMemory = CommandLine.arguments.contains("--skip-memory")
         func log(_ line: String) {
             print(String(format: "[%7.1fs] ", Date().timeIntervalSince(started)) + line)
             fflush(stdout)
@@ -455,6 +477,15 @@ extension SolveCheck {
                 log("PHASE \(now)")
                 last = now
             }
+            if skipMemory, case .memory = model.phase {
+                log("SKIP FOR NOW (memory)")
+                model.skipMemory()
+            }
+            if model.rulesError != nil, model.rules == nil, !model.isBusy, model.preparing == nil {
+                log("RULES FAILED: \(model.rulesError ?? "")")
+                await panelShot(window, "live-rules-failed")
+                break
+            }
             if case .needsDetails(let fields) = model.phase, !bypassed {
                 log("NEEDS DETAILS \(fields.map(\.rawValue)) — the form is shown; nothing is filled in")
                 await panelShot(window, "live-needs-details")
@@ -579,10 +610,30 @@ extension SolveCheck {
             }
             break
         }
-        if let handwritten = await output(.handwritten, seconds: 60) {
-            await check(.handwritten, shown: handwritten)
+        let firstConversions = model.conversionCalls
+        log("CONVERSIONS \(firstConversions) (first handwritten version)")
+        let firstHandwritten = await output(.handwritten, seconds: 60)
+        if let firstHandwritten {
+            await check(.handwritten, shown: firstHandwritten)
         }
         await panelShot(window, "live-handwritten")
+
+        // A header change writes the handwriting again from the markup it has: no new conversion.
+        // A made-up value for this PDF only (an override, never saved).
+        model.overrideHeader(.name, value: "Ada Lovelace")
+        log("HEADER changed: " + model.headerRows.map { "\($0.label): \($0.value)" }.joined(separator: " | "))
+        let rewriteDeadline = Date().addingTimeInterval(5 * 60)
+        while Date() < rewriteDeadline {
+            if case .ready(_, let rendered) = model.handwriting, rendered == model.revision, model.output[.handwritten] == nil || model.output[.handwritten]?.revision == model.revision { break }
+            if case .failed = model.handwriting { break }
+            try? await Task.sleep(for: .milliseconds(250))
+        }
+        if let rewritten = await output(.handwritten, seconds: 60) {
+            log("REWRITTEN differs \(rewritten != firstHandwritten)")
+            await check(.handwritten, shown: rewritten)
+        }
+        log("CONVERSIONS after header change \(model.conversionCalls) (new: \(model.conversionCalls - firstConversions))")
+        await panelShot(window, "live-handwritten-header-changed")
         log("LIVE done")
     }
 }

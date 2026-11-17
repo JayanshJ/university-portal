@@ -1,3 +1,4 @@
+#if DEBUG
 import AppKit
 import CoreImage
 import PDFKit
@@ -145,3 +146,4 @@ enum TemplateCheck {
         return context.makeImage()!
     }
 }
+#endif
