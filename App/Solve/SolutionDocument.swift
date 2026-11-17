@@ -102,8 +102,8 @@ enum SolutionPDF {
     static let page = CGSize(width: 595, height: 842)  // A4 in points
     static let margin: CGFloat = 54
 
-    /// `header` rows (the sheet's name, Matrikelnummer, … from the student's details) go above the
-    /// title as a two-column table; they are passed as plain text, never as Markdown.
+    /// `header` rows (the sheet's name, Matrikelnummer, … from the student's details) go at the top
+    /// as a two-column table, in place of the title; they are passed as plain text, never as Markdown.
     static func make(markdown: String, title: String, header: [(label: String, value: String)]) async throws -> Data {
         let width = page.width - 2 * margin
         let height = page.height - 2 * margin
@@ -114,7 +114,8 @@ enum SolutionPDF {
         view.loadFileURL(html, allowingReadAccessTo: html.deletingLastPathComponent())
         try await loader.loaded()
 
-        let document = "# \(title)\n\n" + markdown
+        // The header's Sheet row already names the sheet; a title is added only without a header.
+        let document = header.isEmpty ? "# \(title)\n\n" + markdown : markdown
         let rows = (try? JSONSerialization.data(withJSONObject: header.map { [$0.label, $0.value] })).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
         let total = (try await view.evaluateJavaScript("SOL.show(\(jsString(document)), true, false, \(rows))") as? NSNumber)?.doubleValue ?? height
         view.frame.size.height = max(height, total)
