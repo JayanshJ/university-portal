@@ -218,6 +218,30 @@ func indexedDatabase() throws -> (UniDatabase, process: Int64, demis: Int64, she
     }
 }
 
+@Suite struct IndexerCourseFilterTests {
+    @Test func indexerCanBeLimitedToCourses() throws {
+        let database = try UniDatabase.inMemory()
+        try database.writer.write { db in
+            var source = UniSource(kind: .moodle)
+            try source.insert(db)
+            for n in 1...2 {
+                var course = UniCourse(sourceId: source.id!, externalId: "\(n)", shortName: "C\(n)", fullName: "C\(n)")
+                try course.insert(db)
+                var item = UniItem(courseId: course.id!, kind: .material, externalId: "x\(n)", title: "S\(n).pdf", contentHash: "x")
+                try item.insert(db)
+                try UniFile(itemId: item.id!, filename: "S\(n).pdf", remoteUrl: "https://x/\(n)").insert(db)
+            }
+        }
+        func names(_ ids: [Int64]?) throws -> [String] {
+            try database.writer.read { db in try MaterialIndexer.pending(db, courseIds: ids).map(\.filename) }
+        }
+        #expect(try names(nil) == ["S1.pdf", "S2.pdf"])
+        #expect(try names([1]) == ["S1.pdf"])
+        #expect(try names([2, 99]) == ["S2.pdf"])
+        #expect(try names([]).isEmpty)
+    }
+}
+
 @Suite struct AskServiceTests {
     @Test func citationsAreParsed() {
         #expect(AskService.citations(in: "Short loops fail [2]. Noise too [1][3], see [2, 4].") == [2, 1, 3, 4])

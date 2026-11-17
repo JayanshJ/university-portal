@@ -72,10 +72,10 @@ public actor MaterialIndexer {
         }
     }
 
-    /// Indexes every PDF that is new or changed; `onProgress` is called after each file.
+    /// Indexes every PDF that is new or changed (only those of `courseIds` when given); `onProgress` is called after each file.
     @discardableResult
-    public func run(onProgress: @Sendable (Progress) -> Void = { _ in }) async -> Progress {
-        let pending = (try? await database.writer.read { db in try Self.pending(db) }) ?? []
+    public func run(courseIds: [Int64]? = nil, onProgress: @Sendable (Progress) -> Void = { _ in }) async -> Progress {
+        let pending = (try? await database.writer.read { db in try Self.pending(db, courseIds: courseIds) }) ?? []
         var progress = Progress(total: pending.count, isRunning: true)
         onProgress(progress)
 
@@ -127,21 +127,27 @@ public actor MaterialIndexer {
 
     /// Live PDF materials of active courses.
     static let pdfQuery = """
-        SELECT i.id, f.filename, f.sha256, f.size_bytes FROM uni_item i
+        SELECT i.id, i.course_id, f.filename, f.sha256, f.size_bytes FROM uni_item i
         JOIN uni_file f ON f.item_id = i.id
         JOIN uni_course c ON c.id = i.course_id
         WHERE i.kind = 'material' AND i.deleted_at IS NULL AND c.active = 1 AND lower(f.filename) LIKE '%.pdf'
         """
 
     /// Not yet indexed, changed since indexing (a new download has a different hash), or failed before.
-    static func pending(_ db: Database) throws -> [(id: Int64, filename: String)] {
-        try Row.fetchAll(db, sql: """
+    static func pending(_ db: Database, courseIds: [Int64]? = nil) throws -> [(id: Int64, filename: String)] {
+        var arguments: [any DatabaseValueConvertible] = [maxBytes]
+        var courseFilter = ""
+        if let courseIds {
+            courseFilter = "AND pdf.course_id IN (\(courseIds.map { _ in "?" }.joined(separator: ",")))"
+            arguments += courseIds
+        }
+        return try Row.fetchAll(db, sql: """
             SELECT pdf.id, pdf.filename FROM (\(pdfQuery)) pdf
             LEFT JOIN uni_index x ON x.item_id = pdf.id
-            WHERE coalesce(pdf.size_bytes, 0) <= ?
+            WHERE coalesce(pdf.size_bytes, 0) <= ? \(courseFilter)
               AND (x.item_id IS NULL OR x.error IS NOT NULL
                    OR (pdf.sha256 IS NOT NULL AND x.sha256 IS NOT pdf.sha256))
             ORDER BY pdf.id
-            """, arguments: [maxBytes]).map { ($0["id"], $0["filename"]) }
+            """, arguments: StatementArguments(arguments)).map { ($0["id"], $0["filename"]) }
     }
 }

@@ -167,6 +167,15 @@ final class AskModel {
         }
     }
 
+    /// Indexes just these courses' PDFs (used before solving); reports progress like `indexNow`.
+    func indexCourses(_ ids: [Int64]) async -> MaterialIndexer.Progress {
+        let result = await indexer.run(courseIds: ids) { progress in
+            Task { @MainActor in self.indexProgress = progress }
+        }
+        refreshIndexStatus()
+        return result
+    }
+
     /// After the first full index, new materials are indexed automatically when Ask opens.
     func indexNewMaterialsIfIndexedBefore() {
         refreshIndexStatus()
