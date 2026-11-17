@@ -189,9 +189,12 @@ enum SolveCheck {
         await panelShot(window, "handwritten")
 
         // A header value the handwriting has no glyph for ("&"): typed onto page 1 instead.
+        let conversionsBefore = model.conversionCalls
         model.overrideHeader(.name, value: "Ada Lovelace & Co")
         print("INVALIDATED \(model.output.isEmpty)")
         _ = await check(.handwritten, shot: "handwritten-stamped")
+        // Offline (demo markup): a header change writes the handwriting again without a conversion call.
+        print("CONVERSIONS offline before \(conversionsBefore) after header change \(model.conversionCalls)")
         let typedAgain = await check(.typed, shot: "typed-override")
         print("TYPED CHANGED \(typed != nil && typedAgain != nil && typed != typedAgain)")
         print("FILENAME after override \(model.suggestedFilename)")
@@ -275,6 +278,23 @@ enum SolveCheck {
         // The rules call failed: Solve waits for Retry or Continue Without Rules.
         model.showDemoRulesFailed("ChatGPT returned an error: HTTP 500")
         await panelShot(window, "rules-failed")
+
+        // choose() after the panel closed must not start a solve (fix 5). Control first: open, it does.
+        func demo() {
+            model.showDemo(request: "Show the substitution step in 1(b) in more detail", note: "Updated.",
+                           solution: demoSolution, markup: demoMarkup, rules: demoRules, student: demoStudent, course: demoCourse)
+        }
+        demo()
+        model.choose(.none)
+        try? await Task.sleep(for: .seconds(1))
+        print("CHOOSE open: solve started \(model.messages.count != 3)")
+        model.stop()
+        try? await Task.sleep(for: .milliseconds(300))
+        demo()
+        model.choose(.none)
+        model.close()
+        try? await Task.sleep(for: .seconds(1))
+        print("CHOOSE closed: solve started \(model.messages.count != 3) (messages \(model.messages.count))")
     }
 
     private static func panelShot(_ window: NSWindow, _ name: String) async {
@@ -448,6 +468,18 @@ extension SolveCheck {
             }
             log("DRY done: no ChatGPT call made")
             return
+        }
+        // `--skip-memory`: the memory as it is, without starting a build (no digest call at all).
+        if skipMemory, let memory = ask.memory() {
+            model.memoryReady = true
+            model.unread = (try? memory.unread(courseIds: courseIds)) ?? []
+            log("MEMORY skipped before start; not read \(model.unread.count)")
+        }
+        // `--no-rules-call`: this sheet states no submission rules (Task 11: the rules call and the
+        // sheet text agree), so the rules are preset and the first ChatGPT call is the solve.
+        if CommandLine.arguments.contains("--no-rules-call") {
+            model.rules = SubmissionRules.none
+            log("RULES preset to none (no rules call)")
         }
         let window = panel()
         guard model.signedIn, !model.needsSheet else { log("LIVE can't solve: signed in \(model.signedIn), needsSheet \(model.needsSheet)"); return }

@@ -601,7 +601,7 @@ struct SolvePanel: View {
                     .lineLimit(1...4)
                     .focused($chatFocused)
                     .onSubmit(send)
-                    .disabled(waitsForDetails)
+                    .disabled(waitsForDetails || waitsForRules)
                     .padding(.vertical, 7)
                     .padding(.horizontal, 10)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
@@ -613,7 +613,7 @@ struct SolvePanel: View {
                 } else {
                     Button(action: send) { Image(systemName: "arrow.up.circle.fill").font(.title2) }
                         .buttonStyle(.borderless)
-                        .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty || waitsForDetails)
+                        .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty || waitsForDetails || waitsForRules)
                         .help("Send")
                 }
             }
@@ -646,8 +646,11 @@ struct SolvePanel: View {
         if case .needsDetails = model.phase { true } else { false }
     }
 
+    /// The rules couldn't be read: nothing is written until Retry or Continue Without Rules.
+    private var waitsForRules: Bool { model.rules == nil && model.rulesError != nil }
+
     private func send() {
-        guard !model.isBusy, !waitsForDetails else { return }
+        guard !model.isBusy, !waitsForDetails, !waitsForRules else { return }
         model.send(draft)
         draft = ""
     }

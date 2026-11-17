@@ -25,6 +25,8 @@ extension SolveModel {
                         // Not "no rules": wait for Retry or Continue Without Rules.
                         rulesError = failure.message
                         phase = .idle
+                        // Signed out: the panel shows the sign-in again instead of a Retry that can't work.
+                        if failure.expired { await ask.refreshAccount() }
                         return
                     }
                     try Task.checkCancellation()  // another sheet was chosen meanwhile
@@ -115,6 +117,8 @@ extension SolveModel {
     /// The rules call failed (or its reply held no rules): unknown, not "no rules".
     struct RulesFailure: Error {
         var message: String
+        /// The ChatGPT sign-in expired (the account is refreshed).
+        var expired = false
     }
 
     /// Reads the rules again after a failure; continues to the solution when they're read.
@@ -154,7 +158,7 @@ extension SolveModel {
             throw failure
         } catch {
             if error is CancellationError || Task.isCancelled { throw CancellationError() }
-            throw RulesFailure(message: AskModel.describe(error))
+            throw RulesFailure(message: AskModel.describe(error), expired: error as? ChatGPTError == .signInExpired)
         }
     }
 
