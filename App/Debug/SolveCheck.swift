@@ -306,3 +306,284 @@ enum SolveCheck {
         $$\\boxed{e - 1}$$
         """
 }
+
+#if DEBUG
+/// `--solve-check live [assignmentId] [--dry]`: one real open assignment, solved typed with the real
+/// ChatGPT sign-in and data, then shown handwritten when a handwriting library is set up. Prints the
+/// phases, the rules, the file name, where each source chip points, PDFSAME and `SHOT:` lines, and
+/// quits. Nothing is handed in or uploaded (Moodle is only read); the student's details are never
+/// filled in or saved. `--dry` stops before the first ChatGPT call.
+@MainActor
+extension SolveCheck {
+    static func live(ask: AskModel, service: MoodleSubmissions?, overview: PortalOverview, assignmentId: Int64?, dry: Bool,
+                     openMaterial: @escaping (PortalOverview.ItemRow) async throws -> URL) async {
+        let started = Date()
+        func log(_ line: String) {
+            print(String(format: "[%7.1fs] ", Date().timeIntervalSince(started)) + line)
+            fflush(stdout)
+        }
+        defer {
+            fflush(stdout)
+            NSApp.terminate(nil)
+        }
+        guard let service else { log("LIVE no Moodle token"); return }
+
+        // 1. The assignment: open, a Moodle assignment, not handed in; course 9's family first.
+        let algorithms = overview.courses.first { $0.id == 9 }
+        let courseList = overview.courses.map { (id: $0.id, name: $0.shortName + " " + $0.fullName, active: $0.active) }
+        let preferred = Set(algorithms.map { CourseLinks.related(courseId: 9, courseName: $0.shortName + " " + $0.fullName, courses: courseList) } ?? [])
+        let now = Date()
+        for item in overview.openDeadlines where assignmentId == nil {
+            let reason = item.source != .moodle ? "not on Moodle (\(item.source.rawValue))"
+                : MoodleSubmissions.cmid(fromURL: item.url) == nil ? "no assignment link"
+                : (item.date ?? .distantPast) <= now ? "deadline passed or unknown" : nil
+            if let reason { log("EXCLUDED [\(item.id)] \(item.course) | \(item.title) | \(reason)") }
+        }
+        let deadlines = overview.openDeadlines
+            .filter { assignmentId == nil ? ($0.source == .moodle && ($0.date ?? .distantPast) > now) : $0.id == assignmentId }
+            .filter { MoodleSubmissions.cmid(fromURL: $0.url) != nil }
+            .sorted { (preferred.contains($0.courseId) ? 0 : 1, $0.date ?? .distantFuture) < (preferred.contains($1.courseId) ? 0 : 1, $1.date ?? .distantFuture) }
+        log("LIVE \(deadlines.count) open Moodle assignment(s); preferred courses \(preferred.sorted())")
+        var picked: (item: PortalOverview.ItemRow, rules: AssignmentRules, state: SubmissionState)?
+        var fallback: (item: PortalOverview.ItemRow, rules: AssignmentRules, state: SubmissionState)?
+        for item in deadlines.prefix(8) {
+            guard let cmid = MoodleSubmissions.cmid(fromURL: item.url) else { continue }
+            do {
+                let rules = try await service.rules(cmid: cmid)
+                let state = try await service.state(assignId: rules.assignId)
+                let best = SheetFinder.best(SheetFinder.candidates(assignment: rules.name, deadline: item, overview: overview))
+                log("CANDIDATE [\(item.id)] \(item.course) | \(rules.name) | due \(item.date.map { DueText.date($0) } ?? "-") | status \(state.status.rawValue) canEdit \(state.canEdit) graded \(state.graded) | sheet \(best?.name ?? "-") | attachments \(rules.attachments.count)")
+                // A given id may already be handed in (the Solve button needs only canEdit); never handed in again here.
+                guard assignmentId != nil || state.status != .submitted, state.canEdit, !state.graded else { continue }
+                if best != nil || !rules.attachments.isEmpty {
+                    picked = (item, rules, state)
+                    break
+                }
+                if fallback == nil { fallback = (item, rules, state) }
+            } catch {
+                log("CANDIDATE [\(item.id)] \(item.course) | \(item.title) | Moodle: \(error)")
+            }
+        }
+        guard let (item, rules, state) = picked ?? fallback else { log("LIVE no open assignment to solve"); return }
+        log("CHOSEN [\(item.id)] cmid \(rules.cmid) | \(item.course) (\(item.courseFullName)) | \(rules.name) | due \(item.date.map { DueText.date($0) } ?? "-") | status \(state.status.rawValue), \(state.files.count) file(s) on Moodle")
+        if !preferred.contains(item.courseId) && assignmentId == nil { log("CHOSEN outside course 9's family") }
+
+        // 2. The model, as the Solve button makes it.
+        let storedFormat = UserDefaults.standard.string(forKey: "solveFormat")
+        defer { UserDefaults.standard.set(storedFormat, forKey: "solveFormat") }
+        let candidates = SheetFinder.candidates(assignment: rules.name, deadline: item, overview: overview)
+        let courseIds = SheetFinder.courses(of: item, overview: overview)
+        let model = SolveModel(assignment: rules, service: service, ask: ask, database: ask.database, deadline: item,
+                               courseIds: courseIds, courseName: item.courseFullName, courseShort: item.course,
+                               candidates: candidates, openMaterial: openMaterial)
+        defer { model.stop() }
+        model.format = .typed
+        log("SHEET \(model.sheet.name ?? "(none)"); needsSheet \(model.needsSheet); sheet number \(model.sheetNumber.map(String.init) ?? "-")")
+        for candidate in candidates.prefix(3) { log("      \(candidate.score)  \(candidate.name)  [\(candidate.item.course)]") }
+        log("COURSES \(courseIds.map { id in overview.courses.first { $0.id == id }?.shortName ?? String(id) })")
+        let own = CourseLinks.words(item.course + " " + item.courseFullName)
+        for id in courseIds.dropFirst() {
+            guard let other = overview.courses.first(where: { $0.id == id }) else { continue }
+            log("LINKED \(other.shortName) (\(other.fullName)) shares \(own.intersection(CourseLinks.words(other.shortName + " " + other.fullName)).sorted())")
+        }
+        let list = courseIds.map(String.init).joined(separator: ",")
+        let pdfs = (try? await ask.database.writer.read { db in
+            try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM uni_item i JOIN uni_file f ON f.item_id = i.id
+                WHERE i.kind = 'material' AND i.deleted_at IS NULL AND lower(f.filename) LIKE '%.pdf' AND i.course_id IN (\(list.isEmpty ? "0" : list))
+                """) ?? 0
+        }) ?? 0
+        let document = model.memoryDocument()
+        log("MEMORY pdfs \(pdfs), digests \(document?.files.count ?? 0), not read \(document?.unread.count ?? 0) → about \(max(0, pdfs - (document?.files.count ?? 0) - (document?.unread.count ?? 0))) file(s) to digest")
+        let student = model.student, course = model.courseDetails
+        func filled(_ value: String) -> String { value.trimmingCharacters(in: .whitespaces).isEmpty ? "empty" : "set" }
+        log("DETAILS name \(filled(student.name)), matrikelnr \(filled(student.matrikelnr)), email \(filled(student.email)); group \(filled(course.group)), tutorial \(filled(course.tutorial)), partners \(course.partners.count), alone \(course.alone)")
+        log("HANDWRITING library set up: \(Handwriter.isSetUp)")
+        await ask.refreshAccount()
+        log("CHATGPT signed in \(model.signedIn) (plan \(ask.account?.canUsePlan == true), model \(ask.model ?? "none"))")
+
+        var attached: (name: String, data: Data)?
+        func panel(showsRules: Bool = false, showsUnread: Bool = false) -> NSWindow {
+            let window = NSWindow(contentViewController: NSHostingController(rootView:
+                SolvePanel(model: model, ask: ask, acceptsFiles: rules.acceptsFiles, acceptsText: rules.acceptsText,
+                           attach: { attached = ($0, $1) }, useAsText: { _ in }, openMemory: { _ in }, close: {},
+                           showsRules: showsRules, showsUnread: showsUnread)
+                    .frame(width: 520, height: 720)))
+            window.makeKeyAndOrderFront(nil)
+            return window
+        }
+        // The panel starts the model when it appears: a dry run stops before showing it.
+        if dry {
+            // What the rules call reads besides the sheet: its digest (from the memory, when built).
+            if case .material(let candidate) = model.sheet,
+               let digest = document?.files.first(where: { $0.itemId == candidate.item.id })?.digest {
+                print("SHEET DIGEST BEGIN\n\(digest)\nSHEET DIGEST END")
+            }
+            if case .material(let candidate) = model.sheet, let url = try? await openMaterial(candidate.item),
+               let pdf = PDFDocument(url: url) {
+                let text = (0..<pdf.pageCount).compactMap { pdf.page(at: $0)?.string }.joined(separator: "\n")
+                print("SHEET TEXT \(pdf.pageCount) page(s), \(text.count) chars BEGIN\n\(text)\nSHEET TEXT END")
+            }
+            log("DRY done: no ChatGPT call made")
+            return
+        }
+        let window = panel()
+        guard model.signedIn, !model.needsSheet else { log("LIVE can't solve: signed in \(model.signedIn), needsSheet \(model.needsSheet)"); return }
+
+        // 3. Solve, typed: start() once; the phases as they come.
+        func describe(_ phase: SolveModel.Phase) -> String {
+            switch phase {
+            case .idle: "idle"
+            case .reading(let message): "reading: \(message)"
+            case .memory(let progress): "memory \(progress.done)/\(progress.total)\(progress.current.map { " reading \($0)" } ?? "")"
+            case .rules: "rules"
+            case .needsDetails(let fields): "needsDetails \(fields.map(\.rawValue))"
+            case .writing: "writing"
+            case .failed(let message): "failed: \(message)"
+            }
+        }
+        var requests = 0
+        var bypassed = false
+        model.start()
+        guard model.preparing != nil else { log("LIVE start() did nothing (phase \(describe(model.phase)))"); return }
+        var last = ""
+        let deadline = Date().addingTimeInterval(40 * 60)
+        while Date() < deadline {
+            let now = describe(model.phase)
+            if now != last {
+                if case .writing = model.phase { requests += 1; log("SOLVE REQUEST #\(requests)") }
+                log("PHASE \(now)")
+                last = now
+            }
+            if case .needsDetails(let fields) = model.phase, !bypassed {
+                log("NEEDS DETAILS \(fields.map(\.rawValue)) — the form is shown; nothing is filled in")
+                await panelShot(window, "live-needs-details")
+                // Debug only: solve anyway, so the rest can be checked; the header leaves the missing rows out.
+                bypassed = true
+                model.phase = .idle
+                model.reply(to: nil)
+                continue
+            }
+            if case .failed = model.phase { break }
+            if model.messages.last?.failed == true { break }
+            if model.revision > 0, !model.isBusy, model.preparing == nil { break }
+            try? await Task.sleep(for: .milliseconds(500))
+        }
+        guard model.revision > 0 else {
+            log("LIVE no solution: phase \(describe(model.phase)), last message \(model.messages.last?.text ?? "-")")
+            await panelShot(window, "live-failed")
+            return
+        }
+        log("SOLVED revision \(model.revision), \(requests) solve request(s)\(bypassed ? " (details form bypassed)" : "")")
+        print("NOTE \(model.messages.last?.text ?? "")")
+        print("SOLUTION BEGIN\n\(model.solution)\nSOLUTION END")
+        fflush(stdout)
+
+        // The rules, the header and the file name (the student's values replaced by placeholders).
+        let found = model.rules ?? .none
+        log("RULES header \(found.header.map(\.rawValue)) | filename \(found.filename ?? "-") | other \(found.other) | quote \(found.quote ?? "-")")
+        let student2 = model.student, course2 = model.courseDetails
+        var secrets: [(String, String)] = [(student2.matrikelnr, "<matrikelnr>"), (student2.email, "<email>"), (student2.name, "<name>")]
+        let nameParts = student2.name.split(separator: " ").map(String.init)
+        if let lastName = nameParts.last { secrets.append((lastName, "<lastname>")) }
+        if let firstName = nameParts.first { secrets.append((firstName, "<firstname>")) }
+        for partner in course2.partners { secrets += [(partner.matrikelnr, "<partner matrikelnr>"), (partner.name, "<partner name>")] }
+        func redact(_ text: String) -> String {
+            secrets.filter { $0.0.count >= 2 }.reduce(text) { $0.replacingOccurrences(of: $1.0, with: $1.1, options: .caseInsensitive) }
+        }
+        log("HEADER " + model.headerRows.map { "\($0.label): \(redact($0.value))" }.joined(separator: " | "))
+        log("FILENAME \(redact(model.suggestedFilename))")
+        log("UNREAD \(model.unread.map { "\($0.title) — \($0.reason)" })")
+
+        // Where each source chip points.
+        log("EXCERPTS sent: " + model.excerpts.map { "[\($0.number)] \($0.title) p.\($0.page)" }.joined(separator: "; "))
+        for source in model.sources {
+            switch source {
+            case .excerpt(let number):
+                guard let excerpt = model.excerpts.first(where: { $0.number == number }) else {
+                    log("SOURCE [\(number)] → no such excerpt (chip dropped)")
+                    continue
+                }
+                let material = overview.materials.first { $0.id == excerpt.itemId }
+                let pageText = (try? await ask.database.writer.read { db in
+                    try String.fetchAll(db, sql: "SELECT text FROM uni_page WHERE item_id = ? AND page = ?", arguments: [excerpt.itemId, excerpt.page]).joined(separator: "\n")
+                }) ?? ""
+                let probe = String(excerpt.text.prefix(40))
+                log("SOURCE [\(number)] → \(material?.filename ?? material?.title ?? "item \(excerpt.itemId) NOT IN MATERIALS") [\(excerpt.course)] page \(excerpt.page); excerpt on that page: \(pageText.contains(probe)); \"\(excerpt.text.prefix(100).replacingOccurrences(of: "\n", with: " "))\"")
+            case .memory(let section):
+                log("SOURCE memory \"\(section)\" → \(model.memoryHeading(for: section) ?? "NO MATCH")")
+            }
+        }
+
+        // 4. The panel and the PDFs: typed, then handwritten.
+        func output(_ format: SolveModel.Format, seconds: Double) async -> Data? {
+            let end = Date().addingTimeInterval(seconds)
+            while Date() < end {
+                if let output = model.output[format], output.revision == model.revision { return output.data }
+                if model.outputError != nil { break }
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+            log("PDF \(format.rawValue) not ready: \(model.outputError ?? "timed out")")
+            return nil
+        }
+        func check(_ format: SolveModel.Format, shown: Data) async {
+            attached = nil
+            if let attachment = try? await model.attachment() { attached = (attachment.filename, attachment.data) }
+            let opened = try? await model.pdf()  // what Open PDF writes
+            log("PDFSAME \(format.rawValue) attachment \(attached?.data == shown) openPDF \(opened == shown) (\(shown.count) bytes, name matches \(attached?.name == model.suggestedFilename))")
+            if let document = PDFDocument(data: shown) {
+                log("PDF \(format.rawValue): \(document.pageCount) page(s)")
+                for index in 0..<min(document.pageCount, 6) {
+                    if let png = pagePNG(document.page(at: index)) { print("SHOT:live-pdf-\(format.rawValue)-p\(index + 1):" + png.base64EncodedString()) }
+                }
+            }
+        }
+        if let typed = await output(.typed, seconds: 120) {
+            await check(.typed, shown: typed)
+        }
+        await panelShot(window, "live-typed")
+        let rulesWindow = panel(showsRules: true)
+        await panelShot(rulesWindow, "live-rules-expanded")
+        rulesWindow.orderOut(nil)
+        if !model.unread.isEmpty {
+            let unreadWindow = panel(showsUnread: true)
+            await panelShot(unreadWindow, "live-unread-expanded")
+            unreadWindow.orderOut(nil)
+        }
+        window.makeKeyAndOrderFront(nil)
+
+        guard Handwriter.isSetUp else {
+            log("HANDWRITING not set up: no handwriting library at \(Handwriter.library.path)")
+            model.format = .handwritten
+            await panelShot(window, "live-handwritten-not-set-up")
+            return
+        }
+        model.format = .handwritten
+        var lastHandwriting = ""
+        let handwritingDeadline = Date().addingTimeInterval(10 * 60)
+        while Date() < handwritingDeadline {
+            let now: String = switch model.handwriting {
+            case .none: "none"
+            case .converting: "converting"
+            case .rendering: "rendering"
+            case .ready(let rendering, _): "ready (\(rendering.pages.count) page(s), dropped \(rendering.dropped))"
+            case .failed(let message): "failed: \(message)"
+            case .notSetUp: "not set up"
+            }
+            if now != lastHandwriting { log("HANDWRITING \(now)"); lastHandwriting = now }
+            switch model.handwriting {
+            case .ready, .failed, .notSetUp: break
+            default:
+                try? await Task.sleep(for: .milliseconds(500))
+                continue
+            }
+            break
+        }
+        if let handwritten = await output(.handwritten, seconds: 60) {
+            await check(.handwritten, shown: handwritten)
+        }
+        await panelShot(window, "live-handwritten")
+        log("LIVE done")
+    }
+}
+#endif

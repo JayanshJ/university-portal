@@ -115,6 +115,24 @@ final class AppModel {
             // `--solve-check memory <courseId>` builds that course's memory with the real ChatGPT sign-in;
             // `--solve-check views` photographs the memory view and Settings' details over made-up data.
             let rest = CommandLine.arguments.dropFirst(flag + 1)
+            #if DEBUG
+            // `--solve-check live [assignmentId] [--dry]` solves one real open assignment (never hands it in).
+            if rest.first == "live" {
+                let assignmentId = rest.dropFirst().first.flatMap { Int64($0) }
+                let ask = AskModel(database: database, secrets: secrets, transport: transport, files: files(database))
+                let service = ((try? secrets.readString(.moodleToken)) ?? nil)
+                    .map { MoodleSubmissions(client: MoodleClient(token: $0, transport: transport)) }
+                let materials = files(database)
+                Task {
+                    var updates = database.overviewUpdates().makeAsyncIterator()
+                    let overview = (try? await updates.next()) ?? PortalOverview()
+                    await SolveCheck.live(ask: ask, service: service, overview: overview, assignmentId: assignmentId,
+                                          dry: CommandLine.arguments.contains("--dry"),
+                                          openMaterial: { try await materials.open(itemId: $0.id) })
+                }
+                return
+            }
+            #endif
             let memoryCourse = rest.first == "memory" ? rest.dropFirst().first.flatMap { Int64($0) } : nil
             let ask = AskModel(database: database, secrets: memoryCourse == nil ? NoSecrets() : secrets,
                                transport: transport, files: files(database))
