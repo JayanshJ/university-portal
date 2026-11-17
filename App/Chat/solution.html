@@ -20,19 +20,36 @@
   body.print .prose-chat pre, body.print .prose-chat th { background: #f2f2f2; }
   body.print .prose-chat table, body.print .prose-chat th, body.print .prose-chat td { border-color: #bbb; }
   body.print pre .copy { display: none; }
+  /* The sheet's header (name, Matrikelnummer, …): label/value rows above the title, print only. */
+  .header { display: none; }
+  body.print .header { display: block; border-collapse: collapse; font: 10pt -apple-system, "Helvetica Neue", sans-serif; color: #000; margin: 0 0 14px; }
+  body.print .header td { padding: 1px 14px 1px 0; vertical-align: top; }
+  body.print .header td:first-child { font-weight: 600; white-space: nowrap; }
 </style>
 <script src="katex.min.js"></script>
 <script src="marked.umd.js"></script>
 </head>
 <body>
+<table id="header" class="header"></table>
 <main id="doc" class="prose-chat" data-empty="The solution appears here."></main>
 <script src="chat.js"></script>
 <script>
   "use strict";
   window.SOL = {
-    /** Shows Markdown; returns the page height in CSS pixels. */
-    show(md, print, streaming) {
+    /** Shows Markdown, with `header` rows ([label, value] pairs, plain text) above it when printing;
+        returns the page height in CSS pixels. */
+    show(md, print, streaming, header) {
       document.body.classList.toggle("print", !!print);
+      const table = document.getElementById("header");
+      table.replaceChildren(...(print && header ? header : []).map(([label, value]) => {
+        const row = document.createElement("tr");
+        for (const text of [label, value]) {
+          const cell = document.createElement("td");
+          cell.textContent = text;
+          row.appendChild(cell);
+        }
+        return row;
+      }));
       const doc = document.getElementById("doc");
       const stick = window.innerHeight + window.scrollY >= document.body.scrollHeight - 80;
       doc.innerHTML = md ? UP.markdown(md) + (streaming ? '<span class="caret"></span>' : "") : "";

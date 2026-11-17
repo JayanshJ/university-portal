@@ -56,6 +56,7 @@ final class SolveModel {
         didSet {
             UserDefaults.standard.set(format.rawValue, forKey: "solveFormat")
             if format == .handwritten { renderHandwritingIfNeeded() }
+            makePreview()
         }
     }
 
@@ -131,6 +132,17 @@ final class SolveModel {
     /// The sheet file's own text, and its material id when it is a course PDF.
     @ObservationIgnored private var sheetText = ""
     @ObservationIgnored private var sheetItemId: Int64?
+    /// The handwriting markup of a revision (converted, and repaired if needed), so a new header
+    /// writes it again without asking ChatGPT.
+    @ObservationIgnored private var markup: (revision: Int, text: String)?
+    /// The PDFs made for the current header, per format: what the preview shows and what is attached.
+    private(set) var output: [Format: (revision: Int, data: Data)] = [:]
+    /// Why the PDF of the current format couldn't be made.
+    private(set) var outputError: String?
+    /// Bumped whenever the PDFs go stale (a new header, a new handwriting rendering).
+    @ObservationIgnored private var outputGeneration = 0
+    /// PDFs being made, shared by the preview and the buttons so both get the same bytes.
+    @ObservationIgnored private var making: [Format: (revision: Int, generation: Int, task: Task<Data, Error>)] = [:]
 
     init(assignment: AssignmentRules, service: MoodleSubmissions, ask: AskModel, database: UniDatabase,
          deadline: PortalOverview.ItemRow?, courseIds: [Int64], courseName: String, courseShort: String,
@@ -180,6 +192,7 @@ final class SolveModel {
         sheetItemId = nil
         rules = nil
         headerOverrides = [:]
+        invalidateOutput()
         if case .needsDetails = phase { phase = .idle }
         Task {
             await replying?.value
@@ -213,6 +226,8 @@ final class SolveModel {
         solution = ""
         revision = 0
         handwriting = .none
+        markup = nil
+        invalidateOutput()
         sources = []
         excerpts = []
         memoryText = nil
@@ -361,6 +376,7 @@ final class SolveModel {
         if let courseId = courseIds.first { try? course.save(database, courseId: courseId) }
         self.student = student
         courseDetails = course
+        headerChanged()
         guard case .needsDetails = phase else { return }
         // Never put a blank identity field into the PDF without asking: stay until all are given.
         let missing = missingDetails()
@@ -375,6 +391,59 @@ final class SolveModel {
     /// A header value for this PDF only (not saved).
     func overrideHeader(_ field: SubmissionRules.Field, value: String) {
         headerOverrides[field] = value
+        headerChanged()
+    }
+
+    // MARK: - Header and filename
+
+    /// The student's and course's details with this PDF's overrides applied. Header values come
+    /// only from these, never from anything ChatGPT wrote.
+    private var effectiveDetails: (student: StudentDetails, course: CourseDetails) {
+        var student = student, course = courseDetails
+        func value(_ field: SubmissionRules.Field) -> String? {
+            guard let value = headerOverrides[field]?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
+            return value
+        }
+        if let name = value(.name) { student.name = name }
+        if let matrikelnr = value(.matrikelnr) { student.matrikelnr = matrikelnr }
+        if let email = value(.email) { student.email = email }
+        if let group = value(.group) { course.group = group }
+        if let tutorial = value(.tutorial) { course.tutorial = tutorial }
+        return (student, course)
+    }
+
+    /// The rows at the top of the PDF: the rules' fields, the course and the sheet; empty rows are left out.
+    var headerRows: [(label: String, value: String)] {
+        let rules = rules ?? .none
+        let (student, course) = effectiveDetails
+        var rows = rules.header(student: student, course: course, courseName: courseName, sheetTitle: assignment.name)
+        // Partner rows can't come from a copy of the details: override them by position.
+        for (index, field) in rules.header.filter({ $0 != .sheet }).enumerated() where index < rows.count {
+            guard field == .partnerNames || field == .partnerMatrikelnr,
+                  let value = headerOverrides[field]?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { continue }
+            rows[index].value = value
+        }
+        return rows.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    private var headerKey: [String] { headerRows.map { $0.label + "\u{1}" + $0.value } }
+
+    /// The header changed: the PDFs are made again, and the handwriting written again (from the
+    /// markup it already has).
+    private func headerChanged() {
+        invalidateOutput()
+        if case .ready = handwriting {
+            handwriting = .none
+            if format == .handwritten { renderHandwritingIfNeeded() }
+        }
+        makePreview()
+    }
+
+    private func invalidateOutput() {
+        output = [:]
+        outputError = nil
+        outputGeneration += 1
+        making = [:]
     }
 
     private func reply(to request: String?) {
@@ -431,6 +500,7 @@ final class SolveModel {
                 }
                 phase = .idle
                 if format == .handwritten { renderHandwritingIfNeeded() }
+                makePreview()
             } catch {
                 solution = previous
                 let stopped = error is CancellationError
@@ -583,6 +653,7 @@ final class SolveModel {
     /// After the student set up their handwriting from the panel.
     func handwritingChanged() {
         handwriting = .none
+        invalidateOutput()
         renderHandwritingIfNeeded()
     }
 
@@ -595,23 +666,39 @@ final class SolveModel {
         }
         let target = revision
         let solution = solution
+        // The header is added only for the render: it never goes to ChatGPT or into its repairs.
+        let header = headerRows
+        let key = headerKey
         converting = Task {
             do {
-                handwriting = .converting
-                var markup = try await convert(solution, fixing: nil)
-                handwriting = .rendering
                 let rendering: Handwriter.Rendering
-                do {
-                    rendering = try await Handwriter.render(markup, strict: true)
-                } catch Handwriter.Failure.invalidMarkup(let errors) {
-                    // One repair round with the validator's errors, then render whatever is left.
-                    handwriting = .converting
-                    markup = try await convert(markup, fixing: errors)
+                if let markup, markup.revision == target {
                     handwriting = .rendering
-                    rendering = try await Handwriter.render(markup, strict: false)
+                    rendering = try await Handwriter.render(markup.text, strict: false, header: header)
+                } else {
+                    handwriting = .converting
+                    var markup = try await convert(solution, fixing: nil)
+                    handwriting = .rendering
+                    do {
+                        rendering = try await Handwriter.render(markup, strict: true, header: header)
+                    } catch Handwriter.Failure.invalidMarkup(let errors) {
+                        // One repair round with the validator's errors, then render whatever is left.
+                        handwriting = .converting
+                        markup = try await convert(markup, fixing: errors)
+                        handwriting = .rendering
+                        rendering = try await Handwriter.render(markup, strict: false, header: header)
+                    }
+                    try Task.checkCancellation()
+                    self.markup = (target, markup)
                 }
                 try Task.checkCancellation()
-                handwriting = .ready(rendering, revision: target)
+                if key == headerKey {
+                    handwriting = .ready(rendering, revision: target)
+                    output[.handwritten] = nil
+                    outputGeneration += 1
+                } else {
+                    handwriting = .none  // the header changed meanwhile: written again below
+                }
             } catch is CancellationError {
                 handwriting = .none  // stopped; rendered again when the handwritten view shows
             } catch _ where Task.isCancelled {
@@ -624,8 +711,9 @@ final class SolveModel {
                 handwriting = .failed(AskModel.describe(error))
             }
             converting = nil
-            // The solution changed while this one rendered: render the new one.
-            if !Task.isCancelled, target != revision { renderHandwritingIfNeeded() }
+            // The solution or the header changed while this one rendered: render the new one.
+            if !Task.isCancelled, target != revision || key != headerKey { renderHandwritingIfNeeded() }
+            makePreview()
         }
     }
 
@@ -670,37 +758,98 @@ final class SolveModel {
     }
 
     /// Debug screenshots (--solve-check): a finished solution without calling ChatGPT.
-    func showDemo(request: String, note: String, solution: String, rendering: Handwriter.Rendering?) {
+    /// With `markup`, the handwritten version is written from it (no conversion call); the details
+    /// are shown, never saved.
+    func showDemo(request: String, note: String, solution: String, markup: String?,
+                  rules: SubmissionRules = .none, student: StudentDetails? = nil, course: CourseDetails? = nil) {
         messages = [Message(role: .assistant, text: "Here's a full solution."), Message(role: .user, text: request),
                     Message(role: .assistant, text: note)]
         self.solution = solution
         sheetChosen = true
-        rules = SubmissionRules.none
+        self.rules = rules
+        if let student { self.student = student }
+        if let course { courseDetails = course }
         memoryReady = true
         revision = 2
         phase = .idle
-        if let rendering { handwriting = .ready(rendering, revision: revision) }
+        handwriting = .none
+        invalidateOutput()
+        if let markup { self.markup = (revision, markup) }
+        if format == .handwritten { renderHandwritingIfNeeded() }
+        makePreview()
     }
 
     // MARK: - Output
 
+    /// The rules' file name pattern filled in from the details (and this PDF's overrides).
     var suggestedFilename: String {
-        let base = assignment.name.replacingOccurrences(of: #"[/\\:*?"<>|]+"#, with: "-", options: .regularExpression)
-            .trimmingCharacters(in: .whitespaces)
-        return "\(base.isEmpty ? "Solution" : base) - Solution.pdf"
+        let (student, course) = effectiveDetails
+        let sheet = headerOverrides[.sheet].flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } ?? sheetNumber
+        return (rules ?? .none).filename(student: student, course: course, assignment: assignment.name, sheet: sheet, courseShort: courseShort)
     }
 
-    /// The solution as a PDF in the chosen format.
+    /// The solution as a PDF in the chosen format, with the header: the cached one for this
+    /// revision and header, or a new one (cached).
     func pdf() async throws -> Data {
+        let format = format
+        while true {
+            if let cached = output[format], cached.revision == revision { return cached.data }
+            let revision = revision, generation = outputGeneration
+            let task: Task<Data, Error>
+            if let current = making[format], current.revision == revision, current.generation == generation {
+                task = current.task
+            } else {
+                task = Task { try await self.make(format) }
+                making[format] = (revision, generation, task)
+            }
+            let data: Data
+            do {
+                data = try await task.value
+            } catch {
+                // A failed PDF isn't kept: the next call (Try Again) makes it again.
+                if making[format]?.task == task { making[format] = nil }
+                throw error
+            }
+            // Stale (a new header or solution while it was made): make it again.
+            guard revision == self.revision, generation == outputGeneration else { continue }
+            if output[format]?.revision != revision { output[format] = (revision, data) }
+            if format == self.format { outputError = nil }
+            making[format] = nil
+            return output[format]!.data
+        }
+    }
+
+    private func make(_ format: Format) async throws -> Data {
         switch format {
         case .typed:
-            return try await SolutionPDF.make(markdown: solution, title: assignment.name)
+            return try await SolutionPDF.make(markdown: solution, title: assignment.name, header: headerRows)
         case .handwritten:
             guard case .ready(let rendering, let rendered) = handwriting, rendered == revision else {
                 throw Handwriter.Failure.failed("The handwritten version isn't ready yet.")
             }
             return try Data(contentsOf: rendering.pdf)
         }
+    }
+
+    /// Makes the current format's PDF for the preview, once the solution is done.
+    func makePreview() {
+        guard canExport, output[format]?.revision != revision else { return }
+        let format = format
+        Task {
+            do {
+                _ = try await pdf()
+            } catch {
+                if self.format == format, !(error is CancellationError) {
+                    outputError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                }
+            }
+        }
+    }
+
+    /// The file name and the PDF to add to the submission: the bytes the preview shows.
+    func attachment() async throws -> (filename: String, data: Data) {
+        let data = try await pdf()
+        return (suggestedFilename, data)
     }
 
     var canExport: Bool {

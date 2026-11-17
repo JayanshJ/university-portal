@@ -183,9 +183,55 @@ struct SolvePanel: View {
         } else {
             switch model.format {
             case .typed:
-                SolutionWebView(markdown: model.solution, streaming: model.phase == .writing)
+                typed
             case .handwritten:
                 handwritten
+            }
+        }
+    }
+
+    /// Streaming, the formatted solution; once a revision is done, the PDF that gets handed in.
+    @ViewBuilder
+    private var typed: some View {
+        if model.phase == .writing || !model.hasSolution {
+            SolutionWebView(markdown: model.solution, streaming: model.phase == .writing)
+        } else if let output = model.output[.typed], output.revision == model.revision {
+            PDFPreview(data: output.data)
+        } else if let error = model.outputError {
+            failure("Couldn't Make the PDF", error) { Button("Try Again") { model.makePreview() } }
+        } else {
+            SolutionWebView(markdown: model.solution, streaming: false)
+                .overlay(alignment: .top) { makingPDF }
+                .task(id: model.revision) { model.makePreview() }
+        }
+    }
+
+    private var makingPDF: some View {
+        HStack(spacing: 6) {
+            ProgressView().controlSize(.small)
+            Text("Making the PDF…").font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 5)
+        .padding(.horizontal, 10)
+        .background(Capsule().fill(.regularMaterial))
+        .padding(.top, 8)
+    }
+
+    /// The handwritten PDF, with the characters that had no glyph.
+    @ViewBuilder
+    private func handwrittenPDF(_ rendering: Handwriter.Rendering) -> some View {
+        VStack(spacing: 0) {
+            if !rendering.dropped.isEmpty {
+                Label("Left out (no glyph): \(rendering.dropped.joined(separator: " "))", systemImage: "exclamationmark.triangle")
+                    .font(.caption).foregroundStyle(Theme.dueSoon)
+                    .padding(.top, 8)
+            }
+            if let output = model.output[.handwritten], output.revision == model.revision {
+                PDFPreview(data: output.data)
+            } else if let error = model.outputError {
+                failure("Couldn't Make the PDF", error) { Button("Try Again") { model.makePreview() } }
+            } else {
+                progress("Making the PDF…").task(id: model.revision) { model.makePreview() }
             }
         }
     }
@@ -197,7 +243,7 @@ struct SolvePanel: View {
         } else {
             switch model.handwriting {
             case .ready(let rendering, let revision) where revision == model.revision:
-                HandwrittenPages(rendering: rendering)
+                handwrittenPDF(rendering)
             case .notSetUp:
                 failure("Set Up Your Handwriting",
                         "Fill in a two-page template by hand and upload a photo or scan of it. Your handwriting stays on this Mac.") {
@@ -332,7 +378,8 @@ struct SolvePanel: View {
                 Button("Add to Submission") {
                     Task {
                         await export {
-                            attach(model.suggestedFilename, try await model.pdf())
+                            let attachment = try await model.attachment()
+                            attach(attachment.filename, attachment.data)
                             added = "Added \(model.format == .handwritten ? "handwritten" : "typed") PDF"
                         }
                     }
@@ -372,33 +419,5 @@ struct SolvePanel: View {
             if let error = ask.signInError { Text(error).font(.caption).foregroundStyle(Theme.overdue) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-/// Math Writer's pages, one under the other.
-private struct HandwrittenPages: View {
-    let rendering: Handwriter.Rendering
-    @State private var images: [NSImage] = []
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                if !rendering.dropped.isEmpty {
-                    Label("Left out (no glyph): \(rendering.dropped.joined(separator: " "))", systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(Theme.dueSoon)
-                }
-                ForEach(images.indices, id: \.self) { index in
-                    Image(nsImage: images[index])
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                        .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
-                }
-            }
-            .padding(14)
-        }
-        .task(id: rendering) {
-            images = rendering.pages.compactMap { NSImage(contentsOf: $0) }
-        }
     }
 }

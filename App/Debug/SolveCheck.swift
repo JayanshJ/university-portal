@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import GRDB
+import PDFKit
 import SwiftUI
 import UniversityKit
 
@@ -100,14 +101,15 @@ enum SolveCheck {
         let folder = FileManager.default.temporaryDirectory.appending(path: "solve-check", directoryHint: .isDirectory)
         try? FileManager.default.removeItem(at: folder)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        var rendering: Handwriter.Rendering?
-        var log: [String] = ["handwriting set up: \(Handwriter.isSetUp)", "markup guide: \(Handwriter.markupGuide.count) chars"]
+        // A synthetic handwriting (a font, photographed and read back), never the student's own.
+        if let library = TemplateCheck.syntheticLibrary(named: "solve-check-glyphs") { Handwriter.library = library }
+        var log: [String] = ["handwriting library: \(Handwriter.library.lastPathComponent), set up: \(Handwriter.isSetUp)",
+                             "markup guide: \(Handwriter.markupGuide.count) chars"]
         if Handwriter.isSetUp {
             do {
                 let bad = try? await Handwriter.render("x^2 [F]1[/F]", strict: true)
                 log.append("strict bad markup rendered: \(bad != nil)")
                 let rendered = try await Handwriter.render(demoMarkup, strict: true)
-                rendering = rendered
                 log.append("handwritten: \(rendered.pages.count) page(s), \((try? Data(contentsOf: rendered.pdf).count) ?? 0) bytes, dropped \(rendered.dropped)")
             } catch {
                 log.append("handwritten FAILED: \(error)")
@@ -117,42 +119,100 @@ enum SolveCheck {
         do {
             var markdown = "## Aufgabe 1\n\n(a) Es gilt $\\frac{1}{3} + \\frac{1}{6} = \\frac{1}{2}$, denn\n\n$$\\int_0^1 x^2\\,dx = \\frac{1}{3}.$$\n\n$$\\boxed{x = 2}$$\n\n"
             for n in 2...8 { markdown += "## Aufgabe \(n)\n\nSei $A = \\begin{pmatrix}1 & 2\\\\ 3 & 4\\end{pmatrix}$. Dann ist $\\det A = -2 \\neq 0$, also ist $A$ invertierbar, und $$A^{-1} = \\frac{1}{-2}\\begin{pmatrix}4 & -2\\\\ -3 & 1\\end{pmatrix}.$$\n\n" }
-            let data = try await SolutionPDF.make(markdown: markdown, title: "Übungsblatt 4")
+            let data = try await SolutionPDF.make(markdown: markdown, title: "Übungsblatt 4", header: [("Name", "Ada Lovelace"), ("Matrikelnummer", "2571234")])
             try data.write(to: folder.appending(path: "typed.pdf"))
-            log.append("typed: \(data.count) bytes")
+            log.append("typed: \(data.count) bytes, \(PDFDocument(data: data)?.pageCount ?? 0) page(s)")
         } catch {
             log.append("typed FAILED: \(error)")
         }
         try? log.joined(separator: "\n").write(to: folder.appending(path: "log.txt"), atomically: true, encoding: .utf8)
         print(log.joined(separator: "\n"))
-        await screenshots(ask: ask, rendering: rendering)
+        await screenshots(ask: ask)
         fflush(stdout)
         NSApp.terminate(nil)
     }
 
-    /// The panel in both formats, printed as "SHOT:<name>:<base64 PNG>" lines.
-    private static func screenshots(ask: AskModel, rendering: Handwriter.Rendering?) async {
+    /// German rules and made-up details for the demo (never the database's real ones).
+    static let demoRules = SubmissionRules(header: [.name, .matrikelnr, .group], filename: "Blatt{sheet}_{lastname}_{matrikelnr}.pdf",
+                                           quote: "Bitte geben Sie Ihren Namen, Ihre Matrikelnummer und Ihre Gruppe auf der Abgabe an.")
+    static let demoStudent = StudentDetails(name: "Ada Lovelace", matrikelnr: "2571234", email: "ada@example.org")
+    static let demoCourse = CourseDetails(group: "Gruppe 3")
+
+    /// The panel in both formats and the PDFs it makes, printed as "SHOT:<name>:<base64 PNG>" lines,
+    /// plus whether "Add to Submission" hands in exactly the previewed bytes ("PDFSAME").
+    private static func screenshots(ask: AskModel) async {
         ask.showDemo(courseId: nil)
         let service = MoodleSubmissions(client: MoodleClient(token: "demo", transport: Snapshotter.DemoMoodle(cmid: 1)))
         guard let rules = try? await service.rules(cmid: 1) else { print("no demo rules"); return }
         let model = SolveModel(assignment: rules, service: service, ask: ask, database: ask.database, deadline: nil,
-                               courseIds: [], courseName: "", courseShort: "", candidates: [],
+                               courseIds: [], courseName: "Analysis I", courseShort: "ANA", candidates: [],
                                openMaterial: { _ in throw CocoaError(.fileNoSuchFile) })
+        model.format = .typed
         model.showDemo(request: "Show the substitution step in 1(b) in more detail",
                        note: "I expanded the substitution in 1(b) into two steps.",
-                       solution: demoSolution, rendering: rendering)
+                       solution: demoSolution, markup: demoMarkup, rules: demoRules, student: demoStudent, course: demoCourse)
+        var attached: (name: String, data: Data)?
         let window = NSWindow(contentViewController: NSHostingController(rootView:
             SolvePanel(model: model, ask: ask, acceptsFiles: true, acceptsText: false,
-                       attach: { _, _ in }, useAsText: { _ in }, close: {}).frame(width: 520, height: 720)))
+                       attach: { attached = ($0, $1) }, useAsText: { _ in }, close: {}).frame(width: 520, height: 720)))
         window.makeKeyAndOrderFront(nil)
-        for (appearance, format) in [(NSAppearance.Name.darkAqua, SolveModel.Format.handwritten), (.darkAqua, .typed), (.aqua, .handwritten), (.aqua, .typed)] {
-            NSApp.appearance = NSAppearance(named: appearance)
+        print("FILENAME \(model.suggestedFilename)")
+        print("HEADER " + model.headerRows.map { "\($0.label): \($0.value)" }.joined(separator: " | "))
+
+        /// Waits for the format's PDF, prints its pages, and checks what Add to Submission would attach.
+        func check(_ format: SolveModel.Format, shot: String) async -> Data? {
             model.format = format
-            try? await Task.sleep(for: .seconds(2))
+            for _ in 0..<300 where model.output[format]?.revision != model.revision {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            guard let cached = model.output[format]?.data else {
+                print("PDF \(format.rawValue) not ready: \(model.outputError ?? "\(model.handwriting)")")
+                return nil
+            }
+            if let attachment = try? await model.attachment() { attached = (attachment.filename, attachment.data) }
+            print("PDFSAME \(shot) \(attached?.data == cached && attached?.data == model.output[format]?.data) (\(cached.count) bytes, \(attached?.name ?? "-"))")
+            if let document = PDFDocument(data: cached) {
+                print("PDF \(shot): \(document.pageCount) page(s), page 1 text: \(document.page(at: 0)?.string?.prefix(80).replacingOccurrences(of: "\n", with: " ") ?? "(none)")")
+                for index in 0..<min(document.pageCount, 2) {
+                    if let png = pagePNG(document.page(at: index)) { print("SHOT:pdf-\(shot)-p\(index + 1):" + png.base64EncodedString()) }
+                }
+            }
+            return cached
+        }
+
+        let typed = await check(.typed, shot: "typed")
+        await panelShot(window, "typed")
+        _ = await check(.handwritten, shot: "handwritten")
+        if case .ready(let rendering, _) = model.handwriting { print("HANDWRITTEN dropped: \(rendering.dropped)") }
+        await panelShot(window, "handwritten")
+
+        // A header value the handwriting has no glyph for ("&"): typed onto page 1 instead.
+        model.overrideHeader(.name, value: "Ada Lovelace & Co")
+        print("INVALIDATED \(model.output.isEmpty)")
+        _ = await check(.handwritten, shot: "handwritten-stamped")
+        let typedAgain = await check(.typed, shot: "typed-override")
+        print("TYPED CHANGED \(typed != nil && typedAgain != nil && typed != typedAgain)")
+        print("FILENAME after override \(model.suggestedFilename)")
+    }
+
+    private static func panelShot(_ window: NSWindow, _ name: String) async {
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            NSApp.appearance = NSAppearance(named: appearance)
+            try? await Task.sleep(for: .seconds(1))
             if let png = try? await Snapshotter.capture(window) {
-                print("SHOT:\(format.rawValue)-\(appearance == .aqua ? "light" : "dark"):" + png.base64EncodedString())
+                print("SHOT:panel-\(name)-\(appearance == .aqua ? "light" : "dark"):" + png.base64EncodedString())
             }
         }
+        NSApp.appearance = NSAppearance(named: .aqua)
+    }
+
+    /// A PDF page as a PNG, 900 px wide.
+    private static func pagePNG(_ page: PDFPage?) -> Data? {
+        guard let page else { return nil }
+        let bounds = page.bounds(for: .mediaBox)
+        let image = page.thumbnail(of: CGSize(width: 900, height: 900 * bounds.height / bounds.width), for: .mediaBox)
+        guard let tiff = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
+        return bitmap.representation(using: .png, properties: [:])
     }
 
     static let demoMarkup = """

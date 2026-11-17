@@ -50,6 +50,27 @@ enum TemplateCheck {
         finish("done")
     }
 
+    /// A glyph library written from photographed template pages filled in a handwriting font, in a
+    /// temporary folder (never the student's own handwriting). Nil when the template can't be read.
+    static func syntheticLibrary(named name: String) -> URL? {
+        guard let document = PDFDocument(data: HandwritingTemplate.pdf()) else { return nil }
+        var pages: [TemplateReader.Page] = []
+        for number in 0..<document.pageCount {
+            guard let page = document.page(at: number), let filled = fill(page, number: number),
+                  let photo = photograph(filled, rotation: 0.12, tilt: true),
+                  let read = try? TemplateReader.read(photo) else { continue }
+            pages.append(read)
+        }
+        let library = FileManager.default.temporaryDirectory.appending(path: name, directoryHint: .isDirectory)
+        do {
+            try FileManager.default.createDirectory(at: library.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try HandwritingProfile.write(pages, to: library)
+            return library
+        } catch {
+            return nil
+        }
+    }
+
     private static func finish(_ message: String) {
         print(message)
         fflush(stdout)

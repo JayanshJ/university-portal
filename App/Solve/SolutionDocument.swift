@@ -67,6 +67,34 @@ struct SolutionWebView: NSViewRepresentable {
     }
 }
 
+/// A PDF, scrolling through its pages.
+struct PDFPreview: NSViewRepresentable {
+    let data: Data
+
+    func makeNSView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.displayMode = .singlePageContinuous
+        view.backgroundColor = .clear
+        view.document = PDFDocument(data: data)
+        context.coordinator.shown = data
+        return view
+    }
+
+    func updateNSView(_ view: PDFView, context: Context) {
+        // Only a new PDF replaces the document, so scrolling isn't reset on every update.
+        guard context.coordinator.shown != data else { return }
+        context.coordinator.shown = data
+        view.document = PDFDocument(data: data)
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        var shown: Data?
+    }
+}
+
 /// Makes an A4 PDF of the typed solution: renders it off screen, cuts it into pages between
 /// paragraphs and places each slice inside the page margins.
 @MainActor
@@ -74,7 +102,9 @@ enum SolutionPDF {
     static let page = CGSize(width: 595, height: 842)  // A4 in points
     static let margin: CGFloat = 54
 
-    static func make(markdown: String, title: String) async throws -> Data {
+    /// `header` rows (the sheet's name, Matrikelnummer, … from the student's details) go above the
+    /// title as a two-column table; they are passed as plain text, never as Markdown.
+    static func make(markdown: String, title: String, header: [(label: String, value: String)]) async throws -> Data {
         let width = page.width - 2 * margin
         let height = page.height - 2 * margin
         let view = WKWebView(frame: CGRect(x: 0, y: 0, width: width, height: height))
@@ -85,7 +115,8 @@ enum SolutionPDF {
         try await loader.loaded()
 
         let document = "# \(title)\n\n" + markdown
-        let total = (try await view.evaluateJavaScript("SOL.show(\(jsString(document)), true, false)") as? NSNumber)?.doubleValue ?? height
+        let rows = (try? JSONSerialization.data(withJSONObject: header.map { [$0.label, $0.value] })).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
+        let total = (try await view.evaluateJavaScript("SOL.show(\(jsString(document)), true, false, \(rows))") as? NSNumber)?.doubleValue ?? height
         view.frame.size.height = max(height, total)
         try await Task.sleep(for: .milliseconds(150))  // KaTeX fonts settle
         let cuts = ((try await view.evaluateJavaScript("SOL.breaks(\(Int(height)))") as? [NSNumber]) ?? [0, NSNumber(value: total)])
