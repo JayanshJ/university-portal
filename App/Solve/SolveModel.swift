@@ -50,7 +50,7 @@ final class SolveModel {
     private(set) var solution = ""
     /// Bumped each time a reply finishes with a new solution.
     private(set) var revision = 0
-    private(set) var phase: Phase = .idle
+    var phase: Phase = .idle
     private(set) var handwriting: Handwriting = .none
     var format: Format {
         didSet {
@@ -87,17 +87,17 @@ final class SolveModel {
 
     let assignment: AssignmentRules
     /// The sheet's submission rules (header fields, file name), once read.
-    private(set) var rules: SubmissionRules?
+    var rules: SubmissionRules?
     /// Course PDFs Solve cannot read, with the reason.
-    private(set) var unread: [(title: String, reason: String)] = []
+    var unread: [(title: String, reason: String)] = []
     /// What the current solution drew on, from the finished reply.
     private(set) var sources: [SolveReply.Source] = []
     /// Every excerpt sent to the model so far, numbered in order.
     private(set) var excerpts: [Excerpt] = []
-    private(set) var student: StudentDetails
-    private(set) var courseDetails: CourseDetails
+    var student: StudentDetails
+    var courseDetails: CourseDetails
     /// Header values typed for this PDF only.
-    private(set) var headerOverrides: [SubmissionRules.Field: String] = [:]
+    var headerOverrides: [SubmissionRules.Field: String] = [:]
     /// The deadline's course first, then related courses (its CMS page); empty without a deadline.
     let courseIds: [Int64]
     let courseName: String
@@ -110,8 +110,8 @@ final class SolveModel {
     /// The user picked the sheet (or chose none), so Solve doesn't ask again.
     private var sheetChosen = false
     @ObservationIgnored private let service: MoodleSubmissions
-    @ObservationIgnored private let database: UniDatabase
-    @ObservationIgnored private let ask: AskModel
+    @ObservationIgnored let database: UniDatabase
+    @ObservationIgnored let ask: AskModel
     @ObservationIgnored private let deadline: PortalOverview.ItemRow?
     @ObservationIgnored private let openMaterial: (PortalOverview.ItemRow) async throws -> URL
     @ObservationIgnored private var task: (text: String, images: [Data])?
@@ -120,20 +120,20 @@ final class SolveModel {
     @ObservationIgnored private var replying: Task<Void, Never>?
     @ObservationIgnored private var converting: Task<Void, Never>?
     /// Memory, rules and details before the first reply.
-    @ObservationIgnored private var preparing: Task<Void, Never>?
+    @ObservationIgnored var preparing: Task<Void, Never>?
     /// The memory build, cancelled on its own by Skip for Now.
-    @ObservationIgnored private var memoryBuild: Task<CourseMemory.Progress, Never>?
+    @ObservationIgnored var memoryBuild: Task<CourseMemory.Progress, Never>?
     /// Ends the wait for indexing (indexing finished, or Skip for Now).
-    @ObservationIgnored private var memoryGate: AsyncStream<Void>.Continuation?
+    @ObservationIgnored var memoryGate: AsyncStream<Void>.Continuation?
     /// Bumped after each memory build, so late progress updates of a finished build are dropped.
-    @ObservationIgnored private var memoryRun = 0
+    @ObservationIgnored var memoryRun = 0
     /// The memory was built (or skipped) for this panel; `retryMemory` builds it again.
-    @ObservationIgnored private var memoryReady = false
+    @ObservationIgnored var memoryReady = false
     /// The course memory as sent to the model, made once per solve.
-    @ObservationIgnored private var memoryText: String?
+    @ObservationIgnored var memoryText: String?
     /// The sheet file's own text, and its material id when it is a course PDF.
-    @ObservationIgnored private var sheetText = ""
-    @ObservationIgnored private var sheetItemId: Int64?
+    @ObservationIgnored var sheetText = ""
+    @ObservationIgnored var sheetItemId: Int64?
     /// The handwriting markup of a revision (converted, and repaired if needed), so a new header
     /// writes it again without asking ChatGPT.
     @ObservationIgnored private var markup: (revision: Int, text: String)?
@@ -242,189 +242,7 @@ final class SolveModel {
         }
     }
 
-    // MARK: - Memory, rules and details
-
-    /// Before the first reply: the course memory, the files it can't read, the sheet's submission
-    /// rules, and the student's details those rules need.
-    private func prepare() {
-        preparing = Task {
-            defer { preparing = nil }
-            do {
-                if !memoryReady { await buildMemory() }
-                try Task.checkCancellation()
-                if rules == nil {
-                    let task = try await readTask()
-                    let read = try await readRules(task)
-                    try Task.checkCancellation()  // another sheet was chosen meanwhile
-                    rules = read
-                }
-                try Task.checkCancellation()
-                let missing = missingDetails()
-                if !missing.isEmpty {
-                    phase = .needsDetails(missing)
-                    return
-                }
-                phase = .idle
-                reply(to: nil)
-            } catch {
-                let stopped = error is CancellationError || Task.isCancelled
-                phase = .failed(stopped ? "Stopped." : AskModel.describe(error))
-                if case ChatGPTError.signInExpired = error { await ask.refreshAccount() }
-            }
-        }
-    }
-
-    /// Indexes the courses' PDFs, then digests new ones. Skip for Now stops waiting for indexing
-    /// (it finishes in the background) or cancels the build; either way Solve goes on with what exists.
-    private func buildMemory() async {
-        memoryReady = true
-        memoryText = nil
-        guard let memoryCourseId = courseIds.first, let memory = ask.memory() else { return }
-        let ids = courseIds
-        let run = memoryRun
-        phase = .memory(CourseMemory.Progress())
-
-        let (gate, continuation) = AsyncStream<Void>.makeStream()
-        memoryGate = continuation
-        let ask = ask
-        Task {
-            _ = await ask.indexCourses(ids)
-            continuation.yield()
-        }
-        var skipped = true
-        for await _ in gate {
-            skipped = memoryGate == nil
-            break
-        }
-        memoryGate = nil
-
-        if !skipped, !Task.isCancelled {
-            let report: @Sendable (CourseMemory.Progress) -> Void = { [weak self] progress in
-                Task { @MainActor in
-                    guard let self, self.memoryRun == run, case .memory = self.phase else { return }
-                    self.phase = .memory(progress)
-                }
-            }
-            let build = Task { await memory.run(courseIds: ids, memoryCourseId: memoryCourseId, onProgress: report) }
-            memoryBuild = build
-            _ = await withTaskCancellationHandler { await build.value } onCancel: { build.cancel() }
-            memoryBuild = nil
-        }
-        memoryRun += 1
-        unread = (try? memory.unread(courseIds: ids)) ?? []
-    }
-
-    /// Stops the memory step and solves with what the memory has so far.
-    func skipMemory() {
-        guard case .memory = phase else { return }
-        if let memoryGate {
-            self.memoryGate = nil
-            memoryGate.yield()
-        }
-        memoryBuild?.cancel()
-    }
-
-    /// Builds the memory again (files that failed are read again). Before the first reply this
-    /// continues to the solution; afterwards the next reply uses the new memory.
-    func retryMemory() {
-        guard !isBusy, preparing == nil else { return }
-        memoryReady = false
-        if messages.isEmpty {
-            prepare()
-            return
-        }
-        preparing = Task {
-            defer { preparing = nil }
-            await buildMemory()
-            phase = .idle
-        }
-    }
-
-    /// One call: the sheet's header fields, file name pattern and other submission rules. Falls back
-    /// to `.none` when ChatGPT fails.
-    private func readRules(_ task: (text: String, images: [Data])) async throws -> SubmissionRules {
-        guard let model = ask.model else { return .none }
-        phase = .rules
-        var parts = ["# Assignment: \(assignment.name)"]
-        if !assignment.intro.isEmpty { parts.append(assignment.intro) }
-        parts.append("## Sheet\n\n" + String((sheetText.isEmpty ? task.text : sheetText).prefix(60_000)))
-        if let sheetItemId, let digest = memoryDocument()?.files.first(where: { $0.itemId == sheetItemId })?.digest {
-            parts.append("## Digest of the sheet\n\n" + digest)
-        }
-        do {
-            let reply = try await ask.client.complete(model: model, instructions: SubmissionRules.instructions,
-                                                      input: [ChatMessage(role: .user, content: parts.joined(separator: "\n\n"))])
-            return SubmissionRules.parse(reply)
-        } catch {
-            if error is CancellationError || Task.isCancelled { throw CancellationError() }
-            return .none
-        }
-    }
-
-    private func memoryDocument() -> MemoryDocument? {
-        guard let memoryCourseId = courseIds.first, let memory = ask.memory() else { return nil }
-        return try? memory.document(memoryCourseId: memoryCourseId, courseIds: courseIds)
-    }
-
-    /// Fields the rules need that are still empty and not typed in for this PDF.
-    private func missingDetails() -> [SubmissionRules.Field] {
-        (rules ?? .none).missing(student: student, course: courseDetails, sheet: sheetNumber).filter {
-            (headerOverrides[$0] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
-    }
-
-    /// Saves the student's and the course's details and, when Solve was waiting for them, solves.
-    func saveDetails(student: StudentDetails, course: CourseDetails) {
-        try? student.save(database)
-        if let courseId = courseIds.first { try? course.save(database, courseId: courseId) }
-        self.student = student
-        courseDetails = course
-        headerChanged()
-        guard case .needsDetails = phase else { return }
-        // Never put a blank identity field into the PDF without asking: stay until all are given.
-        let missing = missingDetails()
-        if !missing.isEmpty {
-            phase = .needsDetails(missing)
-            return
-        }
-        phase = .idle
-        reply(to: nil)
-    }
-
-    /// A header value for this PDF only (not saved).
-    func overrideHeader(_ field: SubmissionRules.Field, value: String) {
-        headerOverrides[field] = value
-        headerChanged()
-    }
-
     // MARK: - Header and filename
-
-    /// A header field's value for this PDF: the override when one is typed, else the stored details.
-    func headerValue(_ field: SubmissionRules.Field) -> String {
-        if let value = headerOverrides[field]?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty { return value }
-        switch field {
-        case .name: return student.name
-        case .matrikelnr: return student.matrikelnr
-        case .email: return student.email
-        case .group: return courseDetails.group
-        case .tutorial: return courseDetails.tutorial
-        case .sheet: return sheetNumber.map(String.init) ?? ""
-        case .partnerNames: return courseDetails.partners.map(\.name).joined(separator: ", ")
-        case .partnerMatrikelnr: return courseDetails.partners.map(\.matrikelnr).joined(separator: ", ")
-        }
-    }
-
-    /// The memory heading a "memory: <section>" source means. The model doesn't always copy the
-    /// heading exactly, so it matches case-insensitively by containment; nil when none matches.
-    func memoryHeading(for section: String) -> String? {
-        let wanted = section.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !wanted.isEmpty, let document = memoryDocument() else { return nil }
-        let headings = ["Your notes", "Course overview"] + document.files.map { file in
-            file.section.map { $0.isEmpty ? file.title : "\(file.title) (\($0))" } ?? file.title
-        }
-        return headings.first { $0.lowercased() == wanted }
-            ?? headings.first { $0.lowercased().contains(wanted) || wanted.contains($0.lowercased()) }
-    }
 
     /// The student's and course's details with this PDF's overrides applied. Header values come
     /// only from these, never from anything ChatGPT wrote.
@@ -460,7 +278,7 @@ final class SolveModel {
 
     /// The header changed: the PDFs are made again, and the handwriting written again (from the
     /// markup it already has).
-    private func headerChanged() {
+    func headerChanged() {
         invalidateOutput()
         if case .ready = handwriting {
             handwriting = .none
@@ -476,7 +294,7 @@ final class SolveModel {
         making = [:]
     }
 
-    private func reply(to request: String?) {
+    func reply(to request: String?) {
         guard let model = ask.model else { return }
         let previous = solution
         let history = messages.dropLast(request == nil ? 0 : 1).suffix(8)
@@ -544,7 +362,7 @@ final class SolveModel {
 
     /// The assignment: its name and description, the text of its attachments and of the sheet, and
     /// the PDF pages as images (formulas rarely survive text extraction).
-    private func readTask() async throws -> (text: String, images: [Data]) {
+    func readTask() async throws -> (text: String, images: [Data]) {
         if let task { return task }
         var parts = ["# Assignment: \(assignment.name)"]
         if let course = deadline?.courseFullName { parts.append("Course: \(course)") }
