@@ -14,7 +14,8 @@ public enum CourseLinks {
     }
 
     private static let filler: Set<String> = ["and", "und", "the", "der", "die", "das", "for", "fur", "für", "in", "of", "von",
-                                              "sose", "wise", "winter", "summer", "semester", "course", "kurs", "vorlesung", "lecture"]
+                                              "sose", "wise", "winter", "summer", "semester", "course", "kurs", "vorlesung", "lecture",
+                                              "bachelor", "master"]
 
     /// Lowercased words of four or more letters, without filler.
     public static func words(_ text: String) -> Set<String> {

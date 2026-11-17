@@ -37,6 +37,16 @@ import Testing
         #expect(related == [1, 2])
     }
 
+    @Test func degreeWordsDontLinkCourses() {
+        let related = CourseLinks.related(
+            courseId: 1, courseName: "DeMIS WiSe 26/27 Development and Management of Information Systems (Bachelor) WiSe 26/27", courses: [
+                (1, "DeMIS WiSe 26/27 Development and Management of Information Systems (Bachelor) WiSe 26/27", true),
+                (2, "Sustainable Finance WiSe 26/27 Sustainable Finance im WiSe 2026/2027 (Bachelor)", true),
+                (3, "Statistik Master", true),
+            ])
+        #expect(related == [1])
+    }
+
 }
 
 /// Records what the fake model is asked; throws for inputs containing "FAIL".
