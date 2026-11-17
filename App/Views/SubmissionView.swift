@@ -222,6 +222,8 @@ struct SubmissionView: View {
     @State private var confirmingFinal = false
     /// The Solve side panel, while it's open.
     @State private var solving: SolveModel?
+    /// The course memory, opened from a source chip in the Solve panel, in front of this sheet.
+    @State private var memorySheet: MemoryTarget?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -238,8 +240,9 @@ struct SubmissionView: View {
                 SolvePanel(model: solving, ask: ask, acceptsFiles: rules.acceptsFiles, acceptsText: rules.acceptsText,
                            attach: { model.add(filename: $0, data: $1) },
                            useAsText: { model.text = $0 },
-                           // For now the course page, behind this sheet; the memory view doesn't exist yet.
-                           openMemory: { _ in if let course = solving.courseIds.first { app.selection = .course(course) } },
+                           openMemory: { heading in
+                               if !solving.courseIds.isEmpty { memorySheet = MemoryTarget(model: solving, heading: heading) }
+                           },
                            close: { solving.stop(); withAnimation { self.solving = nil } })
                     .frame(width: 520)
                     .transition(.move(edge: .trailing))
@@ -250,6 +253,11 @@ struct SubmissionView: View {
         .fileImporter(isPresented: $importing, allowedContentTypes: allowedTypes, allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { model.add(urls) }
         }
+        .sheet(item: $memorySheet, onDismiss: memoryClosed) { target in
+            CourseMemoryView(database: target.model.database, courseName: target.model.courseName,
+                             courseIds: target.model.courseIds, memoryCourseId: target.model.courseIds.first,
+                             heading: target.heading)
+        }
         .confirmationDialog("\(model.finalTitle)?", isPresented: $confirmingFinal) {
             Button(model.finalTitle) { Task { await finish(final: true) } }
         } message: {
@@ -257,6 +265,14 @@ struct SubmissionView: View {
                  ? "Once it's submitted for grading you can't change it, unless your tutor reverts it to a draft."
                  : "Moodle will have exactly these files\(model.rules?.acceptsText == true ? " and text" : "").")
         }
+    }
+
+    /// The memory view may have changed the course's group, tutorial or partners: the panel takes
+    /// them over (and solves, if it was waiting for them).
+    private func memoryClosed() {
+        guard let solving, let courseId = solving.courseIds.first else { return }
+        let saved = CourseDetails.load(solving.database, courseId: courseId)
+        if saved != solving.courseDetails { solving.saveDetails(student: solving.student, course: saved) }
     }
 
     private var allowedTypes: [UTType] {
@@ -486,4 +502,11 @@ struct SubmissionView: View {
         await model.save(final: final)
         if model.confirmation != nil { await app.syncNow() }
     }
+}
+
+/// Which heading of the course memory a source chip opened.
+private struct MemoryTarget: Identifiable {
+    let id = UUID()
+    let model: SolveModel
+    let heading: String?
 }

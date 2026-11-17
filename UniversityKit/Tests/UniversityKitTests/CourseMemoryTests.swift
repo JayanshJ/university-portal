@@ -285,6 +285,33 @@ private func seedMemory(_ database: UniDatabase, pdfs: [(course: Int, title: Str
         #expect(files[1].edited && !files[1].changedSinceEdit)
     }
 
+    @Test func summaryIsNilBeforeTheFirstBuild() throws {
+        let database = try UniDatabase.inMemory()
+        _ = try seedMemory(database, pdfs: [(1, "Lecture 1", ["p"])])
+        let memory = CourseMemory(database: database, complete: FakeModel().complete, model: "m")
+        #expect(try memory.summary(courseIds: [1]) == nil)
+        #expect(try memory.summary(courseIds: []) == nil)
+    }
+
+    @Test func summaryCountsFilesAndFindsTheMemoryCourse() async throws {
+        let database = try UniDatabase.inMemory()
+        _ = try seedMemory(database, pdfs: [(1, "Lecture 1", ["p"]), (2, "Blatt 1", ["q"]), (2, "Blatt 2", ["r"])])
+        let memory = CourseMemory(database: database, complete: FakeModel().complete, model: "m")
+        // Solve ran from course 2's assignment: the notes and overview are under course 2.
+        _ = await memory.run(courseIds: [2, 1], memoryCourseId: 2, onProgress: { _ in })
+        let before = Date.now
+        try memory.setNotes("mine", courseId: 2)
+        // Seen from course 1's page, the related course 2 holds the memory.
+        let summary = try #require(try memory.summary(courseIds: [1, 2]))
+        #expect(summary.memoryCourseId == 2)
+        #expect(summary.files == 3)
+        #expect(summary.updatedAt >= before)
+        // Only course 1's own files, without a record of its own: still a memory, kept under course 1.
+        let own = try #require(try memory.summary(courseIds: [1]))
+        #expect(own.memoryCourseId == 1)
+        #expect(own.files == 1)
+    }
+
     @Test func documentListsUnreadFiles() async throws {
         let (database, ids, memory) = try await setup(1)
         try await database.writer.write { db in

@@ -5,6 +5,8 @@ import UniversityKit
 struct CourseView: View {
     @Environment(AppModel.self) private var model
     let courseId: Int64
+    @State private var memory: MemorySummary?
+    @State private var showsMemory = false
 
     var body: some View {
         let overview = model.overview
@@ -94,13 +96,49 @@ struct CourseView: View {
                     model.selection = .materials
                 }))
             }
+            if model.database != nil {
+                Section("Course Memory") {
+                    Button { showsMemory = true } label: {
+                        HStack {
+                            Image(systemName: "brain").foregroundStyle(.secondary).frame(width: 18)
+                            Text(memory.map(CourseMemoryView.summaryText) ?? "Built the first time you use Solve in this course.")
+                                .foregroundStyle(memory == nil ? .secondary : .primary)
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("What Solve remembers about this course, and the course's submission details")
+                }
+            }
         }
         .listStyle(.inset)
+        .task(id: courseId) { loadMemory() }
+        .sheet(isPresented: $showsMemory, onDismiss: loadMemory) {
+            if let database = model.database {
+                CourseMemoryView(database: database, courseName: style.name, courseIds: memoryCourses,
+                                 memoryCourseId: nil, heading: nil)
+            }
+        }
         .navigationTitle(style.name)
         .navigationSubtitle([course?.fullName == style.name ? nil : course?.fullName,
                              course?.source == .cms ? "CMS" : "Moodle",
                              course?.term.flatMap { term in course?.fullName.contains(term) == true ? nil : term }]
             .compactMap { $0 }.joined(separator: " · "))
+    }
+
+    /// This course and its related ones (its CMS or Moodle twin), as Solve groups them.
+    private var memoryCourses: [Int64] {
+        let courses = model.overview.courses
+        guard let course = courses.first(where: { $0.id == courseId }) else { return [courseId] }
+        return CourseLinks.related(courseId: courseId, courseName: course.shortName + " " + course.fullName,
+                                   courses: courses.map { (id: $0.id, name: $0.shortName + " " + $0.fullName, active: $0.active) })
+    }
+
+    private func loadMemory() {
+        guard let database = model.database else { return }
+        memory = try? CourseMemory.viewer(database).summary(courseIds: memoryCourses)
     }
 }
 

@@ -1,12 +1,12 @@
 # University Portal
 
-A native macOS app that brings Saarland University's **Moodle** and **CMS** (cms.sic.saarland) into one place: deadlines, announcements, course materials with a built-in PDF viewer, and your weekly schedule. Everything is stored on your Mac; the app talks only to Moodle and CMS, to ChatGPT if you use Ask, and to GitHub to check for updates.
+A native macOS app that brings Saarland University's **Moodle** and **CMS** (cms.sic.saarland) into one place: deadlines, announcements, course materials with a built-in PDF viewer, and your weekly schedule. Everything is stored on your Mac; the app talks only to Moodle and CMS, to ChatGPT if you use Ask or Solve, and to GitHub to check for updates.
 
 <img src="Config/Icon/icon-1024.png" width="128" alt="University Portal icon">
 
 ## Features
 
-- **Ask your materials**: questions answered from your lecture PDFs, with citations that open the PDF at the cited page. Answers render like [StudyGPT](https://github.com/JayanshJ/studygpt): Markdown, KaTeX math, code, tables, flashcard decks and sandboxed visualizations. Runs on your ChatGPT Plus/Pro plan via "Continue with ChatGPT" (no API key); the PDFs are indexed on your Mac and only the question and matching excerpts are sent to OpenAI.
+- **Ask your materials**: questions answered from your lecture PDFs, with citations that open the PDF at the cited page. Answers render like [StudyGPT](https://github.com/JayanshJ/studygpt): Markdown, KaTeX math, code, tables, flashcard decks and sandboxed visualizations. Runs on your ChatGPT Plus/Pro plan via "Continue with ChatGPT" (no API key); the PDFs are indexed on your Mac. Ask sends only your question and matching excerpts. Solve and the course memory send the course's PDF text to your ChatGPT plan, file by file.
 - **Today**: what's due soon, today's and tomorrow's lectures, upcoming exams, and what's new since your last visit.
 - **Deadlines** from Moodle, grouped by week and month, with mark-as-done. Mark assignments done individually and reopen them at any time.
 - **Announcements** from Moodle news forums and CMS course news in one feed, with a reader.

@@ -22,6 +22,7 @@ struct SettingsView: View {
             }
             cmsSection
             if let ask = model.ask { ChatGPTSection(ask: ask) }
+            if let database = model.database { YourDetailsSection(database: database) }
             HandwritingSection()
             Section("General") {
                 Toggle("Open at login", isOn: Binding(
@@ -333,11 +334,50 @@ private struct UpdatesSection: View {
     }
 }
 
-private struct ChatGPTSection: View {
+/// The student's name, Matrikelnr. and email, for the header and file name of Solve's PDFs. The
+/// name starts as Moodle's until it's changed here.
+struct YourDetailsSection: View {
+    let database: UniDatabase
+    @State private var details = StudentDetails()
+    @State private var saved: StudentDetails?
+
+    var body: some View {
+        Section {
+            TextField("Name", text: $details.name, prompt: Text("First and last name"))
+            TextField("Matrikelnr.", text: $details.matrikelnr, prompt: Text("Student number"))
+            TextField("Email", text: $details.email, prompt: Text("University email"))
+                .textContentType(.emailAddress)
+        } header: {
+            Text("Your Details")
+        } footer: {
+            Text("Solve puts these into the header and file name of a hand-in when the sheet asks for them. Stored on this Mac.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .onAppear {
+            guard saved == nil else { return }
+            details = StudentDetails.load(database)
+            saved = details
+        }
+        .task(id: details) {
+            guard let saved, details != saved else { return }
+            try? await Task.sleep(for: .milliseconds(600))
+            if !Task.isCancelled { save() }
+        }
+        .onDisappear { save() }
+    }
+
+    private func save() {
+        guard let saved, details != saved else { return }
+        try? details.save(database)
+        self.saved = details
+    }
+}
+
+struct ChatGPTSection: View {
     let ask: AskModel
 
     var body: some View {
-        Section("ChatGPT (for Ask)") {
+        Section("ChatGPT (for Ask and Solve)") {
             if let account = ask.account {
                 LabeledContent("Signed in as") {
                     HStack {
@@ -368,9 +408,11 @@ private struct ChatGPTSection: View {
                     .disabled(ask.isSigningIn)
                     if ask.isSigningIn { ProgressView().controlSize(.small) }
                 }
-                Text("Ask uses your ChatGPT Plus or Pro plan, with no API key. Only your question and the matching page excerpts are sent to OpenAI.")
+                Text("Uses your ChatGPT Plus or Pro plan, with no API key.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Text("Ask sends only your question and matching excerpts. Solve and the course memory send the course's PDF text to your ChatGPT plan, file by file.")
+                .font(.caption).foregroundStyle(.secondary)
             if let error = ask.signInError {
                 Text(error).font(.caption).foregroundStyle(.red)
             }

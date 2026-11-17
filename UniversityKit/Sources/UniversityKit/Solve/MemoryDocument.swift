@@ -21,6 +21,15 @@ public struct MemoryDocument: Sendable, Equatable {
     public var unread: [Unread]
 }
 
+/// What the course page shows about a memory: which course holds it, how many files it has read,
+/// and when it last changed.
+public struct MemorySummary: Sendable, Equatable {
+    /// The course the notes and the overview are saved under.
+    public var memoryCourseId: Int64
+    public var files: Int
+    public var updatedAt: Date
+}
+
 extension CourseMemory {
     /// Notes, overview and the digest of every PDF in lecture order, plus the files Solve cannot read.
     public func document(memoryCourseId: Int64, courseIds: [Int64]) throws -> MemoryDocument {
@@ -45,6 +54,28 @@ extension CourseMemory {
         }
         return MemoryDocument(notes: record?.notes ?? "", overview: record?.overview ?? "", files: files,
                               unread: try unread(courseIds: courseIds).map { .init(title: $0.title, reason: $0.reason) })
+    }
+
+    /// The memory of these related courses, or nil when Solve hasn't built one yet. The notes and
+    /// overview belong to the first of `courseIds` that has them (Solve keys them on the
+    /// assignment's course, which may be a related one), else to the first id.
+    public func summary(courseIds: [Int64]) throws -> MemorySummary? {
+        guard let first = courseIds.first else { return nil }
+        let ids = courseIds.map(String.init).joined(separator: ",")
+        return try database.writer.read { db in
+            let records = try CourseMemoryRecord.fetchAll(db, sql: "SELECT * FROM uni_memory WHERE course_id IN (\(ids))")
+            let record = courseIds.lazy.compactMap { id in records.first { $0.courseId == id } }.first
+            let row = try Row.fetchOne(db, sql: """
+                SELECT COUNT(*) AS files, MAX(m.updated_at) AS updated FROM uni_memory_file m
+                JOIN uni_item i ON i.id = m.item_id
+                WHERE m.course_id IN (\(ids)) AND i.deleted_at IS NULL AND m.digest != ''
+                """)
+            let files: Int = row?["files"] ?? 0
+            let fileUpdate: Date? = row?["updated"]
+            guard record != nil || files > 0 else { return nil }
+            let updated = [record?.updatedAt, fileUpdate].compactMap { $0 }.max() ?? .distantPast
+            return MemorySummary(memoryCourseId: record?.courseId ?? first, files: files, updatedAt: updated)
+        }
     }
 
     /// The document as text for the model. Over budget, digests of files not in `relevant` go first

@@ -112,7 +112,8 @@ final class AppModel {
             return
         }
         if let flag = CommandLine.arguments.firstIndex(of: "--solve-check") {
-            // `--solve-check memory <courseId>` builds that course's memory with the real ChatGPT sign-in.
+            // `--solve-check memory <courseId>` builds that course's memory with the real ChatGPT sign-in;
+            // `--solve-check views` photographs the memory view and Settings' details over made-up data.
             let rest = CommandLine.arguments.dropFirst(flag + 1)
             let memoryCourse = rest.first == "memory" ? rest.dropFirst().first.flatMap { Int64($0) } : nil
             let ask = AskModel(database: database, secrets: memoryCourse == nil ? NoSecrets() : secrets,
@@ -124,6 +125,8 @@ final class AppModel {
                 await SolveCheck.indexStats(database)
                 if let memoryCourse {
                     await SolveCheck.memory(ask: ask, courseId: memoryCourse, overview: overview ?? PortalOverview())
+                } else if rest.first == "views" {
+                    await MemoryViewCheck.run(ask: ask)
                 } else {
                     await SolveCheck.run(ask: ask)
                 }

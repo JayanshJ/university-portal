@@ -29,19 +29,13 @@ struct DetailsForm: View {
     private var studentFields: [SubmissionRules.Field] { fields.filter { [.name, .matrikelnr, .email].contains($0) } }
     private var courseFields: [SubmissionRules.Field] { fields.filter { [.group, .tutorial].contains($0) } }
 
-    /// The course details as saved: partner rows left completely blank are dropped.
-    private var cleanedCourse: CourseDetails {
-        var course = course
-        course.partners.removeAll { $0.name.trimmingCharacters(in: .whitespaces).isEmpty && $0.matrikelnr.trimmingCharacters(in: .whitespaces).isEmpty }
-        return course
-    }
 
     private var sheetNumber: Int? { Int(sheet.trimmingCharacters(in: .whitespaces)) }
 
     /// What is still missing with the values typed so far: the model's own rule, so the form and
     /// the model never disagree (values typed in the rules row count too).
     private var stillMissing: [SubmissionRules.Field] {
-        model.missingDetails(student: student, course: cleanedCourse, sheet: fields.contains(.sheet) ? sheet : nil)
+        model.missingDetails(student: student, course: course.cleaned, sheet: fields.contains(.sheet) ? sheet : nil)
     }
 
     var body: some View {
@@ -94,7 +88,7 @@ struct DetailsForm: View {
                         Text("Saved for this course.").foregroundStyle(.secondary)
                     }
                 }
-                if asksPartners { partners }
+                if asksPartners { PartnerSections(course: $course, matrikelLabel: rules.shortLabel(.matrikelnr)) }
                 if fields.contains(.sheet) {
                     Section {
                         TextField("Sheet number", text: $sheet)
@@ -121,8 +115,25 @@ struct DetailsForm: View {
         }
     }
 
-    @ViewBuilder
-    private var partners: some View {
+    /// The name is there, but a `{firstname}` pattern needs two words.
+    private var needsFirstName: Bool {
+        stillMissing.contains(.name) && !student.name.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private func save() {
+        if fields.contains(.sheet) { model.overrideHeader(.sheet, value: sheet) }
+        model.saveDetails(student: student, course: course.cleaned)
+    }
+}
+
+/// "I'm handing in alone" and one section per partner (name and Matrikelnr.), for a course's
+/// details: in the missing-details form and on the course memory page.
+struct PartnerSections: View {
+    @Binding var course: CourseDetails
+    /// What the sheet calls the Matrikelnr.
+    var matrikelLabel = "Matrikelnr."
+
+    var body: some View {
         Section {
             Toggle("I'm handing in alone", isOn: $course.alone)
         } footer: {
@@ -137,7 +148,7 @@ struct DetailsForm: View {
             let number = (course.partners.firstIndex { $0.id == partner.id } ?? 0) + 1
             Section {
                 TextField("Name", text: $partner.name)
-                TextField(rules.shortLabel(.matrikelnr), text: $partner.matrikelnr)
+                TextField(matrikelLabel, text: $partner.matrikelnr)
             } header: {
                 HStack {
                     Text("Partner \(number)")
@@ -165,14 +176,13 @@ struct DetailsForm: View {
             Text("Partners are saved for this course.").foregroundStyle(.secondary)
         }
     }
+}
 
-    /// The name is there, but a `{firstname}` pattern needs two words.
-    private var needsFirstName: Bool {
-        stillMissing.contains(.name) && !student.name.trimmingCharacters(in: .whitespaces).isEmpty
-    }
-
-    private func save() {
-        if fields.contains(.sheet) { model.overrideHeader(.sheet, value: sheet) }
-        model.saveDetails(student: student, course: cleanedCourse)
+extension CourseDetails {
+    /// The details as saved: partner rows left completely blank are dropped.
+    var cleaned: CourseDetails {
+        var course = self
+        course.partners.removeAll { $0.name.trimmingCharacters(in: .whitespaces).isEmpty && $0.matrikelnr.trimmingCharacters(in: .whitespaces).isEmpty }
+        return course
     }
 }
