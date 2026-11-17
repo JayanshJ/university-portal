@@ -157,10 +157,13 @@ private func seedMemory(_ database: UniDatabase, pdfs: [(course: Int, title: Str
     }
 
     @Test func rebuildKeepsNotes() async throws {
-        let (_, _, _, memory) = try setup(two)
+        let (database, _, _, memory) = try setup(two)
         _ = await memory.run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in })
         try memory.setNotes("keep", courseId: 1)
+        try memory.setOverview("mine", courseId: 1)
         try memory.rebuild(memoryCourseId: 1, courseIds: [1])
+        let record = try await database.writer.read { try CourseMemoryRecord.fetchOne($0, key: 1)! }
+        #expect(record.notes == "keep" && record.overviewEdited == false && record.overviewSignature == nil)
         #expect(try memory.pending(courseIds: [1]).count == 2)
     }
 
@@ -181,4 +184,37 @@ private func seedMemory(_ database: UniDatabase, pdfs: [(course: Int, title: Str
         let unread = try memory.unread(courseIds: [1])
         #expect(unread.map(\.reason) == ["scanned", "too large"])
     }
+
+    @Test func anEditDuringARunSurvives() async throws {
+        let database = try UniDatabase.inMemory()
+        let ids = try seedMemory(database, pdfs: two)
+        let holder = Holder()
+        let memory = CourseMemory(database: database, complete: { instructions, input in
+            guard holder.armed else { return "digest" }
+            if input.hasPrefix("File: Lecture 1") { try holder.memory?.setDigest("mine", itemId: ids[0]) }
+            if input.hasPrefix("## ") { try holder.memory?.setOverview("my overview", courseId: 1) }
+            return "digest"
+        }, model: "m")
+        holder.memory = memory
+        _ = await memory.run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in })
+        try await database.writer.write { try $0.execute(sql: "UPDATE uni_index SET sha256 = 'new'") }
+        holder.armed = true
+        _ = await memory.run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in })
+        let (digest, overview) = try await database.writer.read {
+            (try MemoryFile.fetchOne($0, key: ids[0])!.digest, try CourseMemoryRecord.fetchOne($0, key: 1)!.overview)
+        }
+        #expect(digest == "mine" && overview == "my overview")
+    }
+
+    @Test func aDigestEditRefreshesTheOverview() async throws {
+        let (_, ids, model, memory) = try setup(two)
+        _ = await memory.run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in })
+        try memory.setDigest("mine", itemId: ids[0])
+        let before = model.calls.count
+        _ = await memory.run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in })
+        #expect(model.calls.count - before == 1)
+        #expect(model.calls.last?.input.contains("mine") == true)
+    }
 }
+
+final class Holder: @unchecked Sendable { var memory: CourseMemory?; var armed = false }

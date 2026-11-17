@@ -152,6 +152,8 @@ public struct CourseMemory: Sendable {
                 do {
                     let digest = try await digest(itemId: file.id, title: file.title)
                     try await database.writer.write { db in
+                        // A hand edit made while the model was working wins.
+                        if try MemoryFile.fetchOne(db, key: file.id)?.edited == true { return }
                         let row = MemoryFile(itemId: file.id, courseId: file.courseId, sha256: file.sha256,
                                              promptVersion: Self.promptVersion, model: model, digest: digest)
                         try row.save(db)
@@ -162,6 +164,7 @@ public struct CourseMemory: Sendable {
                     let message = error.localizedDescription
                     try await database.writer.write { db in
                         if var row = try MemoryFile.fetchOne(db, key: file.id) {
+                            if row.edited { return }
                             row.error = message
                             try row.update(db)
                         } else {
@@ -194,11 +197,18 @@ public struct CourseMemory: Sendable {
                     try CourseMemoryRecord.fetchOne(db, key: memoryCourseId))
         }
         guard !files.isEmpty, record?.overviewEdited != true else { return }
-        let signature = Self.hash(files.map { "\($0.id):\($0.sha)" }.sorted().joined(separator: "|") + "|v\(Self.promptVersion)")
+        let signature = Self.hash(files.map { "\($0.id):\($0.sha):\(Self.hash($0.digest))" }.sorted().joined(separator: "|") + "|v\(Self.promptVersion)")
         guard record?.overviewSignature != signature else { return }
         let input = files.map { "## \($0.title)\n\($0.digest)" }.joined(separator: "\n\n")
         let overview = try await complete(Self.overviewInstructions, input)
-        try updateRecord(memoryCourseId) { $0.overview = overview; $0.overviewSignature = signature }
+        try await database.writer.write { db in
+            var record = try CourseMemoryRecord.fetchOne(db, key: memoryCourseId) ?? CourseMemoryRecord(courseId: memoryCourseId)
+            if record.overviewEdited { return }  // edited while the model was working
+            record.overview = overview
+            record.overviewSignature = signature
+            record.updatedAt = .now
+            try record.save(db)
+        }
     }
 
     /// One digest for the whole file: in one call, or in parts at page boundaries and condensed.
