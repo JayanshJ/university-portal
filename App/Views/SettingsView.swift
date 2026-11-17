@@ -354,7 +354,7 @@ struct YourDetailsSection: View {
                 .font(.caption).foregroundStyle(.secondary)
         }
         .onAppear {
-            guard saved == nil else { return }
+            // Fresh each time: the Solve panel's details form may have saved newer values.
             details = StudentDetails.load(database)
             saved = details
         }

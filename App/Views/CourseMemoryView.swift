@@ -213,7 +213,8 @@ struct CourseMemoryView: View {
         do {
             summary = try memory.summary(courseIds: courseIds)
             if let key = keyCourse {
-                let fresh = CourseDetails.load(database, courseId: key)
+                // Read as Solve does: this key first, then the related courses.
+                let fresh = CourseDetails.load(database, courseIds: [key] + courseIds.filter { $0 != key })
                 if !loaded { details = fresh }
                 savedDetails = fresh
             }
@@ -390,7 +391,7 @@ private struct EditButtons: View {
     }
 }
 
-/// Light Markdown for summaries: headings, bullets and inline styles; formulas stay as written.
+/// Light Markdown for summaries: headings, bullets and inline styles; formulas stay as written (monospaced).
 struct MemoryMarkdown: View {
     let text: String
 
@@ -438,9 +439,21 @@ struct MemoryMarkdown: View {
         }
     }
 
+    /// Markdown between the formulas; the formulas themselves exactly as written, monospaced.
     static func inline(_ line: String) -> AttributedString {
-        (try? AttributedString(markdown: line, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
-            ?? AttributedString(line)
+        var result = AttributedString()
+        for span in MathSpans.split(line) {
+            switch span {
+            case .text(let text):
+                result += (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+                    ?? AttributedString(text)
+            case .math(let formula):
+                var math = AttributedString(formula)
+                math.font = .system(.body, design: .monospaced)
+                result += math
+            }
+        }
+        return result
     }
 }
 

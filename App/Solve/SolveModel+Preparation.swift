@@ -159,6 +159,13 @@ extension SolveModel {
         reply(to: nil)
     }
 
+    /// Takes over the student's details when they were changed elsewhere (Settings), through the
+    /// same path as the details form.
+    func reloadStudent() {
+        let stored = StudentDetails.load(database)
+        if stored != student { saveDetails(student: stored, course: courseDetails) }
+    }
+
     /// A header value for this PDF only (not saved).
     func overrideHeader(_ field: SubmissionRules.Field, value: String) {
         headerOverrides[field] = value

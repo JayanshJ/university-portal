@@ -140,6 +140,29 @@ import Testing
         #expect(header.map(\.label) == ["Name", "Course", "Sheet"])
     }
 
+    @Test func courseDetailsFallBackToRelatedCourses() throws {
+        let database = try UniDatabase.inMemory()
+        // Typed on the CMS twin's page (course 2); Solve runs from the Moodle course (1).
+        try CourseDetails(group: "7").save(database, courseId: 2)
+        #expect(CourseDetails.load(database, courseIds: [1, 2]).group == "7")
+        // Once the course itself has details, they win.
+        try CourseDetails(group: "4").save(database, courseId: 1)
+        #expect(CourseDetails.load(database, courseIds: [1, 2]).group == "4")
+        #expect(CourseDetails.load(database, courseIds: [3]) == CourseDetails())
+        #expect(CourseDetails.load(database, courseIds: []) == CourseDetails())
+    }
+
+    @Test func mathSpansKeepFormulasAsWritten() {
+        #expect(MathSpans.split("Sei $u = g(x)$, $du = g'(x)\\,dx$ und **fett**") == [
+            .text("Sei "), .math("$u = g(x)$"), .text(", "), .math("$du = g'(x)\\,dx$"), .text(" und **fett**"),
+        ])
+        #expect(MathSpans.split("$$a_1 * b_2 * c$$ end") == [.math("$$a_1 * b_2 * c$$"), .text(" end")])
+        #expect(MathSpans.split("costs \\$5 and $ alone") == [.text("costs \\$5 and $ alone")])
+        #expect(MathSpans.split("$x \\$ y$") == [.math("$x \\$ y$")])
+        #expect(MathSpans.split("plain") == [.text("plain")])
+        #expect(MathSpans.split("$$") == [.text("$$")])
+    }
+
     @Test func courseDetailsWithoutAloneDecode() throws {
         let json = #"{"group": "Gruppe 3", "tutorial": "Di 10", "partners": []}"#
         let details = try JSONDecoder().decode(CourseDetails.self, from: Data(json.utf8))

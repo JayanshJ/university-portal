@@ -159,7 +159,8 @@ final class SolveModel {
         let numbers = SheetFinder.sheetNumbers(in: assignment.name)
         sheetNumber = numbers.count == 1 ? numbers.first : nil
         student = StudentDetails.load(database)
-        courseDetails = courseIds.first.map { CourseDetails.load(database, courseId: $0) } ?? CourseDetails()
+        // Its own course first, then the related ones (details typed on a twin course's page).
+        courseDetails = CourseDetails.load(database, courseIds: courseIds)
         self.deadline = deadline
         self.candidates = candidates
         self.openMaterial = openMaterial

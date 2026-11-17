@@ -64,6 +64,10 @@ struct SolvePanel: View {
         // However the panel goes away (closed, sheet dismissed), nothing keeps calling ChatGPT.
         .onDisappear { model.stop() }
         .onChange(of: model.signedIn) { _, signedIn in if signedIn { model.start() } }
+        // Back from Settings (or anywhere): details changed there reach this PDF.
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            model.reloadStudent()
+        }
         .sheet(isPresented: $settingUpHandwriting, onDismiss: { model.handwritingChanged() }) { HandwritingSetupView() }
         .fileImporter(isPresented: $pickingFile, allowedContentTypes: [.pdf]) { result in
             guard case .success(let url) = result else { return }

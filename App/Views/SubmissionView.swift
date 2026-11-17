@@ -270,9 +270,11 @@ struct SubmissionView: View {
     /// The memory view may have changed the course's group, tutorial or partners: the panel takes
     /// them over (and solves, if it was waiting for them).
     private func memoryClosed() {
-        guard let solving, let courseId = solving.courseIds.first else { return }
-        let saved = CourseDetails.load(solving.database, courseId: courseId)
-        if saved != solving.courseDetails { solving.saveDetails(student: solving.student, course: saved) }
+        guard let solving, !solving.courseIds.isEmpty else { return }
+        let saved = CourseDetails.load(solving.database, courseIds: solving.courseIds)
+        if saved != solving.courseDetails {
+            solving.saveDetails(student: StudentDetails.load(solving.database), course: saved)
+        }
     }
 
     private var allowedTypes: [UTType] {

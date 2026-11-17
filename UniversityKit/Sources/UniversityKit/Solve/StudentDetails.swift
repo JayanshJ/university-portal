@@ -69,6 +69,13 @@ public struct CourseDetails: Codable, Sendable, Equatable {
         return all[String(courseId)] ?? CourseDetails()
     }
 
+    /// The details saved for the first of `courseIds` that has any: the course's own first, then
+    /// its related courses (a twin page may have been where they were typed).
+    public static func load(_ db: UniDatabase, courseIds: [Int64]) -> CourseDetails {
+        let all = (try? db.state(.courseDetails, as: [String: CourseDetails].self)) ?? [:]
+        return courseIds.lazy.compactMap { all[String($0)] }.first ?? CourseDetails()
+    }
+
     public func save(_ db: UniDatabase, courseId: Int64) throws {
         try db.updateState(.courseDetails, default: [String: CourseDetails]()) {
             $0[String(courseId)] = self
