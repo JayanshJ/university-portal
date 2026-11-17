@@ -38,7 +38,10 @@ struct SolvePanel: View {
             if model.signedIn {
                 sheetBar
                 Divider()
-                if model.rules != nil && !model.needsSheet {
+                if model.rulesError != nil && model.rules == nil && !model.needsSheet {
+                    rulesFailedRow
+                    Divider()
+                } else if model.rules != nil && !model.needsSheet {
                     rulesRow
                     Divider()
                 }
@@ -62,7 +65,7 @@ struct SolvePanel: View {
         .background(Theme.paper)
         .task { model.start() }
         // However the panel goes away (closed, sheet dismissed), nothing keeps calling ChatGPT.
-        .onDisappear { model.stop() }
+        .onDisappear { model.close() }
         .onChange(of: model.signedIn) { _, signedIn in if signedIn { model.start() } }
         // Back from Settings (or anywhere): details changed there reach this PDF.
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
@@ -192,7 +195,9 @@ struct SolvePanel: View {
         } else if case .reading(let message) = model.phase {
             progress(message)
         } else if !model.hasSolution && model.solution.isEmpty {
-            if case .failed(let message) = model.phase {
+            if model.rulesError != nil && model.rules == nil && !model.isBusy {
+                waitingForRules
+            } else if case .failed(let message) = model.phase {
                 failure("Couldn't Solve It", message) { Button("Try Again") { model.resolve() } }
             } else {
                 progress("Solving…")
@@ -323,12 +328,46 @@ struct SolvePanel: View {
 
     // MARK: Submission rules
 
+    /// The rules call failed: Solve waits, the choices are in the rules row above.
+    private var waitingForRules: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "list.bullet.rectangle").font(.system(size: 28)).foregroundStyle(.secondary)
+            Text("The solution is written once the submission rules are read.")
+                .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+        }
+        .padding(30)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// "Couldn't read the submission rules." with Retry (only the rules call) and Continue Without
+    /// Rules, in the style of the not-read banner.
+    private var rulesFailedRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.dueSoon)
+            Text("Couldn't read the submission rules.")
+                .help(model.rulesError ?? "")
+            Spacer(minLength: 4)
+            Button("Continue Without Rules") { model.continueWithoutRules() }
+                .controlSize(.small)
+                .disabled(model.isBusy)
+                .help("Write the solution with only your name in the header")
+            Button("Retry") { model.retryRules() }
+                .controlSize(.small)
+                .disabled(model.isBusy)
+                .help("Read the sheet's submission rules again")
+        }
+        .font(.callout)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+    }
+
     /// "Submission rules": the header fields and the file name; expanded, the values (editable for
     /// this PDF), the other rules and the sheet's own words.
     private var rulesRow: some View {
-        let rules = model.rules ?? .none
+        let rules = model.activeRules
         let partner: Set<SubmissionRules.Field> = [.partnerNames, .partnerMatrikelnr]
         let fields = rules.header.filter { $0 != .sheet && !(model.courseDetails.alone && partner.contains($0)) }
+        let dropped = SubmissionRules.droppable.filter(model.droppedFields.contains)
         let needsSheet = rules.filename?.lowercased().contains("{sheet}") == true
         return VStack(alignment: .leading, spacing: 0) {
             Button {
@@ -362,7 +401,25 @@ struct SolvePanel: View {
                                 GridRow {
                                     Text(rules.shortLabel(field)).foregroundStyle(.secondary)
                                         .gridColumnAlignment(.trailing)
-                                    HeaderValueField(model: model, field: field, label: rules.shortLabel(field))
+                                    HStack(spacing: 4) {
+                                        HeaderValueField(model: model, field: field, label: rules.shortLabel(field))
+                                        Button { model.setNeeded(field, false) } label: { Image(systemName: "minus.circle") }
+                                            .buttonStyle(.borderless)
+                                            .help("Not needed for this sheet: leave \(rules.shortLabel(field)) out of this PDF's header and file name")
+                                            .accessibilityLabel("\(rules.shortLabel(field)) not needed for this sheet")
+                                    }
+                                }
+                            }
+                            ForEach(dropped, id: \.self) { field in
+                                GridRow {
+                                    Text(rules.shortLabel(field)).foregroundStyle(.tertiary)
+                                    HStack(spacing: 6) {
+                                        Text("Not needed for this sheet").foregroundStyle(.secondary)
+                                        Button("Add Back") { model.setNeeded(field, true) }
+                                            .buttonStyle(.borderless)
+                                            .controlSize(.small)
+                                            .help("Put \(rules.shortLabel(field)) back into this PDF's header")
+                                    }
                                 }
                             }
                             if needsSheet {
@@ -617,10 +674,12 @@ struct SolvePanel: View {
             if acceptsFiles {
                 Button("Add to Submission") {
                     Task {
+                        // The format of the PDF being attached, not whatever is shown once it's made.
+                        let format = model.format
                         await export {
                             let attachment = try await model.attachment()
                             attach(attachment.filename, attachment.data)
-                            added = "Added \(model.format == .handwritten ? "handwritten" : "typed") PDF"
+                            added = "Added \(format == .handwritten ? "handwritten" : "typed") PDF"
                         }
                     }
                 }
@@ -648,7 +707,7 @@ struct SolvePanel: View {
         ContentUnavailableView {
             Label("Continue with ChatGPT", systemImage: "sparkles")
         } description: {
-            Text("Solve uses your ChatGPT plan (the same sign-in as Ask). The assignment's text and attached sheets are sent to OpenAI.")
+            Text("Solve uses your ChatGPT plan (the same sign-in as Ask). The assignment's text and attached sheets are sent to OpenAI. Solve and the course memory send the course's PDF text to your ChatGPT plan, file by file.")
         } actions: {
             if ask.account == nil {
                 Button("Continue with ChatGPT") { Task { await ask.signIn() } }

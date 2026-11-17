@@ -243,7 +243,7 @@ struct SubmissionView: View {
                            openMemory: { heading in
                                if !solving.courseIds.isEmpty { memorySheet = MemoryTarget(model: solving, heading: heading) }
                            },
-                           close: { solving.stop(); withAnimation { self.solving = nil } })
+                           close: { solving.close(); withAnimation { self.solving = nil } })
                     .frame(width: 520)
                     .transition(.move(edge: .trailing))
             }

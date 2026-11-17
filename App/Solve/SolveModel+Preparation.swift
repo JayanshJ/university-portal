@@ -9,14 +9,24 @@ extension SolveModel {
     /// Before the first reply: the course memory, the files it can't read, the sheet's submission
     /// rules, and the student's details those rules need.
     func prepare() {
+        guard !closed else { return }
         preparing = Task {
             defer { preparing = nil }
             do {
                 if !memoryReady { await buildMemory() }
                 try Task.checkCancellation()
                 if rules == nil {
+                    rulesError = nil
                     let task = try await readTask()
-                    let read = try await readRules(task)
+                    let read: SubmissionRules
+                    do {
+                        read = try await readRules(task)
+                    } catch let failure as RulesFailure {
+                        // Not "no rules": wait for Retry or Continue Without Rules.
+                        rulesError = failure.message
+                        phase = .idle
+                        return
+                    }
                     try Task.checkCancellation()  // another sheet was chosen meanwhile
                     rules = read
                 }
@@ -102,10 +112,30 @@ extension SolveModel {
         }
     }
 
-    /// One call: the sheet's header fields, file name pattern and other submission rules. Falls back
-    /// to `.none` when ChatGPT fails.
+    /// The rules call failed (or its reply held no rules): unknown, not "no rules".
+    struct RulesFailure: Error {
+        var message: String
+    }
+
+    /// Reads the rules again after a failure; continues to the solution when they're read.
+    func retryRules() {
+        guard rules == nil, !isBusy, preparing == nil else { return }
+        rulesError = nil
+        prepare()
+    }
+
+    /// The student chose to go on without the sheet's rules: only the name is asked for.
+    func continueWithoutRules() {
+        guard rules == nil, !isBusy, preparing == nil else { return }
+        rules = SubmissionRules.none
+        rulesError = nil
+        prepare()
+    }
+
+    /// One call: the sheet's header fields, file name pattern and other submission rules. Throws
+    /// `RulesFailure` when the call fails or its reply holds no rules.
     func readRules(_ task: (text: String, images: [Data])) async throws -> SubmissionRules {
-        guard let model = ask.model else { return .none }
+        guard let model = ask.model else { throw RulesFailure(message: AskModel.describe(ChatGPTError.notSignedIn)) }
         phase = .rules
         var parts = ["# Assignment: \(assignment.name)"]
         if !assignment.intro.isEmpty { parts.append(assignment.intro) }
@@ -116,10 +146,15 @@ extension SolveModel {
         do {
             let reply = try await ask.client.complete(model: model, instructions: SubmissionRules.instructions,
                                                       input: [ChatMessage(role: .user, content: parts.joined(separator: "\n\n"))])
-            return SubmissionRules.parse(reply)
+            guard let rules = SubmissionRules.decode(reply) else {
+                throw RulesFailure(message: "The answer held no rules.")
+            }
+            return rules
+        } catch let failure as RulesFailure {
+            throw failure
         } catch {
             if error is CancellationError || Task.isCancelled { throw CancellationError() }
-            return .none
+            throw RulesFailure(message: AskModel.describe(error))
         }
     }
 
@@ -135,7 +170,7 @@ extension SolveModel {
         var overrides = headerOverrides
         if let sheet { overrides[.sheet] = sheet }
         let number = overrides[.sheet].flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } ?? sheetNumber
-        return (rules ?? .none).missing(student: student ?? self.student, course: course ?? courseDetails, sheet: number).filter {
+        return activeRules.missing(student: student ?? self.student, course: course ?? courseDetails, sheet: number).filter {
             // The sheet number counts only as a number (the file name needs one); `missing` checked it.
             $0 == .sheet || (overrides[$0] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }

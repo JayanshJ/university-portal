@@ -25,9 +25,21 @@ struct DetailsForm: View {
     }
 
     private var rules: SubmissionRules { model.rules ?? .none }
-    private var asksPartners: Bool { fields.contains(.partnerNames) || fields.contains(.partnerMatrikelnr) }
-    private var studentFields: [SubmissionRules.Field] { fields.filter { [.name, .matrikelnr, .email].contains($0) } }
-    private var courseFields: [SubmissionRules.Field] { fields.filter { [.group, .tutorial].contains($0) } }
+    /// The missing fields the student hasn't marked "Not needed for this sheet".
+    private var shown: [SubmissionRules.Field] { fields.filter { !model.droppedFields.contains($0) } }
+    private var partnerFields: [SubmissionRules.Field] { shown.filter { [.partnerNames, .partnerMatrikelnr].contains($0) } }
+    private var asksPartners: Bool { !partnerFields.isEmpty }
+    private var studentFields: [SubmissionRules.Field] { shown.filter { [.name, .matrikelnr, .email].contains($0) } }
+    private var courseFields: [SubmissionRules.Field] { shown.filter { [.group, .tutorial].contains($0) } }
+    private var droppedHere: [SubmissionRules.Field] { fields.filter { model.droppedFields.contains($0) } }
+
+    /// "Not Needed": the sheet doesn't really ask for this field. This PDF only; nothing is filled in.
+    private func notNeeded(_ field: SubmissionRules.Field) -> some View {
+        Button("Not Needed") { model.setNeeded(field, false) }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .help("Not needed for this sheet: leave \(rules.shortLabel(field)) out of this PDF's header and file name")
+    }
 
 
     private var sheetNumber: Int? { Int(sheet.trimmingCharacters(in: .whitespaces)) }
@@ -54,13 +66,16 @@ struct DetailsForm: View {
                 if !studentFields.isEmpty {
                     Section {
                         ForEach(studentFields, id: \.self) { field in
-                            switch field {
-                            case .name:
-                                TextField("Name", text: $student.name)
-                            case .matrikelnr:
-                                TextField(rules.shortLabel(.matrikelnr), text: $student.matrikelnr)
-                            default:
-                                TextField(rules.shortLabel(.email), text: $student.email)
+                            HStack {
+                                switch field {
+                                case .name:
+                                    TextField("Name", text: $student.name)
+                                case .matrikelnr:
+                                    TextField(rules.shortLabel(.matrikelnr), text: $student.matrikelnr)
+                                default:
+                                    TextField(rules.shortLabel(.email), text: $student.email)
+                                }
+                                notNeeded(field)
                             }
                         }
                     } header: {
@@ -76,10 +91,13 @@ struct DetailsForm: View {
                 if !courseFields.isEmpty {
                     Section {
                         ForEach(courseFields, id: \.self) { field in
-                            if field == .group {
-                                TextField(rules.shortLabel(.group), text: $course.group)
-                            } else {
-                                TextField(rules.shortLabel(.tutorial), text: $course.tutorial)
+                            HStack {
+                                if field == .group {
+                                    TextField(rules.shortLabel(.group), text: $course.group)
+                                } else {
+                                    TextField(rules.shortLabel(.tutorial), text: $course.tutorial)
+                                }
+                                notNeeded(field)
                             }
                         }
                     } header: {
@@ -88,7 +106,37 @@ struct DetailsForm: View {
                         Text("Saved for this course.").foregroundStyle(.secondary)
                     }
                 }
-                if asksPartners { PartnerSections(course: $course, matrikelLabel: rules.shortLabel(.matrikelnr)) }
+                if asksPartners {
+                    Section {
+                        ForEach(partnerFields, id: \.self) { field in
+                            HStack {
+                                Text(field == .partnerNames ? "Partner names" : "Partner \(rules.shortLabel(.matrikelnr))")
+                                Spacer()
+                                notNeeded(field)
+                            }
+                        }
+                    } header: {
+                        Text("Partners")
+                    }
+                    PartnerSections(course: $course, matrikelLabel: rules.shortLabel(.matrikelnr))
+                }
+                if !droppedHere.isEmpty {
+                    Section {
+                        ForEach(droppedHere, id: \.self) { field in
+                            HStack {
+                                Text(rules.shortLabel(field)).foregroundStyle(.secondary)
+                                Spacer()
+                                Button("Add Back") { model.setNeeded(field, true) }
+                                    .buttonStyle(.borderless)
+                                    .controlSize(.small)
+                            }
+                        }
+                    } header: {
+                        Text("Not Needed for This Sheet")
+                    } footer: {
+                        Text("Left out of this PDF's header and file name. Nothing is filled in for them.").foregroundStyle(.secondary)
+                    }
+                }
                 if fields.contains(.sheet) {
                     Section {
                         TextField("Sheet number", text: $sheet)

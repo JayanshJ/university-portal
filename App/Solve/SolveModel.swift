@@ -86,8 +86,14 @@ final class SolveModel {
     }
 
     let assignment: AssignmentRules
-    /// The sheet's submission rules (header fields, file name), once read.
+    /// The sheet's submission rules (header fields, file name), once read. Nil while unknown,
+    /// including after a failed rules call (see `rulesError`).
     var rules: SubmissionRules?
+    /// Why the rules call failed; Solve waits until it is retried or the student continues
+    /// without rules.
+    var rulesError: String?
+    /// Fields the student marked "Not needed for this sheet" for this PDF (not saved).
+    private(set) var droppedFields: Set<SubmissionRules.Field> = []
     /// Course PDFs Solve cannot read, with the reason.
     var unread: [(title: String, reason: String)] = []
     /// What the current solution drew on, from the finished reply.
@@ -121,6 +127,10 @@ final class SolveModel {
     @ObservationIgnored private var converting: Task<Void, Never>?
     /// Memory, rules and details before the first reply.
     @ObservationIgnored var preparing: Task<Void, Never>?
+    /// Waits for the old sheet's work to stop, then solves the newly chosen one.
+    @ObservationIgnored private var choosing: Task<Void, Never>?
+    /// The panel closed: nothing starts another (paid) call until it opens again.
+    @ObservationIgnored private(set) var closed = false
     /// The memory build, cancelled on its own by Skip for Now.
     @ObservationIgnored var memoryBuild: Task<CourseMemory.Progress, Never>?
     /// Ends the wait for indexing (indexing finished, or Skip for Now).
@@ -137,6 +147,8 @@ final class SolveModel {
     /// The handwriting markup of a revision (converted, and repaired if needed), so a new header
     /// writes it again without asking ChatGPT.
     @ObservationIgnored private var markup: (revision: Int, text: String)?
+    /// ChatGPT calls made to turn solutions into handwriting markup (the debug checks log it).
+    @ObservationIgnored private(set) var conversionCalls = 0
     /// The PDFs made for the current header, per format: what the preview shows and what is attached.
     private(set) var output: [Format: (revision: Int, data: Data)] = [:]
     /// Why the PDF of the current format couldn't be made.
@@ -179,6 +191,7 @@ final class SolveModel {
     // MARK: - Solving and editing
 
     func start() {
+        closed = false
         guard messages.isEmpty, signedIn, !needsSheet, !isBusy, preparing == nil else { return }
         if case .needsDetails = phase { return }
         prepare()
@@ -188,25 +201,32 @@ final class SolveModel {
     func choose(_ sheet: Sheet) {
         replying?.cancel()
         preparing?.cancel()
+        choosing?.cancel()
         self.sheet = sheet
         sheetChosen = true
         task = nil
         sheetText = ""
         sheetItemId = nil
         rules = nil
+        rulesError = nil
         headerOverrides = [:]
+        droppedFields = []
         invalidateOutput()
         if case .needsDetails = phase { phase = .idle }
-        Task {
+        choosing = Task {
             await replying?.value
             await preparing?.value
+            // Stopped or closed meanwhile (or another sheet chosen): don't pay for a solve.
+            guard !Task.isCancelled else { return }
+            choosing = nil
             resolve()
         }
     }
 
     func send(_ text: String) {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isBusy, signedIn else { return }
+        // Unknown rules: nothing is written until they're read or the student continues without them.
+        guard !text.isEmpty, !isBusy, signedIn, rules != nil else { return }
         if case .needsDetails = phase { return }
         messages.append(Message(role: .user, text: text))
         reply(to: text)
@@ -218,13 +238,21 @@ final class SolveModel {
     func stop() {
         replying?.cancel()
         preparing?.cancel()
+        choosing?.cancel()
+        choosing = nil
         memoryBuild?.cancel()
         converting?.cancel()
     }
 
+    /// The panel went away: stops everything, and nothing new starts until `start()`.
+    func close() {
+        closed = true
+        stop()
+    }
+
     /// Starts over: a fresh solution from the task.
     func resolve() {
-        guard !isBusy, preparing == nil else { return }
+        guard !closed, !isBusy, preparing == nil else { return }
         messages = []
         solution = ""
         revision = 0
@@ -261,9 +289,20 @@ final class SolveModel {
         return (student, course)
     }
 
+    /// The rules for this PDF: as read (or none), without the fields marked not needed.
+    var activeRules: SubmissionRules { (rules ?? .none).dropping(droppedFields) }
+
+    /// Marks a field "Not needed for this sheet" (or needed again) for this PDF: it leaves the
+    /// header, the file name and the details asked for. No value is filled in for it.
+    func setNeeded(_ field: SubmissionRules.Field, _ needed: Bool) {
+        guard SubmissionRules.droppable.contains(field) else { return }
+        if needed { droppedFields.remove(field) } else { droppedFields.insert(field) }
+        headerChanged()
+    }
+
     /// The rows at the top of the PDF: the rules' fields, the course and the sheet; empty rows are left out.
     var headerRows: [(label: String, value: String)] {
-        let rules = rules ?? .none
+        let rules = activeRules
         let (student, course) = effectiveDetails
         var rows = rules.header(student: student, course: course, courseName: courseName, sheetTitle: assignment.name)
         // Partner rows can't come from a copy of the details: override them by position.
@@ -430,7 +469,10 @@ final class SolveModel {
         if request != nil || excerpts.isEmpty {
             let queries = request.map { [$0] } ?? SolveContext.tasks(in: sheetText.isEmpty ? task : sheetText)
             let already = Set(excerpts.map { "\($0.itemId):\($0.page)" })
-            if let new = try? SolveContext.excerpts(retriever: retriever, tasks: queries, courseIds: courseIds, already: already) {
+            // One budget for the whole Solve: follow-ups get what the earlier excerpts left.
+            let budget = SolveContext.excerptBudget - excerpts.reduce(0) { $0 + $1.text.count }
+            if budget > 0, let new = try? SolveContext.excerpts(retriever: retriever, tasks: queries, courseIds: courseIds,
+                                                                already: already, budget: budget) {
                 excerpts += new
             }
         }
@@ -467,6 +509,10 @@ final class SolveModel {
         extracted from the exercise sheet (formulas may be garbled), and usually the sheet's pages as \
         images. Solve exactly the tasks on that sheet. Never ask the student to send the assignment; \
         if something is unreadable or missing, solve what is there and say in your note what you assumed.
+
+        The app puts the header on the PDF itself: the student's name and IDs, the course and the \
+        sheet's title. So start the solution directly with the first task: no title, no sheet name, \
+        and no name, ID or date fields.
 
         Write the solution the way a strong student hands it in: every task and subtask in order, \
         each with a heading (e.g. "## Aufgabe 1", then "(a)", "(b)"), the essential steps and \
@@ -571,6 +617,7 @@ final class SolveModel {
     /// Markdown + LaTeX → Math Writer markup, or a repair of markup the validator rejected.
     private func convert(_ text: String, fixing errors: [String]?) async throws -> String {
         guard let model = ask.model else { throw ChatGPTError.notSignedIn }
+        conversionCalls += 1
         let request = if let errors {
             "This Math Writer markup fails validation. Fix exactly these problems and return the full corrected markup:\n"
                 + errors.map { "- \($0)" }.joined(separator: "\n") + "\n\n" + text
@@ -630,6 +677,20 @@ final class SolveModel {
         makePreview()
     }
 
+    #if DEBUG
+    /// Debug screenshots (--solve-check): the rules call failed before the first solution.
+    func showDemoRulesFailed(_ message: String) {
+        messages = []
+        solution = ""
+        revision = 0
+        rules = nil
+        rulesError = message
+        phase = .idle
+        handwriting = .none
+        invalidateOutput()
+    }
+    #endif
+
     /// Debug screenshots (--solve-check): puts the panel into a state without running it.
     func showDemoState(phase: Phase, unread: [(title: String, reason: String)] = [],
                        sources: [SolveReply.Source] = [], excerpts: [Excerpt] = [],
@@ -648,7 +709,7 @@ final class SolveModel {
     var suggestedFilename: String {
         let (student, course) = effectiveDetails
         let sheet = headerOverrides[.sheet].flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } ?? sheetNumber
-        return (rules ?? .none).filename(student: student, course: course, assignment: assignment.name, sheet: sheet, courseShort: courseShort)
+        return activeRules.filename(student: student, course: course, assignment: assignment.name, sheet: sheet, courseShort: courseShort)
     }
 
     /// The solution as a PDF in the chosen format, with the header: the cached one for this
