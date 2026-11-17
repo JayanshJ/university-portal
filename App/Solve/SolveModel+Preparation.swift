@@ -145,8 +145,13 @@ extension SolveModel {
     func saveDetails(student: StudentDetails, course: CourseDetails) {
         try? student.save(database)
         if let courseId = courseIds.first { try? course.save(database, courseId: courseId) }
-        self.student = student
         courseDetails = course
+        studentChanged(student)
+    }
+
+    /// Uses new student details (already saved) and, when Solve was waiting for them, solves.
+    private func studentChanged(_ student: StudentDetails) {
+        self.student = student
         headerChanged()
         guard case .needsDetails = phase else { return }
         // Never put a blank identity field into the PDF without asking: stay until all are given.
@@ -159,11 +164,12 @@ extension SolveModel {
         reply(to: nil)
     }
 
-    /// Takes over the student's details when they were changed elsewhere (Settings), through the
-    /// same path as the details form.
+    /// Takes over the student's details when they were changed elsewhere (Settings).
     func reloadStudent() {
         let stored = StudentDetails.load(database)
-        if stored != student { saveDetails(student: stored, course: courseDetails) }
+        // Course details stay where they are: copying them under this course would hide later
+        // edits made on a related course's page.
+        if stored != student { studentChanged(stored) }
     }
 
     /// A header value for this PDF only (not saved).
