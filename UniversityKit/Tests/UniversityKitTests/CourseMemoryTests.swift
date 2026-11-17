@@ -217,4 +217,81 @@ private func seedMemory(_ database: UniDatabase, pdfs: [(course: Int, title: Str
     }
 }
 
+@Suite struct MemoryDocumentTests {
+    private func setup(_ count: Int) async throws -> (UniDatabase, [Int64], CourseMemory) {
+        let database = try UniDatabase.inMemory()
+        let ids = try seedMemory(database, pdfs: (0..<count).map { (1, "Lecture \($0 + 1)", ["p"]) })
+        let memory = CourseMemory(database: database, complete: FakeModel().complete, model: "m")
+        _ = await memory.run(courseIds: [1], memoryCourseId: 1, onProgress: { _ in })
+        return (database, ids, memory)
+    }
+
+    @Test func documentOrderIsNotesOverviewFiles() async throws {
+        let (_, ids, memory) = try await setup(2)
+        try memory.setNotes("MY NOTES", courseId: 1)
+        try memory.setOverview("THE OVERVIEW", courseId: 1)
+        let document = try memory.document(memoryCourseId: 1, courseIds: [1])
+        #expect(document.files.map(\.itemId) == ids)
+        let text = CourseMemory.text(document, keeping: [])
+        let positions = ["## Your notes", "MY NOTES", "## Course overview", "THE OVERVIEW", "## Lecture 1", "## Lecture 2"]
+            .map { text.range(of: $0)?.lowerBound }
+        #expect(positions.allSatisfy { $0 != nil })
+        #expect(positions.compactMap { $0 } == positions.compactMap { $0 }.sorted())
+    }
+
+    @Test func lecturesFollowPositionThenDate() async throws {
+        let (database, ids, memory) = try await setup(2)
+        try await database.writer.write { db in
+            try db.execute(sql: "UPDATE uni_item SET position = 2 WHERE id = ?", arguments: [ids[0]])
+            try db.execute(sql: "UPDATE uni_item SET position = 1 WHERE id = ?", arguments: [ids[1]])
+        }
+        #expect(try memory.document(memoryCourseId: 1, courseIds: [1]).files.map(\.itemId) == [ids[1], ids[0]])
+    }
+
+    @Test func overBudgetDropsUnrelatedFilesFirst() async throws {
+        let (_, ids, memory) = try await setup(5)
+        for id in ids { try memory.setDigest(String(repeating: "x", count: 30_000), itemId: id) }
+        try memory.setNotes("N", courseId: 1)
+        try memory.setOverview("O", courseId: 1)
+        let document = try memory.document(memoryCourseId: 1, courseIds: [1])
+        let text = CourseMemory.text(document, keeping: [ids[2]], budget: 100_000)
+        #expect(text.count <= 100_000)
+        #expect(text.contains("## Your notes") && text.contains("## Course overview"))
+        #expect(text.contains("## Lecture 3"))
+        #expect(!text.contains("## Lecture 5"))
+    }
+
+    @Test func notesAndOverviewAreNeverDropped() async throws {
+        let (_, ids, memory) = try await setup(2)
+        try memory.setNotes(String(repeating: "n", count: 500), courseId: 1)
+        try memory.setOverview(String(repeating: "o", count: 500), courseId: 1)
+        for id in ids { try memory.setDigest(String(repeating: "x", count: 1000), itemId: id) }
+        let document = try memory.document(memoryCourseId: 1, courseIds: [1])
+        let text = CourseMemory.text(document, keeping: ids, budget: 100)
+        #expect(text.contains(String(repeating: "n", count: 500)))
+        #expect(text.contains(String(repeating: "o", count: 500)))
+        #expect(!text.contains("## Lecture"))
+    }
+
+    @Test func changedSinceEditIsReported() async throws {
+        let (database, ids, memory) = try await setup(2)
+        try memory.setDigest("mine", itemId: ids[0])
+        try memory.setDigest("mine too", itemId: ids[1])
+        try await database.writer.write { db in
+            try db.execute(sql: "UPDATE uni_index SET sha256 = 'new' WHERE item_id = ?", arguments: [ids[0]])
+        }
+        let files = try memory.document(memoryCourseId: 1, courseIds: [1]).files
+        #expect(files[0].edited && files[0].changedSinceEdit)
+        #expect(files[1].edited && !files[1].changedSinceEdit)
+    }
+
+    @Test func documentListsUnreadFiles() async throws {
+        let (database, ids, memory) = try await setup(1)
+        try await database.writer.write { db in
+            try db.execute(sql: "DELETE FROM uni_index WHERE item_id = ?", arguments: [ids[0]])
+        }
+        #expect(try memory.document(memoryCourseId: 1, courseIds: [1]).unread == [.init(title: "Lecture 1", reason: "not indexed yet")])
+    }
+}
+
 final class Holder: @unchecked Sendable { var memory: CourseMemory?; var armed = false }
